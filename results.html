@@ -190,15 +190,32 @@ function renderResults(data) {
     document.getElementById('winner-section').classList.remove('hidden');
   }
 
-  // Candidate results
+  // Candidate results — tambah foto thumbnail kecil di samping nama
   const resultEl = document.getElementById('candidate-results');
   const totalVotes = stats.totalVotes || 0;
   resultEl.innerHTML = candidates.map((c, i) => {
-    const pct = c.percentage || 0;
-    const isWinner = winner && !winner.isTied && winner.candidate.id === c.id;
+    const pct        = c.percentage || 0;
+    const isWinner   = winner && !winner.isTied && winner.candidate.id === c.id;
+    const photoSrc   = Utils.buildDriveImgUrl(c.photoUrl);
+    const pairSrc    = Utils.buildDriveImgUrl(c.pairPhotoUrl);
     return `
       <div class="flex items-center gap-3 ${isWinner ? 'bg-primary-50 -mx-2 px-2 py-2 rounded-xl' : ''}">
-        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0
+        <!-- Foto paslon kecil -->
+        <div class="hidden sm:flex items-center gap-1 flex-shrink-0">
+          <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+            ${photoSrc
+              ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-full object-cover object-top"
+                     onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-xs\\'></i>'">`
+              : '<i class="fa-solid fa-user text-gray-400 text-xs"></i>'}
+          </div>
+          ${pairSrc ? `
+          <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center -ml-2">
+            <img src="${Utils.escapeHtml(pairSrc)}" class="w-full h-full object-cover object-top"
+                 onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-xs\\'></i>'">
+          </div>` : ''}
+        </div>
+        <!-- Nomor urut (mobile) -->
+        <div class="sm:hidden w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0
           ${isWinner ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}">
           ${c.orderNumber}
         </div>
@@ -210,7 +227,7 @@ function renderResults(data) {
             ${isWinner ? '<span class="badge badge-success flex-shrink-0"><i class="fa-solid fa-trophy fa-xs"></i> Terpilih</span>' : ''}
           </div>
           <div class="progress-bar h-2.5">
-            <div class="progress-fill ${CHART_COLORS[i % CHART_COLORS.length] ? '' : 'bg-primary-500'}"
+            <div class="progress-fill"
               style="width:${pct}%; background-color:${CHART_COLORS[i % CHART_COLORS.length]}"></div>
           </div>
         </div>
