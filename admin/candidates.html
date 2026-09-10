@@ -142,18 +142,19 @@ async function loadCandidates() {
 }
 
 function renderCandidates() {
-  document.getElementById('candidates-grid').innerHTML = _candidates.map(c => `
+  const grid = document.getElementById('candidates-grid');
+  grid.innerHTML = _candidates.map(c => `
     <div class="card overflow-hidden">
       <div class="grid grid-cols-2 gap-0">
         <div class="relative bg-gray-100">
           ${c.photoUrl
-            ? `<img src="${Utils.escapeHtml(c.photoUrl)}" class="w-full h-36 object-cover object-top" loading="lazy" onerror="this.src='/assets/img/no-photo.png'">`
+            ? `<img src="${Utils.escapeHtml(c.photoUrl)}" class="w-full h-36 object-cover object-top" loading="lazy" onerror="this.style.display='none'">`
             : `<div class="w-full h-36 flex items-center justify-center bg-gray-100"><i class="fa-solid fa-user text-4xl text-gray-300"></i></div>`}
           <span class="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full font-bold">No.${c.orderNumber}</span>
         </div>
         <div class="relative bg-gray-50">
           ${c.pairPhotoUrl
-            ? `<img src="${Utils.escapeHtml(c.pairPhotoUrl)}" class="w-full h-36 object-cover object-top" loading="lazy" onerror="this.src='/assets/img/no-photo.png'">`
+            ? `<img src="${Utils.escapeHtml(c.pairPhotoUrl)}" class="w-full h-36 object-cover object-top" loading="lazy" onerror="this.style.display='none'">`
             : `<div class="w-full h-36 flex items-center justify-center bg-gray-100"><i class="fa-solid fa-user text-4xl text-gray-300"></i></div>`}
         </div>
       </div>
@@ -169,15 +170,23 @@ function renderCandidates() {
         </div>
         ${c.vision ? `<p class="text-xs text-gray-500 line-clamp-2 mb-3">${Utils.escapeHtml(c.vision)}</p>` : ''}
         <div class="flex gap-2">
-          <button class="btn btn-sm btn-outline flex-1" onclick="openCandidateModal('${c.id}')">
+          <button class="btn btn-sm btn-outline flex-1 edit-candidate-btn" data-candidate-id="${Utils.escapeHtml(c.id)}">
             <i class="fa-solid fa-pen-to-square"></i> Edit
           </button>
-          <button class="btn btn-sm btn-danger" onclick="confirmDeleteCandidate('${c.id}')">
+          <button class="btn btn-sm btn-danger delete-candidate-btn" data-candidate-id="${Utils.escapeHtml(c.id)}">
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>
       </div>
     </div>`).join('');
+
+  // Event delegation — safe dari XSS
+  grid.querySelectorAll('.edit-candidate-btn').forEach(btn => {
+    btn.addEventListener('click', () => openCandidateModal(btn.dataset.candidateId));
+  });
+  grid.querySelectorAll('.delete-candidate-btn').forEach(btn => {
+    btn.addEventListener('click', () => confirmDeleteCandidate(btn.dataset.candidateId));
+  });
 }
 
 // ── Candidate Modal ──────────────────────────────────────────
@@ -301,27 +310,46 @@ async function previewAndUpload(type, input) {
   const previewId = type === 'main' ? 'preview-main' : 'preview-pair';
   const urlId     = type === 'main' ? 'f-photo-url'  : 'f-pair-photo-url';
   const preview   = document.getElementById(previewId);
+  const urlInput  = document.getElementById(urlId);
 
-  // Show local preview immediately
+  // Simpan URL lama sebelum upload (untuk rollback jika gagal)
+  const oldUrl = urlInput ? urlInput.value : '';
+
+  // Show local preview + spinner
   const localUrl = URL.createObjectURL(file);
-  preview.innerHTML = `<img src="${localUrl}" class="w-full h-full object-cover">`;
-  preview.insertAdjacentHTML('afterbegin', '<div class="absolute inset-0 bg-black/30 flex items-center justify-center"><div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>');
+  preview.innerHTML = `
+    <div class="relative w-full h-full">
+      <img src="${localUrl}" class="w-full h-full object-cover">
+      <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
+        <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    </div>`;
 
   try {
-    const base64   = await Utils.readFileAsBase64(file);
-    const oldUrl   = document.getElementById(urlId)?.value || '';
-    const res      = await API.candidate.uploadPhoto({ filename: file.name, mimeType: file.type, base64, oldUrl });
+    const base64 = await Utils.readFileAsBase64(file);
+    const res    = await API.candidate.uploadPhoto({
+      filename: file.name,
+      mimeType: file.type,
+      base64,
+      oldUrl,
+    });
 
-    preview.innerHTML = `<img src="${localUrl}" class="w-full h-full object-cover">`;
     if (res.success) {
-      document.getElementById(urlId).value = res.data.url;
+      // Upload berhasil — tampilkan preview bersih dan simpan URL baru
+      preview.innerHTML = `<img src="${localUrl}" class="w-full h-full object-cover">`;
+      if (urlInput) urlInput.value = res.data.url;
       Toast.success('Foto berhasil diupload.');
     } else {
-      Toast.error(res.message || 'Gagal upload foto.');
+      // Upload gagal — kembalikan ke placeholder dan HAPUS URL di hidden input
       preview.innerHTML = '<i class="fa-solid fa-user text-gray-400"></i>';
+      if (urlInput) urlInput.value = ''; // reset URL agar tidak simpan URL salah
+      input.value = '';
+      Toast.error(res.message || 'Gagal upload foto.');
     }
   } catch {
     preview.innerHTML = '<i class="fa-solid fa-user text-gray-400"></i>';
+    if (urlInput) urlInput.value = ''; // reset URL
+    input.value = '';
     Toast.error('Gagal mengupload foto.');
   }
 }
