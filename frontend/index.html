@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login Pemilih — eVoting OSIM</title>
+  <meta name="description" content="Halaman login pemilih untuk eVoting OSIM/S"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet" href="/assets/css/tailwind.css"/>
+</head>
+<body class="h-full bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 min-h-screen">
+
+<div id="toast-container"></div>
+
+<!-- Background decoration -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+  <div class="absolute -top-40 -right-40 w-96 h-96 bg-white/5 rounded-full"></div>
+  <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-white/5 rounded-full"></div>
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/3 rounded-full"></div>
+</div>
+
+<!-- Main layout -->
+<div class="relative min-h-screen flex flex-col lg:flex-row">
+
+  <!-- Left panel — branding -->
+  <div class="lg:flex-1 flex flex-col items-center justify-center px-8 py-10 text-white text-center lg:text-left lg:items-start">
+    <!-- Logo -->
+    <div class="mb-6 flex items-center justify-center lg:justify-start gap-3">
+      <div class="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
+        <i class="fa-solid fa-box-ballot text-2xl text-white"></i>
+      </div>
+      <div class="text-left">
+        <p class="text-white/70 text-xs uppercase tracking-widest font-medium" data-school-name>Sekolah/Madrasah</p>
+        <h1 class="text-xl font-bold" data-app-name>eVoting OSIM</h1>
+      </div>
+    </div>
+
+    <h2 class="text-3xl lg:text-4xl font-extrabold leading-tight mb-3 text-balance" data-app-subtitle>
+      Pemilihan Ketua OSIM/S
+    </h2>
+    <p class="text-white/70 text-base mb-8 max-w-md">
+      Gunakan NISN, tempat &amp; tanggal lahir, serta PIN yang diberikan panitia untuk masuk ke sistem pemilihan.
+    </p>
+
+    <!-- Election info banner -->
+    <div id="election-info" class="hidden w-full max-w-md bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4 text-sm">
+      <div class="flex items-start gap-3">
+        <i class="fa-solid fa-calendar-check text-white/80 mt-0.5 flex-shrink-0"></i>
+        <div>
+          <p class="font-semibold" id="election-title">Pemilihan berlangsung</p>
+          <p class="text-white/70 text-xs mt-0.5" id="election-period"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upcoming banner -->
+    <div id="upcoming-info" class="hidden w-full max-w-md bg-yellow-400/20 backdrop-blur border border-yellow-300/30 rounded-2xl p-4 text-sm text-yellow-100">
+      <div class="flex items-start gap-3">
+        <i class="fa-solid fa-clock mt-0.5 flex-shrink-0"></i>
+        <div>
+          <p class="font-semibold">Pemilihan Akan Segera Dimulai</p>
+          <p class="text-yellow-100/80 text-xs mt-0.5" id="upcoming-text"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- No election banner -->
+    <div id="no-election-info" class="hidden w-full max-w-md bg-white/10 border border-white/20 rounded-2xl p-4 text-sm text-white/80">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-info-circle flex-shrink-0"></i>
+        <p>Belum ada pemilihan yang aktif saat ini.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right panel — login form -->
+  <div class="lg:w-[460px] flex items-center justify-center p-4 lg:p-8">
+    <div class="w-full max-w-md">
+      <div class="card shadow-2xl">
+        <div class="card-body py-8 px-6 lg:px-8">
+          <div class="text-center mb-7">
+            <div class="inline-flex items-center justify-center w-12 h-12 bg-primary-100 rounded-xl mb-3">
+              <i class="fa-solid fa-right-to-bracket text-primary-600 text-xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800">Masuk sebagai Pemilih</h3>
+            <p class="text-gray-500 text-sm mt-1">Isikan data diri Anda untuk melanjutkan</p>
+          </div>
+
+          <form id="login-form" novalidate>
+            <!-- NISN -->
+            <div class="form-group">
+              <label class="form-label" for="nisn">NISN <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-id-card fa-sm"></i></span>
+                <input type="text" id="nisn" name="nisn" inputmode="numeric" pattern="\d{10}"
+                  class="form-input pl-9" placeholder="Masukkan 10 digit NISN" maxlength="10" autocomplete="off"/>
+              </div>
+              <p class="form-error hidden" id="nisn-error"></p>
+            </div>
+
+            <!-- Tempat Lahir -->
+            <div class="form-group">
+              <label class="form-label" for="birthPlace">Tempat Lahir <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-location-dot fa-sm"></i></span>
+                <input type="text" id="birthPlace" name="birthPlace"
+                  class="form-input pl-9" placeholder="Contoh: Jakarta" autocomplete="off"/>
+              </div>
+              <p class="form-error hidden" id="birthPlace-error"></p>
+            </div>
+
+            <!-- Tanggal Lahir -->
+            <div class="form-group">
+              <label class="form-label" for="birthDate">Tanggal Lahir <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><i class="fa-solid fa-calendar fa-sm"></i></span>
+                <input type="date" id="birthDate" name="birthDate"
+                  class="form-input pl-9" autocomplete="off"/>
+              </div>
+              <p class="form-error hidden" id="birthDate-error"></p>
+            </div>
+
+            <!-- PIN -->
+            <div class="form-group">
+              <label class="form-label" for="pin">PIN Pemilih <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-lock fa-sm"></i></span>
+                <input type="password" id="pin" name="pin" inputmode="numeric" pattern="\d{5}"
+                  class="form-input pl-9 pr-10" placeholder="5 digit PIN" maxlength="5" autocomplete="off"/>
+                <button type="button" id="toggle-pin" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Tampilkan PIN">
+                  <i class="fa-solid fa-eye fa-sm"></i>
+                </button>
+              </div>
+              <p class="form-error hidden" id="pin-error"></p>
+              <p class="form-hint">PIN 5 digit diberikan oleh panitia pemilihan.</p>
+            </div>
+
+            <!-- Error global -->
+            <div id="login-error" class="alert alert-error hidden mb-4">
+              <i class="fa-solid fa-circle-xmark flex-shrink-0"></i>
+              <span id="login-error-text"></span>
+            </div>
+
+            <button type="submit" id="login-btn" class="btn btn-primary btn-lg w-full mt-2">
+              <i class="fa-solid fa-right-to-bracket"></i>
+              Masuk &amp; Mulai Memilih
+            </button>
+          </form>
+
+          <div class="mt-6 pt-5 border-t border-gray-100 text-center">
+            <p class="text-xs text-gray-400">
+              Lupa PIN atau ada masalah? <br/>
+              Hubungi panitia pemilihan di sekolah Anda.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin link -->
+      <p class="text-center text-white/50 text-xs mt-4">
+        Panitia/Admin?
+        <a href="/admin/login.html" class="text-white/80 hover:text-white underline transition-colors">Masuk ke panel admin</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/assets/js/components.js"></script>
+<script>
+(async () => {
+  // Redirect jika sudah login
+  if (Auth.redirectIfLoggedIn()) return;
+
+  // Muat config aplikasi
+  loadAppConfig();
+
+  // Muat info election aktif
+  loadElectionInfo();
+
+  // Toggle PIN visibility
+  const togglePin = document.getElementById('toggle-pin');
+  const pinInput  = document.getElementById('pin');
+  togglePin.addEventListener('click', () => {
+    const show = pinInput.type === 'password';
+    pinInput.type = show ? 'text' : 'password';
+    togglePin.querySelector('i').className = `fa-solid fa-${show ? 'eye-slash' : 'eye'} fa-sm`;
+  });
+
+  // Clear error on input change
+  ['nisn','birthPlace','birthDate','pin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      el.classList.remove('form-input-error');
+      const errEl = document.getElementById(id + '-error');
+      if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+      document.getElementById('login-error').classList.add('hidden');
+    });
+  });
+
+  // Form submit
+  document.getElementById('login-form').addEventListener('submit', handleLogin);
+})();
+
+async function loadElectionInfo() {
+  try {
+    const res = await API.election.getActive();
+    if (res.success && res.data) {
+      const d = res.data;
+      if (d.active && d.election) {
+        const el   = document.getElementById('election-info');
+        const title = document.getElementById('election-title');
+        const period = document.getElementById('election-period');
+        title.textContent = d.election.title;
+        const start = Utils.formatDateTime(d.election.startDate);
+        const end   = Utils.formatDateTime(d.election.endDate);
+        period.textContent = start + ' s/d ' + end;
+        el.classList.remove('hidden');
+      } else if (d.upcoming && d.election) {
+        const el = document.getElementById('upcoming-info');
+        const txt = document.getElementById('upcoming-text');
+        txt.textContent = 'Dimulai pada ' + Utils.formatDateTime(d.election.startDate);
+        el.classList.remove('hidden');
+      }
+    } else {
+      document.getElementById('no-election-info').classList.remove('hidden');
+    }
+  } catch (_) {}
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const form    = e.target;
+  const btn     = document.getElementById('login-btn');
+  const errBox  = document.getElementById('login-error');
+  const errText = document.getElementById('login-error-text');
+
+  // Ambil nilai
+  const nisn       = document.getElementById('nisn').value.trim();
+  const birthPlace = document.getElementById('birthPlace').value.trim();
+  const birthDate  = document.getElementById('birthDate').value.trim();
+  const pin        = document.getElementById('pin').value.trim();
+
+  // Validasi frontend (defense-in-depth, validasi utama tetap di backend)
+  let hasError = false;
+
+  if (!/^\d{10}$/.test(nisn)) {
+    showError('nisn', 'NISN harus 10 digit angka.'); hasError = true;
+  }
+  if (!birthPlace) {
+    showError('birthPlace', 'Tempat lahir tidak boleh kosong.'); hasError = true;
+  }
+  if (!birthDate) {
+    showError('birthDate', 'Tanggal lahir tidak boleh kosong.'); hasError = true;
+  }
+  if (!/^\d{5}$/.test(pin)) {
+    showError('pin', 'PIN harus 5 digit angka.'); hasError = true;
+  }
+  if (hasError) return;
+
+  Utils.setLoading(btn, true, 'Memverifikasi...');
+  errBox.classList.add('hidden');
+
+  try {
+    const res = await API.auth.voterLogin({ nisn, birthPlace, birthDate, pin });
+
+    if (res.success) {
+      Auth.setVoterSession(res.data);
+      Utils.setLoading(btn, false);
+      btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Berhasil! Mengarahkan...';
+      btn.classList.add('bg-green-600', 'hover:bg-green-700');
+
+      setTimeout(() => {
+        if (res.data.voter && res.data.voter.hasVoted) {
+          window.location.href = '/success.html';
+        } else {
+          window.location.href = '/voting.html';
+        }
+      }, 800);
+    } else {
+      Utils.setLoading(btn, false);
+      errText.textContent = res.message || 'Login gagal. Periksa kembali data Anda.';
+      errBox.classList.remove('hidden');
+    }
+  } catch (err) {
+    Utils.setLoading(btn, false);
+    errText.textContent = 'Gagal menghubungi server. Silakan coba lagi.';
+    errBox.classList.remove('hidden');
+  }
+}
+
+function showError(id, msg) {
+  const input = document.getElementById(id);
+  const errEl = document.getElementById(id + '-error');
+  if (input) input.classList.add('form-input-error');
+  if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+}
+</script>
+</body>
+</html>

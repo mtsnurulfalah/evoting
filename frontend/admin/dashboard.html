@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — eVoting OSIM Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+</head>
+<body class="h-full bg-gray-50 flex">
+
+<div id="toast-container"></div>
+
+<!-- Sidebar overlay (mobile) -->
+<div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
+
+<!-- Sidebar -->
+<aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
+  <!-- Brand -->
+  <div class="px-5 py-4 border-b border-gray-100">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-box-ballot text-white"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-bold text-gray-800 truncate" id="sidebar-app-name">eVoting OSIM</p>
+        <p class="text-xs text-gray-500 truncate" id="sidebar-school-name"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">Menu Utama</p>
+    <a href="./dashboard.html"   class="sidebar-link"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+    <a href="./election.html"    class="sidebar-link"><i class="fa-solid fa-calendar-check"></i> Manajemen Pemilihan</a>
+    <a href="./candidates.html"  class="sidebar-link"><i class="fa-solid fa-users"></i> Kandidat</a>
+    <a href="./voters.html"      class="sidebar-link"><i class="fa-solid fa-id-card"></i> Pemilih</a>
+    <a href="./results.html"     class="sidebar-link"><i class="fa-solid fa-chart-bar"></i> Hasil Pemilihan</a>
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">Pengaturan</p>
+    <a href="./settings.html"    class="sidebar-link"><i class="fa-solid fa-gear"></i> Pengaturan Aplikasi</a>
+  </nav>
+
+  <!-- User info -->
+  <div class="p-3 border-t border-gray-100">
+    <div class="flex items-center gap-3 px-2 py-2 rounded-lg">
+      <div class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-user text-primary-600 text-sm"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
+        <p class="text-xs text-gray-500" id="topbar-user-role"></p>
+      </div>
+      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1" title="Logout">
+        <i class="fa-solid fa-right-from-bracket text-sm"></i>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- Main area -->
+<div class="flex-1 flex flex-col min-w-0">
+  <!-- Topbar -->
+  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-4 sticky top-0 z-20">
+    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1">
+      <i class="fa-solid fa-bars text-lg"></i>
+    </button>
+    <h1 class="text-base font-semibold text-gray-800 flex-1">Dashboard</h1>
+    <div class="flex items-center gap-2">
+      <a href="/index.html" target="_blank" class="btn btn-sm btn-outline text-xs">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        <span class="hidden sm:inline">Lihat Halaman Utama</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Page content -->
+  <main class="flex-1 p-4 md:p-6 overflow-auto">
+
+    <!-- Election status banner -->
+    <div id="election-banner" class="hidden mb-5 rounded-xl p-4 flex items-center gap-3 text-sm">
+      <i id="banner-icon" class="text-xl flex-shrink-0"></i>
+      <div class="flex-1 min-w-0">
+        <p class="font-semibold" id="banner-title"></p>
+        <p class="text-xs opacity-80 mt-0.5" id="banner-sub"></p>
+      </div>
+      <a href="./election.html" class="btn btn-sm bg-white/30 hover:bg-white/50 text-inherit border border-white/40 text-xs flex-shrink-0">
+        Kelola <i class="fa-solid fa-arrow-right ml-1"></i>
+      </a>
+    </div>
+
+    <!-- Stats grid -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="stat-card" id="stat-voters">
+        <div class="stat-icon bg-blue-50 text-blue-600"><i class="fa-solid fa-users"></i></div>
+        <div>
+          <p class="text-2xl font-extrabold text-gray-800" id="s-total-voters"><div class="skeleton h-7 w-16 rounded"></div></p>
+          <p class="text-xs text-gray-500 mt-0.5">Total Pemilih</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-green-50 text-green-600"><i class="fa-solid fa-check-circle"></i></div>
+        <div>
+          <p class="text-2xl font-extrabold text-gray-800" id="s-voted"><div class="skeleton h-7 w-16 rounded"></div></p>
+          <p class="text-xs text-gray-500 mt-0.5">Sudah Memilih</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-orange-50 text-orange-600"><i class="fa-solid fa-clock"></i></div>
+        <div>
+          <p class="text-2xl font-extrabold text-gray-800" id="s-not-voted"><div class="skeleton h-7 w-16 rounded"></div></p>
+          <p class="text-xs text-gray-500 mt-0.5">Belum Memilih</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-primary-50 text-primary-600"><i class="fa-solid fa-chart-pie"></i></div>
+        <div>
+          <p class="text-2xl font-extrabold text-gray-800" id="s-participation"><div class="skeleton h-7 w-16 rounded"></div></p>
+          <p class="text-xs text-gray-500 mt-0.5">Partisipasi</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Candidate vote summary -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="font-semibold text-gray-800 text-sm">Perolehan Suara</h3>
+          <span class="text-xs text-gray-400" id="vote-summary-sub"></span>
+        </div>
+        <div class="card-body space-y-3" id="vote-summary">
+          <div class="space-y-3">
+            <div class="skeleton h-12 w-full rounded-lg"></div>
+            <div class="skeleton h-12 w-full rounded-lg"></div>
+            <div class="skeleton h-12 w-full rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick actions + participation -->
+      <div class="space-y-4">
+        <!-- Participation card -->
+        <div class="card p-5">
+          <h3 class="font-semibold text-gray-800 text-sm mb-3">Tingkat Partisipasi</h3>
+          <div class="flex items-center justify-between text-sm mb-1.5">
+            <span class="text-gray-500 text-xs">Progress</span>
+            <span class="font-bold text-primary-600" id="participation-pct">0%</span>
+          </div>
+          <div class="progress-bar mb-3">
+            <div class="progress-fill bg-primary-500" id="participation-fill" style="width:0%"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center text-xs">
+            <div class="bg-blue-50 rounded-lg p-2">
+              <p class="font-bold text-blue-700" id="d-total">-</p>
+              <p class="text-gray-500 mt-0.5">Terdaftar</p>
+            </div>
+            <div class="bg-green-50 rounded-lg p-2">
+              <p class="font-bold text-green-700" id="d-voted">-</p>
+              <p class="text-gray-500 mt-0.5">Memilih</p>
+            </div>
+            <div class="bg-orange-50 rounded-lg p-2">
+              <p class="font-bold text-orange-700" id="d-not-voted">-</p>
+              <p class="text-gray-500 mt-0.5">Belum</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="card p-5">
+          <h3 class="font-semibold text-gray-800 text-sm mb-3">Aksi Cepat</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <a href="./election.html" class="btn btn-outline text-xs py-3 flex-col gap-1 h-auto">
+              <i class="fa-solid fa-calendar-plus text-primary-600 text-lg"></i>
+              Pemilihan
+            </a>
+            <a href="./candidates.html" class="btn btn-outline text-xs py-3 flex-col gap-1 h-auto">
+              <i class="fa-solid fa-user-plus text-green-600 text-lg"></i>
+              Kandidat
+            </a>
+            <a href="./voters.html" class="btn btn-outline text-xs py-3 flex-col gap-1 h-auto">
+              <i class="fa-solid fa-file-import text-blue-600 text-lg"></i>
+              Import Pemilih
+            </a>
+            <a href="./results.html" class="btn btn-outline text-xs py-3 flex-col gap-1 h-auto">
+              <i class="fa-solid fa-chart-bar text-purple-600 text-lg"></i>
+              Lihat Hasil
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Election list summary -->
+    <div class="card mt-6">
+      <div class="card-header">
+        <h3 class="font-semibold text-gray-800 text-sm">Daftar Pemilihan</h3>
+        <a href="./election.html" class="btn btn-sm btn-primary text-xs">
+          <i class="fa-solid fa-plus"></i> Buat Baru
+        </a>
+      </div>
+      <div id="election-list" class="divide-y divide-gray-100">
+        <div class="p-4 space-y-2">
+          <div class="skeleton h-5 w-3/4 rounded"></div>
+          <div class="skeleton h-4 w-1/2 rounded"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+(async () => {
+  if (!Auth.requireAdminPage()) return;
+  Sidebar.init();
+  Topbar.init();
+  loadDashboard();
+})();
+
+async function loadDashboard() {
+  try {
+    const [dashRes, elRes] = await Promise.all([
+      API.result.getDashboard(),
+      API.election.getAll(),
+    ]);
+
+    if (dashRes.success && dashRes.data) {
+      renderDashboard(dashRes.data);
+    }
+    if (elRes.success && elRes.data) {
+      renderElectionList(elRes.data.slice(0, 5));
+    }
+  } catch (err) {
+    Toast.error('Gagal memuat data dashboard.');
+  }
+}
+
+function renderDashboard(data) {
+  const stats = data.stats || {};
+  const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  setEl('s-total-voters',  Utils.formatNumber(stats.totalVoters    || 0));
+  setEl('s-voted',         Utils.formatNumber(stats.voted          || 0));
+  setEl('s-not-voted',     Utils.formatNumber(stats.notVoted       || 0));
+  setEl('s-participation', (stats.participationRate || 0) + '%');
+  setEl('participation-pct', (stats.participationRate || 0) + '%');
+  setEl('d-total',     Utils.formatNumber(stats.totalVoters || 0));
+  setEl('d-voted',     Utils.formatNumber(stats.voted       || 0));
+  setEl('d-not-voted', Utils.formatNumber(stats.notVoted    || 0));
+
+  const pct = stats.participationRate || 0;
+  document.getElementById('participation-fill').style.width = Math.min(pct, 100) + '%';
+
+  // Election banner
+  if (data.hasActiveElection && data.election) {
+    const el    = data.election;
+    const banner = document.getElementById('election-banner');
+    const statusConfig = {
+      active:   { bg: 'bg-green-50 border border-green-200 text-green-800',   icon: 'fa-solid fa-circle-dot text-green-500' },
+      upcoming: { bg: 'bg-yellow-50 border border-yellow-200 text-yellow-800', icon: 'fa-solid fa-clock text-yellow-500' },
+      ended:    { bg: 'bg-gray-100 border border-gray-200 text-gray-700',      icon: 'fa-solid fa-check-circle text-gray-500' },
+      draft:    { bg: 'bg-blue-50 border border-blue-200 text-blue-800',       icon: 'fa-solid fa-file-pen text-blue-500' },
+    };
+    const sc = statusConfig[el.status] || statusConfig.draft;
+    banner.className = `mb-5 rounded-xl p-4 flex items-center gap-3 text-sm ${sc.bg}`;
+    document.getElementById('banner-icon').className  = sc.icon + ' text-xl flex-shrink-0';
+    document.getElementById('banner-title').textContent = el.title;
+    document.getElementById('banner-sub').textContent   =
+      Utils.formatDateTime(el.startDate) + ' — ' + Utils.formatDateTime(el.endDate);
+    banner.classList.remove('hidden');
+  }
+
+  // Vote summary
+  const summaryEl = document.getElementById('vote-summary');
+  const totalVotes = stats.totalVotes || 0;
+  document.getElementById('vote-summary-sub').textContent = totalVotes + ' suara masuk';
+
+  if (data.candidates && data.candidates.length > 0) {
+    summaryEl.innerHTML = data.candidates.map((c, i) => {
+      const colors = ['bg-blue-500','bg-green-500','bg-orange-500','bg-purple-500','bg-red-500'];
+      const pct    = c.percentage || 0;
+      return `
+        <div>
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="font-medium text-gray-700 truncate">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-600 text-xs font-bold mr-1.5">${c.orderNumber}</span>
+              ${Utils.escapeHtml(c.name)}${c.pairName ? ' &amp; ' + Utils.escapeHtml(c.pairName) : ''}
+            </span>
+            <span class="font-bold text-gray-800 ml-2 flex-shrink-0">${Utils.formatNumber(c.votes)} <span class="font-normal text-gray-400">(${pct}%)</span></span>
+          </div>
+          <div class="progress-bar h-2">
+            <div class="progress-fill ${colors[i % colors.length]}" style="width:${pct}%"></div>
+          </div>
+        </div>`;
+    }).join('');
+  } else {
+    summaryEl.innerHTML = `<div class="empty-state py-8"><i class="fa-solid fa-chart-bar"></i><p>Belum ada data suara</p></div>`;
+  }
+}
+
+function renderElectionList(elections) {
+  const el = document.getElementById('election-list');
+  if (!elections.length) {
+    el.innerHTML = `<div class="empty-state py-10"><i class="fa-solid fa-calendar-xmark"></i><p>Belum ada pemilihan.</p><a href="./election.html" class="btn btn-primary btn-sm mt-3">Buat Pemilihan</a></div>`;
+    return;
+  }
+  el.innerHTML = elections.map(e => `
+    <div class="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-gray-800 truncate">${Utils.escapeHtml(e.title)}</p>
+        <p class="text-xs text-gray-500 mt-0.5">${Utils.formatDateTime(e.startDate)} — ${Utils.formatDateTime(e.endDate)}</p>
+      </div>
+      <div class="flex-shrink-0">${Utils.statusBadgeHtml(e.status)}</div>
+    </div>`).join('');
+}
+</script>
+</body>
+</html>

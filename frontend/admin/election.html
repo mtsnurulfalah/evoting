@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manajemen Pemilihan — eVoting OSIM Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+</head>
+<body class="h-full bg-gray-50 flex">
+<div id="toast-container"></div>
+<div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
+
+<!-- Sidebar (shared structure) -->
+<aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
+  <div class="px-5 py-4 border-b border-gray-100">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-box-ballot text-white"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-bold text-gray-800 truncate" id="sidebar-app-name">eVoting OSIM</p>
+        <p class="text-xs text-gray-500 truncate" id="sidebar-school-name"></p>
+      </div>
+    </div>
+  </div>
+  <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">Menu Utama</p>
+    <a href="./dashboard.html"  class="sidebar-link"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+    <a href="./election.html"   class="sidebar-link"><i class="fa-solid fa-calendar-check"></i> Manajemen Pemilihan</a>
+    <a href="./candidates.html" class="sidebar-link"><i class="fa-solid fa-users"></i> Kandidat</a>
+    <a href="./voters.html"     class="sidebar-link"><i class="fa-solid fa-id-card"></i> Pemilih</a>
+    <a href="./results.html"    class="sidebar-link"><i class="fa-solid fa-chart-bar"></i> Hasil Pemilihan</a>
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">Pengaturan</p>
+    <a href="./settings.html"   class="sidebar-link"><i class="fa-solid fa-gear"></i> Pengaturan Aplikasi</a>
+  </nav>
+  <div class="p-3 border-t border-gray-100">
+    <div class="flex items-center gap-3 px-2 py-2 rounded-lg">
+      <div class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-user text-primary-600 text-sm"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
+        <p class="text-xs text-gray-500" id="topbar-user-role"></p>
+      </div>
+      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1" title="Logout">
+        <i class="fa-solid fa-right-from-bracket text-sm"></i>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<div class="flex-1 flex flex-col min-w-0">
+  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-4 sticky top-0 z-20">
+    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1"><i class="fa-solid fa-bars text-lg"></i></button>
+    <h1 class="text-base font-semibold text-gray-800 flex-1">Manajemen Pemilihan</h1>
+    <button id="btn-create" class="btn btn-primary text-sm">
+      <i class="fa-solid fa-plus"></i> Buat Pemilihan
+    </button>
+  </header>
+
+  <main class="flex-1 p-4 md:p-6 overflow-auto">
+    <div id="loading-state" class="text-center py-16">
+      <div class="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-3"></div>
+      <p class="text-gray-500 text-sm">Memuat data...</p>
+    </div>
+
+    <div id="content-state" class="hidden space-y-4" id="election-cards"></div>
+
+    <div id="empty-state" class="hidden">
+      <div class="empty-state">
+        <i class="fa-solid fa-calendar-xmark"></i>
+        <h3 class="text-base font-semibold text-gray-600">Belum ada pemilihan</h3>
+        <p>Buat pemilihan pertama untuk memulai.</p>
+        <button onclick="openCreateModal()" class="btn btn-primary mt-4">
+          <i class="fa-solid fa-plus"></i> Buat Pemilihan
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/components.js"></script>
+<script>
+let _elections = [];
+
+(async () => {
+  if (!Auth.requireAdminPage()) return;
+  Sidebar.init(); Topbar.init();
+  document.getElementById('btn-create').addEventListener('click', openCreateModal);
+  loadElections();
+})();
+
+async function loadElections() {
+  showState('loading');
+  const res = await API.election.getAll();
+  if (!res.success) { Toast.error(res.message); showState('empty'); return; }
+  _elections = res.data || [];
+  if (!_elections.length) { showState('empty'); return; }
+  renderElections();
+  showState('content');
+}
+
+function renderElections() {
+  const container = document.getElementById('content-state');
+  container.innerHTML = _elections.map(e => electionCardHtml(e)).join('');
+  container.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const { action, id } = btn.dataset;
+      if (action === 'edit')   openEditModal(id);
+      if (action === 'delete') confirmDelete(id);
+      if (action === 'toggle') toggleActive(id);
+    });
+  });
+}
+
+function electionCardHtml(e) {
+  const isViewer = Auth.getAdminRole() === 'viewer';
+  return `
+    <div class="card p-5">
+      <div class="flex flex-col sm:flex-row sm:items-start gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            ${Utils.statusBadgeHtml(e.status)}
+            ${e.isActive ? '<span class="badge badge-success"><i class="fa-solid fa-wifi fa-xs"></i> Aktif</span>' : '<span class="badge badge-gray">Nonaktif</span>'}
+          </div>
+          <h3 class="text-base font-bold text-gray-800 mt-1">${Utils.escapeHtml(e.title)}</h3>
+          ${e.description ? `<p class="text-sm text-gray-500 mt-0.5 line-clamp-1">${Utils.escapeHtml(e.description)}</p>` : ''}
+          <div class="flex flex-wrap gap-4 mt-2 text-xs text-gray-500">
+            <span><i class="fa-solid fa-calendar-plus mr-1"></i>${Utils.formatDateTime(e.startDate)}</span>
+            <span><i class="fa-solid fa-calendar-check mr-1 text-red-400"></i>${Utils.formatDateTime(e.endDate)}</span>
+          </div>
+        </div>
+        ${!isViewer ? `
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button class="btn btn-sm btn-outline" data-action="toggle" data-id="${e.id}" title="${e.isActive ? 'Nonaktifkan' : 'Aktifkan'}">
+            <i class="fa-solid fa-${e.isActive ? 'toggle-on text-green-500' : 'toggle-off text-gray-400'}"></i>
+          </button>
+          <button class="btn btn-sm btn-outline" data-action="edit" data-id="${e.id}">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </button>
+          <button class="btn btn-sm btn-danger" data-action="delete" data-id="${e.id}">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>` : ''}
+      </div>
+
+      <!-- Status controls -->
+      ${!isViewer ? `
+      <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+        <p class="text-xs text-gray-500 w-full sm:w-auto self-center">Ubah status:</p>
+        ${['draft','upcoming','active','ended'].map(s =>
+          `<button class="btn btn-sm ${e.status === s ? 'btn-primary' : 'btn-outline'} text-xs"
+            onclick="setStatus('${e.id}','${s}')">${statusLabel(s)}</button>`
+        ).join('')}
+      </div>` : ''}
+    </div>`;
+}
+
+function statusLabel(s) {
+  return { draft:'Draft', upcoming:'Akan Dimulai', active:'Berlangsung', ended:'Selesai' }[s] || s;
+}
+
+async function setStatus(id, status) {
+  const res = await API.election.setStatus(id, status, status === 'active');
+  if (res.success) { Toast.success('Status berhasil diubah.'); loadElections(); }
+  else Toast.error(res.message);
+}
+
+async function toggleActive(id) {
+  const el = _elections.find(e => e.id === id);
+  if (!el) return;
+  const res = await API.election.setStatus(id, el.status, !el.isActive);
+  if (res.success) { Toast.success('Status aktif berhasil diubah.'); loadElections(); }
+  else Toast.error(res.message);
+}
+
+async function confirmDelete(id) {
+  const el = _elections.find(e => e.id === id);
+  if (!el) return;
+  const ok = await Utils.confirm(
+    `Hapus pemilihan "${el.title}"? Data yang terhubung mungkin ikut terpengaruh.`,
+    'Konfirmasi Hapus', true
+  );
+  if (!ok) return;
+  const res = await API.election.delete(id);
+  if (res.success) { Toast.success('Pemilihan berhasil dihapus.'); loadElections(); }
+  else Toast.error(res.message);
+}
+
+// ── Modal Form ───────────────────────────────────────────────
+
+function electionFormHtml(data = {}) {
+  return `
+    <div class="space-y-4">
+      <div class="form-group">
+        <label class="form-label">Judul Pemilihan <span class="text-red-500">*</span></label>
+        <input type="text" id="f-title" class="form-input" value="${Utils.escapeHtml(data.title||'')}" placeholder="Pemilihan Ketua OSIM 2025/2026"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Deskripsi</label>
+        <textarea id="f-desc" class="form-textarea" rows="2" placeholder="Deskripsi singkat...">${Utils.escapeHtml(data.description||'')}</textarea>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="form-group mb-0">
+          <label class="form-label">Tanggal &amp; Waktu Mulai <span class="text-red-500">*</span></label>
+          <input type="datetime-local" id="f-start" class="form-input" value="${data.startDate ? new Date(data.startDate).toISOString().slice(0,16) : ''}"/>
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label">Tanggal &amp; Waktu Selesai <span class="text-red-500">*</span></label>
+          <input type="datetime-local" id="f-end" class="form-input" value="${data.endDate ? new Date(data.endDate).toISOString().slice(0,16) : ''}"/>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="form-group mb-0">
+          <label class="form-label">Status Awal</label>
+          <select id="f-status" class="form-select">
+            <option value="draft"    ${(data.status||'draft')==='draft'    ? 'selected':''}>Draft</option>
+            <option value="upcoming" ${data.status==='upcoming' ? 'selected':''}>Akan Dimulai</option>
+            <option value="active"   ${data.status==='active'   ? 'selected':''}>Berlangsung</option>
+            <option value="ended"    ${data.status==='ended'    ? 'selected':''}>Selesai</option>
+          </select>
+        </div>
+        <div class="form-group mb-0 flex items-end gap-3 pb-1">
+          <label class="flex items-center gap-2 cursor-pointer select-none text-sm">
+            <input type="checkbox" id="f-active" class="w-4 h-4 accent-primary-600" ${data.isActive ? 'checked':''}/> Aktifkan Sekarang
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer select-none text-sm">
+            <input type="checkbox" id="f-public" class="w-4 h-4 accent-primary-600" ${data.showResultPublic ? 'checked':''}/> Publikasikan Hasil
+          </label>
+        </div>
+      </div>
+    </div>`;
+}
+
+function openCreateModal() {
+  const modal = Modal.open({
+    id: 'modal-election', title: 'Buat Pemilihan Baru', body: electionFormHtml(), size: 'lg',
+    actions: [
+      { label: 'Batal', class: 'btn-secondary', action: 'cancel' },
+      { label: 'Simpan', class: 'btn-primary', action: 'save', id: 'modal-save-btn' },
+    ],
+  });
+  modal.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
+      await saveElection(null, btn);
+    });
+  });
+}
+
+function openEditModal(id) {
+  const data = _elections.find(e => e.id === id);
+  if (!data) return;
+  const modal = Modal.open({
+    id: 'modal-election', title: 'Edit Pemilihan', body: electionFormHtml(data), size: 'lg',
+    actions: [
+      { label: 'Batal', class: 'btn-secondary', action: 'cancel' },
+      { label: 'Simpan Perubahan', class: 'btn-primary', action: 'save', id: 'modal-save-btn' },
+    ],
+  });
+  modal.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
+      await saveElection(id, btn);
+    });
+  });
+}
+
+async function saveElection(id, btn) {
+  const title  = document.getElementById('f-title')?.value.trim();
+  const desc   = document.getElementById('f-desc')?.value.trim();
+  const start  = document.getElementById('f-start')?.value;
+  const end    = document.getElementById('f-end')?.value;
+  const status = document.getElementById('f-status')?.value;
+  const isActive = document.getElementById('f-active')?.checked;
+  const showPublic = document.getElementById('f-public')?.checked;
+
+  if (!title || !start || !end) {
+    Toast.warning('Judul, tanggal mulai, dan tanggal selesai wajib diisi.'); return;
+  }
+  if (new Date(end) <= new Date(start)) {
+    Toast.warning('Tanggal selesai harus setelah tanggal mulai.'); return;
+  }
+
+  Utils.setLoading(btn, true, 'Menyimpan...');
+  const payload = { title, description: desc, startDate: start, endDate: end, status, isActive, showResultPublic: showPublic };
+  if (id) payload.id = id;
+
+  const res = id ? await API.election.update(payload) : await API.election.create(payload);
+  Utils.setLoading(btn, false);
+
+  if (res.success) {
+    Toast.success(id ? 'Pemilihan berhasil diperbarui.' : 'Pemilihan berhasil dibuat.');
+    Modal.close(); loadElections();
+  } else {
+    Toast.error(res.message);
+  }
+}
+
+function showState(s) {
+  document.getElementById('loading-state').classList.toggle('hidden', s !== 'loading');
+  document.getElementById('content-state').classList.toggle('hidden', s !== 'content');
+  document.getElementById('empty-state').classList.toggle('hidden', s !== 'empty');
+}
+</script>
+</body>
+</html>
