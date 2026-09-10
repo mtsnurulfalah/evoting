@@ -259,14 +259,32 @@ function renderResults(data) {
     document.getElementById('winner-box').classList.add('hidden');
   }
 
-  // Candidate results
+  // Candidate results — dengan foto paslon
   const resultEl = document.getElementById('candidate-results');
   const totalVotes = data.totalVotes || 0;
   resultEl.innerHTML = candidates.map((c, i) => {
-    const isWin = winner && !winner.isTied && winner.candidate.id === c.id;
+    const isWin     = winner && !winner.isTied && winner.candidate.id === c.id;
+    const photoSrc  = Utils.buildDriveImgUrl(c.photoUrl);
+    const pairSrc   = Utils.buildDriveImgUrl(c.pairPhotoUrl);
     return `
       <div class="flex items-center gap-3 p-3 rounded-xl ${isWin ? 'bg-primary-50' : 'hover:bg-gray-50'} transition-colors">
-        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-base flex-shrink-0
+        <!-- Foto paslon -->
+        <div class="hidden sm:flex items-center gap-1 flex-shrink-0">
+          <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-2
+            ${isWin ? 'border-primary-400' : 'border-gray-200'}">
+            ${photoSrc
+              ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-full object-cover object-top"
+                     onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-sm\\'></i>'">`
+              : '<i class="fa-solid fa-user text-gray-400 text-sm"></i>'}
+          </div>
+          ${pairSrc ? `
+          <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center -ml-3 border-2 border-white">
+            <img src="${Utils.escapeHtml(pairSrc)}" class="w-full h-full object-cover object-top"
+                 onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-xs\\'></i>'">
+          </div>` : ''}
+        </div>
+        <!-- Nomor urut (mobile fallback) -->
+        <div class="sm:hidden w-10 h-10 rounded-full flex items-center justify-center font-bold text-base flex-shrink-0
           ${isWin ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}">${c.orderNumber}</div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-1 flex-wrap">
