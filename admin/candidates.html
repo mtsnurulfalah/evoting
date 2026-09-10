@@ -143,19 +143,30 @@ async function loadCandidates() {
 
 function renderCandidates() {
   const grid = document.getElementById('candidates-grid');
-  grid.innerHTML = _candidates.map(c => `
+  grid.innerHTML = _candidates.map(c => {
+    const photoSrc     = Utils.buildDriveImgUrl(c.photoUrl);
+    const pairPhotoSrc = Utils.buildDriveImgUrl(c.pairPhotoUrl);
+    return `
     <div class="card overflow-hidden">
       <div class="grid grid-cols-2 gap-0">
         <div class="relative bg-gray-100">
-          ${c.photoUrl
-            ? `<img src="${Utils.escapeHtml(c.photoUrl)}" class="w-full h-36 object-cover object-top" loading="lazy" onerror="this.style.display='none'">`
-            : `<div class="w-full h-36 flex items-center justify-center bg-gray-100"><i class="fa-solid fa-user text-4xl text-gray-300"></i></div>`}
+          ${photoSrc
+            ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-36 object-cover object-top" loading="lazy"
+                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+            : ''}
+          <div class="w-full h-36 flex items-center justify-center bg-gray-100" ${photoSrc ? 'style="display:none"' : ''}>
+            <i class="fa-solid fa-user text-4xl text-gray-300"></i>
+          </div>
           <span class="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full font-bold">No.${c.orderNumber}</span>
         </div>
         <div class="relative bg-gray-50">
-          ${c.pairPhotoUrl
-            ? `<img src="${Utils.escapeHtml(c.pairPhotoUrl)}" class="w-full h-36 object-cover object-top" loading="lazy" onerror="this.style.display='none'">`
-            : `<div class="w-full h-36 flex items-center justify-center bg-gray-100"><i class="fa-solid fa-user text-4xl text-gray-300"></i></div>`}
+          ${pairPhotoSrc
+            ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" class="w-full h-36 object-cover object-top" loading="lazy"
+                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+            : ''}
+          <div class="w-full h-36 flex items-center justify-center bg-gray-100" ${pairPhotoSrc ? 'style="display:none"' : ''}>
+            <i class="fa-solid fa-user text-4xl text-gray-300"></i>
+          </div>
         </div>
       </div>
       <div class="p-4">
@@ -178,7 +189,8 @@ function renderCandidates() {
           </button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   // Event delegation — safe dari XSS
   grid.querySelectorAll('.edit-candidate-btn').forEach(btn => {
@@ -192,6 +204,8 @@ function renderCandidates() {
 // ── Candidate Modal ──────────────────────────────────────────
 
 function candidateFormHtml(data = {}) {
+  const photoSrc     = Utils.buildDriveImgUrl(data.photoUrl     || '');
+  const pairPhotoSrc = Utils.buildDriveImgUrl(data.pairPhotoUrl || '');
   return `
     <div class="space-y-4">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -210,14 +224,17 @@ function candidateFormHtml(data = {}) {
             <label class="form-label text-xs">Foto Ketua</label>
             <div class="flex items-center gap-3">
               <div id="preview-main" class="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center">
-                ${data.photoUrl ? `<img src="${Utils.escapeHtml(data.photoUrl)}" class="w-full h-full object-cover">` : '<i class="fa-solid fa-user text-gray-400"></i>'}
+                ${photoSrc
+                  ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-full object-cover"
+                         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400\\'></i>'">`
+                  : '<i class="fa-solid fa-user text-gray-400"></i>'}
               </div>
               <label class="btn btn-sm btn-outline cursor-pointer">
                 <i class="fa-solid fa-upload"></i> Upload
                 <input type="file" id="f-photo" accept="image/jpeg,image/jpg,image/png,image/webp" class="hidden" onchange="previewAndUpload('main', this)"/>
               </label>
             </div>
-            <input type="hidden" id="f-photo-url" value="${Utils.escapeHtml(data.photoUrl||'')}"/>
+            <input type="hidden" id="f-photo-url" value="${Utils.escapeHtml(photoSrc)}"/>
           </div>
         </div>
 
@@ -236,14 +253,17 @@ function candidateFormHtml(data = {}) {
             <label class="form-label text-xs">Foto Wakil</label>
             <div class="flex items-center gap-3">
               <div id="preview-pair" class="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center">
-                ${data.pairPhotoUrl ? `<img src="${Utils.escapeHtml(data.pairPhotoUrl)}" class="w-full h-full object-cover">` : '<i class="fa-solid fa-user text-gray-400"></i>'}
+                ${pairPhotoSrc
+                  ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" class="w-full h-full object-cover"
+                         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400\\'></i>'">`
+                  : '<i class="fa-solid fa-user text-gray-400"></i>'}
               </div>
               <label class="btn btn-sm btn-outline cursor-pointer">
                 <i class="fa-solid fa-upload"></i> Upload
                 <input type="file" id="f-pair-photo" accept="image/jpeg,image/jpg,image/png,image/webp" class="hidden" onchange="previewAndUpload('pair', this)"/>
               </label>
             </div>
-            <input type="hidden" id="f-pair-photo-url" value="${Utils.escapeHtml(data.pairPhotoUrl||'')}"/>
+            <input type="hidden" id="f-pair-photo-url" value="${Utils.escapeHtml(pairPhotoSrc)}"/>
           </div>
         </div>
       </div>
