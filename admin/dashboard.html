@@ -277,26 +277,35 @@ function renderDashboard(data) {
     banner.classList.remove('hidden');
   }
 
-  // Vote summary
+  // Vote summary — dengan foto avatar kecil per kandidat
   const summaryEl = document.getElementById('vote-summary');
   const totalVotes = stats.totalVotes || 0;
   document.getElementById('vote-summary-sub').textContent = totalVotes + ' suara masuk';
 
   if (data.candidates && data.candidates.length > 0) {
     summaryEl.innerHTML = data.candidates.map((c, i) => {
-      const colors = ['bg-blue-500','bg-green-500','bg-orange-500','bg-purple-500','bg-red-500'];
-      const pct    = c.percentage || 0;
+      const colors   = ['bg-blue-500','bg-green-500','bg-orange-500','bg-purple-500','bg-red-500'];
+      const pct      = c.percentage || 0;
+      const photoSrc = Utils.buildDriveImgUrl(c.photoUrl);
       return `
-        <div>
-          <div class="flex items-center justify-between text-xs mb-1">
-            <span class="font-medium text-gray-700 truncate">
-              <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-600 text-xs font-bold mr-1.5">${c.orderNumber}</span>
-              ${Utils.escapeHtml(c.name)}${c.pairName ? ' &amp; ' + Utils.escapeHtml(c.pairName) : ''}
-            </span>
-            <span class="font-bold text-gray-800 ml-2 flex-shrink-0">${Utils.formatNumber(c.votes)} <span class="font-normal text-gray-400">(${pct}%)</span></span>
+        <div class="flex items-center gap-2">
+          <!-- Avatar foto kecil -->
+          <div class="w-7 h-7 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
+            ${photoSrc
+              ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-full object-cover object-top"
+                     onerror="this.parentElement.innerHTML='<span class=\\'text-xs font-bold text-gray-500\\'>${c.orderNumber}</span>'">`
+              : `<span class="text-xs font-bold text-gray-500">${c.orderNumber}</span>`}
           </div>
-          <div class="progress-bar h-2">
-            <div class="progress-fill ${colors[i % colors.length]}" style="width:${pct}%"></div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="font-medium text-gray-700 truncate">
+                ${Utils.escapeHtml(c.name)}${c.pairName ? ' &amp; ' + Utils.escapeHtml(c.pairName) : ''}
+              </span>
+              <span class="font-bold text-gray-800 ml-2 flex-shrink-0">${Utils.formatNumber(c.votes)} <span class="font-normal text-gray-400">(${pct}%)</span></span>
+            </div>
+            <div class="progress-bar h-2">
+              <div class="progress-fill ${colors[i % colors.length]}" style="width:${pct}%"></div>
+            </div>
           </div>
         </div>`;
     }).join('');
