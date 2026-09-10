@@ -283,6 +283,35 @@ const Utils = (() => {
     return { valid: true };
   }
 
+  /**
+   * Konversi URL Google Drive ke format direct-image yang dapat di-embed.
+   *
+   * URL /uc?export=view diblokir browser modern karena Google mengembalikan
+   * halaman interstitial bukan gambar langsung.
+   * Format lh3.googleusercontent.com/d/FILE_ID adalah direct image URL
+   * yang bekerja untuk file yang di-share "Anyone with the link".
+   *
+   * @param {string} url - URL foto dari database (berbagai format Drive)
+   * @returns {string} URL yang dapat dipakai sebagai src= pada tag <img>
+   */
+  function buildDriveImgUrl(url) {
+    if (!url) return '';
+    // Sudah format lh3 — tidak perlu konversi
+    if (url.includes('lh3.googleusercontent.com')) return url;
+    // Bukan URL Drive sama sekali (misal: URL eksternal biasa) — kembalikan apa adanya
+    if (!url.includes('drive.google.com') && !url.includes('googleusercontent.com')) return url;
+    // Ekstrak File ID dari berbagai format URL Drive
+    let fileId = null;
+    const matchId   = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (matchId) fileId = matchId[1];
+    if (!fileId) {
+      const matchPath = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (matchPath) fileId = matchPath[1];
+    }
+    if (!fileId) return url; // tidak bisa di-parse, kembalikan apa adanya
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+
   // ── Debounce ─────────────────────────────────────────────
 
   function debounce(fn, delay = 300) {
@@ -436,7 +465,7 @@ const Utils = (() => {
     truncate, capitalize, escapeHtml,
     $, $$, setLoading, show, hide, toggle, setText, setHtml, scrollTo,
     getFormData, fillForm, resetForm, showFieldError, clearFieldError,
-    readFileAsBase64, validateImageFile,
+    readFileAsBase64, validateImageFile, buildDriveImgUrl,
     debounce, getQueryParam,
     statusBadgeHtml, roleBadgeHtml,
     parseCSV, skeletonTableRows, skeletonCard,
