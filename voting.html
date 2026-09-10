@@ -212,7 +212,7 @@ function renderCandidates() {
   const grid = document.getElementById('candidates-grid');
   grid.innerHTML = _candidates.map(c => candidateCardHtml(c)).join('');
 
-  // Click event
+  // Click event untuk pilih kandidat
   grid.querySelectorAll('.candidate-card').forEach(card => {
     card.addEventListener('click', () => selectCandidate(card.dataset.id));
     card.addEventListener('keydown', e => {
@@ -220,6 +220,16 @@ function renderCandidates() {
         e.preventDefault();
         selectCandidate(card.dataset.id);
       }
+    });
+  });
+
+  // Event listener untuk tombol "Lihat Detail" — pakai data-candidate-id
+  // (menggantikan onclick inline untuk keamanan)
+  grid.querySelectorAll('.detail-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation(); // Jangan trigger selectCandidate
+      const cid = btn.dataset.candidateId;
+      if (cid) showCandidateDetail(cid);
     });
   });
 
@@ -282,7 +292,7 @@ function candidateCardHtml(c) {
 
       <!-- Detail toggle -->
       <button class="mt-3 text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1 detail-btn"
-        data-id="${Utils.escapeHtml(c.id)}" onclick="showCandidateDetail('${Utils.escapeHtml(c.id)}', event)">
+        data-candidate-id="${Utils.escapeHtml(c.id)}">
         <i class="fa-solid fa-eye fa-xs"></i> Lihat Detail
       </button>
     </div>`;
@@ -330,8 +340,7 @@ function selectCandidate(id) {
 
 // ── Candidate Detail Modal ─────────────────────────────────
 
-function showCandidateDetail(id, event) {
-  event.stopPropagation(); // Jangan trigger selectCandidate
+function showCandidateDetail(id) {
   const c = _candidates.find(c => c.id === id);
   if (!c) return;
 
@@ -422,7 +431,10 @@ function showCandidateDetail(id, event) {
 
 // ── Submit Vote ────────────────────────────────────────────
 
+let _isSubmitting = false; // guard anti double-submit
+
 async function handleSubmitVote() {
+  if (_isSubmitting) return; // cegah double-submit dari double-click / lag
   if (!_selectedId) {
     Toast.warning('Pilih kandidat terlebih dahulu.');
     return;
@@ -444,6 +456,9 @@ async function handleSubmitVote() {
 }
 
 async function submitVoteConfirmed() {
+  if (_isSubmitting) return; // double-guard
+  _isSubmitting = true;
+
   const btnD = document.getElementById('submit-btn-desktop');
   const btnM = document.getElementById('submit-btn-mobile');
   Utils.setLoading(btnD, true, 'Mengirim...');
@@ -454,20 +469,25 @@ async function submitVoteConfirmed() {
 
     if (res.success) {
       Auth.markAsVoted();
+      // Hentikan countdown timer sebelum redirect
+      if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
       // Simpan info vote ke session untuk halaman sukses
       sessionStorage.setItem('ev_vote_result', JSON.stringify(res.data));
       window.location.replace('/success.html');
     } else {
+      _isSubmitting = false; // reset flag agar bisa coba lagi
       Utils.setLoading(btnD, false);
       Utils.setLoading(btnM, false);
       Modal.alert('Gagal Mengirim Suara', res.message || 'Terjadi kesalahan. Silakan coba lagi.', null, 'error');
 
-      // Jika sudah vote (edge case race condition), redirect
+      // Jika sudah vote (edge case race condition), redirect ke sukses
       if (res.errorCode === 'ALREADY_VOTED') {
+        if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
         setTimeout(() => window.location.replace('/success.html'), 2000);
       }
     }
   } catch (err) {
+    _isSubmitting = false;
     Utils.setLoading(btnD, false);
     Utils.setLoading(btnM, false);
     Toast.error('Gagal menghubungi server. Silakan coba lagi.');
