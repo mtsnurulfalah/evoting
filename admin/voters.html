@@ -232,20 +232,39 @@ function renderTable(voters) {
         </td>
         <td>
           <div class="flex items-center justify-end gap-1">
-            ${!isViewer ? `<button class="btn btn-icon btn-sm btn-outline" onclick="openVoterModal('${v.id}')" title="Edit">
+            ${!isViewer ? `<button class="btn btn-icon btn-sm btn-outline voter-edit-btn"
+              data-voter-id="${Utils.escapeHtml(v.id)}" title="Edit">
               <i class="fa-solid fa-pen-to-square text-xs"></i></button>` : ''}
-            ${isSuperAdmin ? `<button class="btn btn-icon btn-sm btn-outline" onclick="resetVoterPin('${v.id}')" title="Reset PIN">
+            ${isSuperAdmin ? `<button class="btn btn-icon btn-sm btn-outline voter-pin-btn"
+              data-voter-id="${Utils.escapeHtml(v.id)}" title="Reset PIN">
               <i class="fa-solid fa-key text-xs"></i></button>` : ''}
-            ${isSuperAdmin && v.hasVoted ? `<button class="btn btn-icon btn-sm btn-warning text-xs" onclick="resetVoteStatus('${v.id}')" title="Reset Status">
+            ${isSuperAdmin && v.hasVoted ? `<button class="btn btn-icon btn-sm btn-warning voter-reset-btn"
+              data-voter-id="${Utils.escapeHtml(v.id)}" title="Reset Status">
               <i class="fa-solid fa-rotate text-xs"></i></button>` : ''}
-            ${!isViewer ? `<button class="btn btn-icon btn-sm btn-danger" onclick="confirmDeleteVoter('${v.id}','${Utils.escapeHtml(v.name)}')" title="Hapus">
+            ${!isViewer ? `<button class="btn btn-icon btn-sm btn-danger voter-delete-btn"
+              data-voter-id="${Utils.escapeHtml(v.id)}"
+              data-voter-name="${Utils.escapeHtml(v.name)}" title="Hapus">
               <i class="fa-solid fa-trash text-xs"></i></button>` : ''}
           </div>
         </td>
       </tr>`;
   }).join('');
-  document.getElementById('s-voted').textContent    = Utils.formatNumber(voted);
-  document.getElementById('s-not-voted').textContent = Utils.formatNumber(notVoted);
+  document.getElementById('s-voted').textContent     = Utils.formatNumber(voted);
+  document.getElementById('s-not-voted').textContent  = Utils.formatNumber(notVoted);
+
+  // Event delegation untuk action buttons (data-* approach, safe dari XSS)
+  tbody.querySelectorAll('.voter-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => openVoterModal(btn.dataset.voterId));
+  });
+  tbody.querySelectorAll('.voter-pin-btn').forEach(btn => {
+    btn.addEventListener('click', () => resetVoterPin(btn.dataset.voterId));
+  });
+  tbody.querySelectorAll('.voter-reset-btn').forEach(btn => {
+    btn.addEventListener('click', () => resetVoteStatus(btn.dataset.voterId));
+  });
+  tbody.querySelectorAll('.voter-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => confirmDeleteVoter(btn.dataset.voterId, btn.dataset.voterName));
+  });
 }
 
 function resetFilter() {
@@ -283,20 +302,29 @@ function voterFormHtml(data = {}) {
 function openVoterModal(id) {
   if (!_electionId) { Toast.warning('Pilih pemilihan terlebih dahulu.'); return; }
   const modal = Modal.open({
-    id: 'modal-voter', title: id ? 'Edit Pemilih' : 'Tambah Pemilih', body: '<div class="text-center py-4"><div class="inline-block w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div></div>', size: 'lg',
+    id: 'modal-voter', title: id ? 'Edit Pemilih' : 'Tambah Pemilih',
+    body: '<div class="text-center py-4"><div class="inline-block w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div></div>',
+    size: 'lg',
     actions: [
       { label: 'Batal', class: 'btn-secondary', action: 'cancel' },
       { label: id ? 'Simpan' : 'Tambah', class: 'btn-primary', action: 'save', id: 'modal-save-btn' },
     ],
   });
 
-  // Load data if editing
+  // Tandai modal dengan token unik agar kita bisa cek apakah masih aktif
+  const modalToken = Date.now();
+  modal.dataset.token = modalToken;
+
+  // Load data secara async
   (async () => {
     let data = {};
     if (id) {
       const res = await API.voter.getById(id);
       if (res.success) data = res.data;
     }
+    // Cek apakah modal yang sama masih terbuka (user belum menutupnya)
+    const currentModal = document.getElementById('modal-voter');
+    if (!currentModal || currentModal.dataset.token !== String(modalToken)) return;
     Modal.updateBody('modal-voter', voterFormHtml(data));
   })();
 
