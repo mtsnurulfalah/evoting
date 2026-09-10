@@ -102,9 +102,10 @@ const Modal = (() => {
     }[size] || 'max-w-lg';
 
     const actionsHtml = actions.map(a => {
-      const cls = a.class || 'btn-secondary';
-      const id  = a.id || '';
-      return `<button id="${id}" class="btn ${cls}" data-action="${a.action || ''}">${Utils.escapeHtml(a.label)}</button>`;
+      const btnClass = a.class || 'btn-secondary';
+      const btnId    = a.id || '';   // ganti nama 'id' → 'btnId' agar tidak shadow config.id
+      const action   = a.action || '';
+      return `<button ${btnId ? `id="${btnId}"` : ''} class="btn ${btnClass}" data-action="${action}">${Utils.escapeHtml(a.label)}</button>`;
     }).join('');
 
     const modalHtml = `
