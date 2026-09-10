@@ -13,7 +13,7 @@
 
 // URL Google Apps Script Web App
 // Dapatkan dari: GAS Editor > Deploy > Manage Deployments > Web App URL
-window.GAS_URL = 'YOUR_GAS_URL_HERE';
+window.GAS_URL = 'https://script.google.com/macros/s/AKfycbyYpcwtlJLYHX5abMe0S3uFI3pVyRmMNgFQ5PPBJUwTtVs6yWCUiQwfC9BBT6OKw7le7w/exec';
 
 // Konstanta aplikasi (fallback sebelum config dari server dimuat)
 window.APP_CONFIG = {
