@@ -215,24 +215,34 @@ async function loadElectionInfo() {
     if (res.success && res.data) {
       const d = res.data;
       if (d.active && d.election) {
-        const el   = document.getElementById('election-info');
-        const title = document.getElementById('election-title');
-        const period = document.getElementById('election-period');
-        title.textContent = d.election.title;
+        const elBanner = document.getElementById('election-info');
+        const title    = document.getElementById('election-title');
+        const period   = document.getElementById('election-period');
+        title.textContent  = d.election.title;
         const start = Utils.formatDateTime(d.election.startDate);
         const end   = Utils.formatDateTime(d.election.endDate);
         period.textContent = start + ' s/d ' + end;
-        el.classList.remove('hidden');
+        elBanner.classList.remove('hidden');
       } else if (d.upcoming && d.election) {
-        const el = document.getElementById('upcoming-info');
-        const txt = document.getElementById('upcoming-text');
+        const upBanner = document.getElementById('upcoming-info');
+        const txt      = document.getElementById('upcoming-text');
         txt.textContent = 'Dimulai pada ' + Utils.formatDateTime(d.election.startDate);
-        el.classList.remove('hidden');
+        upBanner.classList.remove('hidden');
+      } else {
+        // success: true tapi tidak ada election aktif/upcoming
+        document.getElementById('no-election-info').classList.remove('hidden');
       }
+    } else if (res.errorCode === 'NETWORK_ERROR') {
+      // Jangan tampilkan "belum ada pemilihan" jika hanya network error
+      // Cukup diam — tidak ada state yang di-tampilkan
+      console.warn('[Election Info] Network error, tidak dapat memuat status pemilihan.');
     } else {
+      // Election benar-benar tidak ada atau tidak aktif
       document.getElementById('no-election-info').classList.remove('hidden');
     }
-  } catch (_) {}
+  } catch (_) {
+    // Silent fail — jangan crash halaman login karena gagal load info election
+  }
 }
 
 async function handleLogin(e) {
