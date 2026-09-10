@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hasil Pemilihan — eVoting OSIM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet" href="/assets/css/tailwind.css"/>
+</head>
+<body class="min-h-screen bg-gray-50">
+
+<div id="toast-container"></div>
+
+<!-- Topbar -->
+<header class="bg-white border-b border-gray-200 py-3 px-4 shadow-sm">
+  <div class="max-w-3xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
+        <i class="fa-solid fa-box-ballot text-white text-xs"></i>
+      </div>
+      <span class="text-sm font-semibold text-gray-700" data-app-name>eVoting OSIM</span>
+    </div>
+    <a href="/index.html" class="btn btn-sm btn-secondary text-xs">
+      <i class="fa-solid fa-arrow-left"></i> Kembali
+    </a>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="max-w-3xl mx-auto px-4 py-8">
+
+  <!-- Loading -->
+  <div id="loading-state" class="text-center py-20">
+    <div class="inline-block w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
+    <p class="text-gray-500 text-sm">Memuat hasil pemilihan...</p>
+  </div>
+
+  <!-- Not available -->
+  <div id="unavailable-state" class="hidden">
+    <div class="card max-w-md mx-auto p-10 text-center">
+      <i class="fa-solid fa-lock text-5xl text-gray-300 mb-4"></i>
+      <h3 class="font-bold text-gray-700 mb-2">Hasil Belum Dipublikasikan</h3>
+      <p class="text-gray-500 text-sm">Hasil pemilihan akan dipublikasikan setelah pemilihan selesai dan diumumkan oleh panitia.</p>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="content-state" class="hidden space-y-6">
+
+    <!-- Header -->
+    <div class="text-center">
+      <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-full px-4 py-1.5 text-xs font-medium mb-3">
+        <i class="fa-solid fa-chart-bar"></i>
+        Hasil Resmi Pemilihan
+      </div>
+      <h1 class="text-2xl font-extrabold text-gray-800" id="result-title"></h1>
+      <p class="text-gray-500 text-sm mt-1" id="result-subtitle"></p>
+    </div>
+
+    <!-- Stats cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="stats-cards"></div>
+
+    <!-- Winner section -->
+    <div id="winner-section" class="hidden card p-6 bg-gradient-to-br from-primary-600 to-primary-800 text-white text-center">
+      <div class="inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1 text-xs font-medium mb-3">
+        <i class="fa-solid fa-trophy text-yellow-300"></i>
+        Pasangan Terpilih
+      </div>
+      <h2 class="text-xl font-extrabold mb-1" id="winner-name"></h2>
+      <p class="text-white/80 text-sm mb-3" id="winner-meta"></p>
+      <div class="inline-flex items-center gap-2 bg-white/20 rounded-lg px-4 py-2">
+        <i class="fa-solid fa-check-circle text-green-300"></i>
+        <span class="font-bold text-lg" id="winner-votes"></span>
+        <span class="text-white/80 text-sm">suara</span>
+        <span class="text-white/60">·</span>
+        <span class="font-semibold" id="winner-pct"></span>
+      </div>
+    </div>
+
+    <!-- Candidate results -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="font-semibold text-gray-800 text-sm">Perolehan Suara</h3>
+        <span class="text-xs text-gray-500" id="total-votes-text"></span>
+      </div>
+      <div class="card-body space-y-4" id="candidate-results"></div>
+    </div>
+
+    <!-- Participation -->
+    <div class="card p-5">
+      <h3 class="font-semibold text-gray-800 text-sm mb-4">Partisipasi Pemilih</h3>
+      <div class="flex items-center justify-between text-sm mb-2">
+        <span class="text-gray-600">Tingkat Partisipasi</span>
+        <span class="font-bold text-primary-600" id="participation-rate"></span>
+      </div>
+      <div class="progress-bar mb-4">
+        <div class="progress-fill bg-primary-500" id="participation-bar" style="width:0%"></div>
+      </div>
+      <div class="grid grid-cols-3 gap-3 text-center">
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-lg font-bold text-gray-800" id="stat-total"></p>
+          <p class="text-xs text-gray-500">Total Pemilih</p>
+        </div>
+        <div class="bg-green-50 rounded-lg p-3">
+          <p class="text-lg font-bold text-green-600" id="stat-voted"></p>
+          <p class="text-xs text-gray-500">Sudah Memilih</p>
+        </div>
+        <div class="bg-orange-50 rounded-lg p-3">
+          <p class="text-lg font-bold text-orange-600" id="stat-not-voted"></p>
+          <p class="text-xs text-gray-500">Belum Memilih</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-center text-xs text-gray-400">
+      Data diperbarui secara real-time. Hasil bersifat resmi setelah diverifikasi panitia.
+    </p>
+  </div>
+</main>
+
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/assets/js/components.js"></script>
+<script>
+const CHART_COLORS = [
+  '#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6',
+  '#06b6d4','#f97316','#ec4899','#84cc16','#14b8a6',
+];
+
+(async () => {
+  loadAppConfig();
+  showState('loading');
+
+  try {
+    const res = await API.result.getPublic();
+    if (!res.success) {
+      showState('unavailable');
+      return;
+    }
+
+    const data = res.data;
+    renderResults(data);
+    showState('content');
+  } catch (_) {
+    showState('unavailable');
+  }
+})();
+
+function renderResults(data) {
+  const stats     = data.stats     || {};
+  const candidates = data.candidates || [];
+  const winner    = data.winner;
+
+  // Title
+  document.getElementById('result-title').textContent    = 'Hasil Pemilihan';
+  document.getElementById('result-subtitle').textContent = `Total ${Utils.formatNumber(stats.totalVotes || 0)} suara sah`;
+  document.getElementById('total-votes-text').textContent = `${Utils.formatNumber(stats.totalVotes || 0)} suara`;
+  document.title = 'Hasil Pemilihan — eVoting OSIM';
+
+  // Stats cards
+  const statsEl = document.getElementById('stats-cards');
+  statsEl.innerHTML = [
+    { label: 'Total Pemilih',   value: stats.totalVoters || 0,        icon: 'fa-users',        color: 'text-blue-600  bg-blue-50' },
+    { label: 'Sudah Memilih',   value: stats.voted || 0,              icon: 'fa-check-circle', color: 'text-green-600 bg-green-50' },
+    { label: 'Belum Memilih',   value: stats.notVoted || 0,           icon: 'fa-clock',        color: 'text-orange-600 bg-orange-50' },
+    { label: 'Partisipasi',     value: (stats.participationRate || 0) + '%', icon: 'fa-chart-pie', color: 'text-primary-600 bg-primary-50' },
+  ].map(s => `
+    <div class="card p-4 text-center">
+      <div class="inline-flex items-center justify-center w-9 h-9 rounded-lg ${s.color} mb-2">
+        <i class="fa-solid ${s.icon} text-sm"></i>
+      </div>
+      <p class="text-xl font-extrabold text-gray-800">${Utils.escapeHtml(String(s.value))}</p>
+      <p class="text-xs text-gray-500 mt-0.5">${Utils.escapeHtml(s.label)}</p>
+    </div>`).join('');
+
+  // Winner
+  if (winner && !winner.isTied) {
+    const w = winner.candidate;
+    document.getElementById('winner-name').textContent =
+      w.name + (w.pairName ? ' & ' + w.pairName : '');
+    document.getElementById('winner-meta').textContent =
+      'No. Urut ' + w.orderNumber + (w.className ? ' · ' + w.className : '');
+    document.getElementById('winner-votes').textContent = Utils.formatNumber(w.votes);
+    document.getElementById('winner-pct').textContent   = w.percentage + '%';
+    document.getElementById('winner-section').classList.remove('hidden');
+  }
+
+  // Candidate results
+  const resultEl = document.getElementById('candidate-results');
+  const totalVotes = stats.totalVotes || 0;
+  resultEl.innerHTML = candidates.map((c, i) => {
+    const pct = c.percentage || 0;
+    const isWinner = winner && !winner.isTied && winner.candidate.id === c.id;
+    return `
+      <div class="flex items-center gap-3 ${isWinner ? 'bg-primary-50 -mx-2 px-2 py-2 rounded-xl' : ''}">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0
+          ${isWinner ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}">
+          ${c.orderNumber}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            <p class="text-sm font-semibold text-gray-800 truncate">
+              ${Utils.escapeHtml(c.name)}${c.pairName ? ' <span class="text-gray-500 font-normal">&amp; ' + Utils.escapeHtml(c.pairName) + '</span>' : ''}
+            </p>
+            ${isWinner ? '<span class="badge badge-success flex-shrink-0"><i class="fa-solid fa-trophy fa-xs"></i> Terpilih</span>' : ''}
+          </div>
+          <div class="progress-bar h-2.5">
+            <div class="progress-fill ${CHART_COLORS[i % CHART_COLORS.length] ? '' : 'bg-primary-500'}"
+              style="width:${pct}%; background-color:${CHART_COLORS[i % CHART_COLORS.length]}"></div>
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0 w-24">
+          <p class="text-sm font-bold text-gray-800">${Utils.formatNumber(c.votes)} <span class="text-xs font-normal text-gray-500">suara</span></p>
+          <p class="text-xs text-gray-500">${pct}%</p>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Participation
+  const rate = stats.participationRate || 0;
+  document.getElementById('participation-rate').textContent = rate + '%';
+  document.getElementById('participation-bar').style.width  = Math.min(rate, 100) + '%';
+  document.getElementById('stat-total').textContent     = Utils.formatNumber(stats.totalVoters || 0);
+  document.getElementById('stat-voted').textContent     = Utils.formatNumber(stats.voted || 0);
+  document.getElementById('stat-not-voted').textContent = Utils.formatNumber(stats.notVoted || 0);
+}
+
+function showState(state) {
+  document.getElementById('loading-state').classList.toggle('hidden', state !== 'loading');
+  document.getElementById('unavailable-state').classList.toggle('hidden', state !== 'unavailable');
+  document.getElementById('content-state').classList.toggle('hidden', state !== 'content');
+}
+</script>
+</body>
+</html>
