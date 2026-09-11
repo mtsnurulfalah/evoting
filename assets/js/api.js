@@ -11,7 +11,7 @@ const API = (() => {
   // Diambil dari window.GAS_URL yang di-inject via config.js
   // (file yang di-generate saat build atau diset manual).
   function getBaseUrl() {
-    if (window.GAS_URL && window.GAS_URL !== 'YOUR_GAS_URL') {
+    if (window.GAS_URL && window.GAS_URL !== 'YOUR_GAS_URL_HERE') {
       return window.GAS_URL;
     }
     // Fallback: cek localStorage (untuk dev)
