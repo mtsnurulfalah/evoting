@@ -233,7 +233,7 @@ const Sidebar = (() => {
   /**
    * Role-based nav items.
    * superadmin / admin / ketua_panitia: semua kecuali settings → ketua_panitia
-   * panitia: hanya Hasil Pemilihan
+   * panitia: Hasil Pemilihan + Pemilih (readonly)
    * viewer: semua (read-only, dikontrol di level page/backend)
    */
   function getNavItems(role) {
@@ -245,9 +245,11 @@ const Sidebar = (() => {
       { href: './results.html',    icon: 'fa-chart-bar',       label: 'Hasil Pemilihan' },
     ];
 
-    // Panitia: hanya Hasil Pemilihan
+    // Panitia: Hasil Pemilihan + Pemilih (hanya lihat)
     if (role === 'panitia') {
-      return all.filter(item => item.href === './results.html');
+      return all.filter(item =>
+        item.href === './results.html' || item.href === './voters.html'
+      );
     }
 
     return all;
