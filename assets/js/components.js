@@ -231,9 +231,67 @@ const Modal = (() => {
 
 const Sidebar = (() => {
   /**
-   * Inisialisasi sidebar admin: highlight link aktif, toggle mobile.
+   * Role-based nav items.
+   * superadmin / admin / ketua_panitia: semua kecuali settings → ketua_panitia
+   * panitia: hanya Hasil Pemilihan
+   * viewer: semua (read-only, dikontrol di level page/backend)
+   */
+  function getNavItems(role) {
+    const all = [
+      { href: './dashboard.html',  icon: 'fa-chart-line',     label: 'Dashboard' },
+      { href: './election.html',   icon: 'fa-calendar-check', label: 'Manajemen Pemilihan' },
+      { href: './candidates.html', icon: 'fa-users',           label: 'Kandidat' },
+      { href: './voters.html',     icon: 'fa-id-card',         label: 'Pemilih' },
+      { href: './results.html',    icon: 'fa-chart-bar',       label: 'Hasil Pemilihan' },
+    ];
+
+    // Panitia: hanya Hasil Pemilihan
+    if (role === 'panitia') {
+      return all.filter(item => item.href === './results.html');
+    }
+
+    return all;
+  }
+
+  /**
+   * Bangun HTML nav dari item list.
+   */
+  function buildNavHtml(role) {
+    const items = getNavItems(role);
+    const showSettings = (role === 'superadmin' || role === 'admin' || role === 'viewer');
+
+    let html = `<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">Menu Utama</p>`;
+    html += items.map(item =>
+      `<a href="${item.href}" class="sidebar-link"><i class="fa-solid ${item.icon}"></i> ${item.label}</a>`
+    ).join('');
+
+    html += `<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">Akun</p>`;
+    html += `<a href="./profile.html" class="sidebar-link"><i class="fa-solid fa-circle-user"></i> Profil Saya</a>`;
+
+    if (showSettings) {
+      html += `<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">Pengaturan</p>`;
+      html += `<a href="./settings.html" class="sidebar-link"><i class="fa-solid fa-gear"></i> Pengaturan Aplikasi</a>`;
+    }
+
+    return html;
+  }
+
+  /**
+   * Inject nav items ke sidebar berdasarkan role.
+   * Dipanggil oleh init() sebelum highlightActive().
+   */
+  function renderNav() {
+    const nav = document.querySelector('#sidebar nav');
+    if (!nav) return;
+    const role = Auth.getAdminRole();
+    nav.innerHTML = buildNavHtml(role);
+  }
+
+  /**
+   * Inisialisasi sidebar admin: render nav, highlight link aktif, toggle mobile.
    */
   function init() {
+    renderNav();
     highlightActive();
     initMobileToggle();
     loadAppName();
@@ -244,7 +302,6 @@ const Sidebar = (() => {
     document.querySelectorAll('.sidebar-link').forEach(link => {
       const href = link.getAttribute('href');
       if (!href) return;
-      // Normalisasi path untuk perbandingan
       const linkPath = href.replace(/^\.\.\//, '/admin/').replace(/^\.\//, '/admin/');
       const active =
         path === linkPath ||
@@ -281,7 +338,6 @@ const Sidebar = (() => {
       const res = await API.config.get();
       if (res.success && res.data) {
         el.textContent = res.data.APP_NAME || 'eVoting OSIM';
-        // Set juga di topbar jika ada
         const topbarName = document.getElementById('topbar-app-name');
         if (topbarName) topbarName.textContent = res.data.APP_NAME || 'eVoting OSIM';
         const schoolName = document.getElementById('sidebar-school-name');
@@ -299,15 +355,29 @@ const Sidebar = (() => {
 
 const Topbar = (() => {
   function init() {
-    const nameEl = document.getElementById('topbar-user-name');
-    const roleEl = document.getElementById('topbar-user-role');
+    const nameEl    = document.getElementById('topbar-user-name');
+    const roleEl    = document.getElementById('topbar-user-role');
+    const avatarEl  = document.getElementById('topbar-user-avatar');
     const logoutBtn = document.getElementById('topbar-logout-btn');
 
     const adminData = Auth.getUserData();
+
     if (nameEl) nameEl.textContent = adminData.name || adminData.username || 'Admin';
+
     if (roleEl) {
-      const roleMap = { superadmin: 'Super Admin', admin: 'Admin', viewer: 'Viewer' };
+      const roleMap = {
+        superadmin:    'Super Admin',
+        admin:         'Admin',
+        viewer:        'Viewer',
+        ketua_panitia: 'Ketua Panitia',
+        panitia:       'Panitia',
+      };
       roleEl.textContent = roleMap[adminData.role] || adminData.role || '';
+    }
+
+    // Render avatar: foto profil jika ada, fallback ke inisial/ikon
+    if (avatarEl) {
+      _renderAvatar(avatarEl, adminData);
     }
 
     if (logoutBtn) {
@@ -321,7 +391,49 @@ const Topbar = (() => {
     }
   }
 
-  return { init };
+  /**
+   * Render avatar ke elemen container.
+   * Jika ada photoUrl → tampilkan <img>.
+   * Fallback → inisial nama dengan background warna sesuai role.
+   */
+  function _renderAvatar(container, adminData) {
+    const photoUrl = adminData.photoUrl
+      ? Utils.buildDriveImgUrl(adminData.photoUrl)
+      : null;
+
+    if (photoUrl) {
+      container.innerHTML = `
+        <img src="${Utils.escapeHtml(photoUrl)}"
+             class="w-full h-full object-cover object-top rounded-full"
+             onerror="this.parentElement.innerHTML='${_initialHtml(adminData)}'">`;
+    } else {
+      container.innerHTML = _initialHtml(adminData);
+    }
+  }
+
+  function _initialHtml(adminData) {
+    const name    = adminData.name || adminData.username || '?';
+    const initial = name.charAt(0).toUpperCase();
+    const roleColors = {
+      superadmin:    'bg-primary-600 text-white',
+      admin:         'bg-indigo-500 text-white',
+      ketua_panitia: 'bg-emerald-500 text-white',
+      panitia:       'bg-amber-500 text-white',
+      viewer:        'bg-gray-400 text-white',
+    };
+    const colorClass = roleColors[adminData.role] || 'bg-gray-400 text-white';
+    return `<span class="text-xs font-bold ${colorClass} w-full h-full rounded-full flex items-center justify-center">${initial}</span>`;
+  }
+
+  /**
+   * Refresh tampilan avatar di sidebar (dipanggil setelah upload foto baru).
+   */
+  function refreshAvatar() {
+    const avatarEl  = document.getElementById('topbar-user-avatar');
+    if (avatarEl) _renderAvatar(avatarEl, Auth.getUserData());
+  }
+
+  return { init, refreshAvatar };
 })();
 
 // ============================================================
