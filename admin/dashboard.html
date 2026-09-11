@@ -9,21 +9,32 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+  <style>
+    /* Cegah horizontal overflow */
+    body { overflow-x: hidden; }
+    /* FIX #5: transisi progress bar pin — tidak di-override oleh JS */
+    #pin-progress { transition: width 1s linear, background-color 0.4s ease; }
+  </style>
 </head>
 <body class="h-full bg-gray-50 flex">
 
 <div id="toast-container"></div>
 
-<!-- Sidebar overlay (mobile) -->
-<div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
+<!-- ── Sidebar overlay (mobile) ───────────────────────────── -->
+<div id="sidebar-overlay"
+     class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"
+     aria-hidden="true"></div>
 
-<!-- Sidebar -->
-<aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<aside id="sidebar"
+       class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col
+              transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto"
+       aria-label="Sidebar navigasi">
   <!-- Brand -->
   <div class="px-5 py-4 border-b border-gray-100">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-        <i class="fa-solid fa-box-ballot text-white"></i>
+        <i class="fa-solid fa-box-ballot text-white" aria-hidden="true"></i>
       </div>
       <div class="min-w-0">
         <p class="text-sm font-bold text-gray-800 truncate" id="sidebar-app-name">eVoting OSIM</p>
@@ -33,34 +44,52 @@
   </div>
 
   <!-- Nav (diisi oleh Sidebar.init() berdasarkan role) -->
-  <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto"></nav>
+  <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto" aria-label="Menu utama"></nav>
 
   <!-- User info -->
   <div class="p-3 border-t border-gray-100">
     <div class="flex items-center gap-3 px-2 py-2 rounded-lg">
-      <div id="topbar-user-avatar" class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary-100 flex items-center justify-center"></div>
+      <div id="topbar-user-avatar"
+           class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary-100
+                  flex items-center justify-center"
+           aria-hidden="true"></div>
       <div class="flex-1 min-w-0">
         <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
         <p class="text-xs text-gray-500" id="topbar-user-role"></p>
       </div>
-      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1" title="Logout">
-        <i class="fa-solid fa-right-from-bracket text-sm"></i>
+      <button id="topbar-logout-btn"
+              class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
+              title="Logout"
+              aria-label="Logout">
+        <i class="fa-solid fa-right-from-bracket text-sm" aria-hidden="true"></i>
       </button>
     </div>
   </div>
 </aside>
 
-<!-- Main area -->
+<!-- ── Main area ────────────────────────────────────────────── -->
 <div class="flex-1 flex flex-col min-w-0">
+
   <!-- Topbar -->
-  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-4 sticky top-0 z-20">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1">
-      <i class="fa-solid fa-bars text-lg"></i>
+  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-3
+                 sticky top-0 z-20">
+    <button id="sidebar-toggle"
+            class="lg:hidden text-gray-500 hover:text-gray-700 p-1 rounded"
+            aria-label="Buka sidebar">
+      <i class="fa-solid fa-bars text-lg" aria-hidden="true"></i>
     </button>
     <h1 class="text-base font-semibold text-gray-800 flex-1">Dashboard</h1>
     <div class="flex items-center gap-2">
-      <a href="/index.html" target="_blank" class="btn btn-sm btn-outline text-xs">
-        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+      <!-- FIX #13: Tombol refresh manual -->
+      <button id="btn-refresh"
+              class="btn btn-sm btn-outline text-xs gap-1.5"
+              title="Refresh data">
+        <i class="fa-solid fa-rotate-right text-xs" aria-hidden="true"></i>
+        <span class="hidden sm:inline">Refresh</span>
+      </button>
+      <a href="/index.html" target="_blank" rel="noopener noreferrer"
+         class="btn btn-sm btn-outline text-xs gap-1.5">
+        <i class="fa-solid fa-arrow-up-right-from-square text-xs" aria-hidden="true"></i>
         <span class="hidden sm:inline">Lihat Halaman Utama</span>
       </a>
     </div>
@@ -69,172 +98,220 @@
   <!-- Page content -->
   <main class="flex-1 p-4 md:p-6 overflow-auto">
 
-    <!-- Election status banner -->
-    <div id="election-banner" class="hidden mb-5 rounded-xl p-4 flex items-center gap-3 text-sm">
-      <i id="banner-icon" class="text-xl flex-shrink-0"></i>
+    <!-- ── FIX #6: Election status banner (selalu ada, show/hide via JS) ── -->
+    <div id="election-banner"
+         class="hidden mb-5 rounded-xl p-4 flex items-center gap-3 text-sm
+                flex-wrap sm:flex-nowrap">
+      <i id="banner-icon" class="text-xl flex-shrink-0" aria-hidden="true"></i>
       <div class="flex-1 min-w-0">
         <p class="font-semibold" id="banner-title"></p>
-        <p class="text-xs opacity-80 mt-0.5" id="banner-sub"></p>
+        <p class="text-xs opacity-80 mt-0.5 break-words" id="banner-sub"></p>
       </div>
-      <a href="./election.html" class="btn btn-sm bg-white/30 hover:bg-white/50 text-inherit border border-white/40 text-xs flex-shrink-0">
-        Kelola <i class="fa-solid fa-arrow-right ml-1"></i>
+      <!-- FIX #15: warna tombol eksplisit, bukan text-inherit -->
+      <a href="./election.html"
+         class="btn btn-sm bg-white/40 hover:bg-white/60 border border-white/50
+                text-current text-xs flex-shrink-0 gap-1">
+        Kelola <i class="fa-solid fa-arrow-right fa-xs" aria-hidden="true"></i>
       </a>
     </div>
 
-    <!-- Stats grid -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div class="stat-card" id="stat-voters">
-        <div class="stat-icon bg-blue-50 text-blue-600"><i class="fa-solid fa-users"></i></div>
-        <div>
-          <p class="text-2xl font-extrabold text-gray-800" id="s-total-voters"><div class="skeleton h-7 w-16 rounded"></div></p>
-          <p class="text-xs text-gray-500 mt-0.5">Total Pemilih</p>
+    <!-- ── Stats grid ─────────────────────────────────────────── -->
+    <!-- FIX #12/#18: pakai <div> bukan <p> untuk nilai stat agar skeleton valid;
+         grid tetap 2-col di mobile tapi angka lebih compact -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <div class="stat-card">
+        <div class="stat-icon bg-blue-50 text-blue-600" aria-hidden="true">
+          <i class="fa-solid fa-users"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="text-xl sm:text-2xl font-extrabold text-gray-800 tabular-nums
+                      leading-none" id="s-total-voters">
+            <div class="skeleton h-7 w-14 rounded"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Total Pemilih</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon bg-green-50 text-green-600"><i class="fa-solid fa-check-circle"></i></div>
-        <div>
-          <p class="text-2xl font-extrabold text-gray-800" id="s-voted"><div class="skeleton h-7 w-16 rounded"></div></p>
-          <p class="text-xs text-gray-500 mt-0.5">Sudah Memilih</p>
+        <div class="stat-icon bg-green-50 text-green-600" aria-hidden="true">
+          <i class="fa-solid fa-check-circle"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="text-xl sm:text-2xl font-extrabold text-gray-800 tabular-nums
+                      leading-none" id="s-voted">
+            <div class="skeleton h-7 w-14 rounded"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Sudah Memilih</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon bg-orange-50 text-orange-600"><i class="fa-solid fa-clock"></i></div>
-        <div>
-          <p class="text-2xl font-extrabold text-gray-800" id="s-not-voted"><div class="skeleton h-7 w-16 rounded"></div></p>
-          <p class="text-xs text-gray-500 mt-0.5">Belum Memilih</p>
+        <div class="stat-icon bg-orange-50 text-orange-600" aria-hidden="true">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="text-xl sm:text-2xl font-extrabold text-gray-800 tabular-nums
+                      leading-none" id="s-not-voted">
+            <div class="skeleton h-7 w-14 rounded"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Belum Memilih</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon bg-primary-50 text-primary-600"><i class="fa-solid fa-chart-pie"></i></div>
-        <div>
-          <p class="text-2xl font-extrabold text-gray-800" id="s-participation"><div class="skeleton h-7 w-16 rounded"></div></p>
-          <p class="text-xs text-gray-500 mt-0.5">Partisipasi</p>
+        <div class="stat-icon bg-primary-50 text-primary-600" aria-hidden="true">
+          <i class="fa-solid fa-chart-pie"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="text-xl sm:text-2xl font-extrabold text-gray-800 tabular-nums
+                      leading-none" id="s-participation">
+            <div class="skeleton h-7 w-14 rounded"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Partisipasi</p>
         </div>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Candidate vote summary -->
+    <!-- ── Konten dua kolom ──────────────────────────────────── -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+
+      <!-- Perolehan Suara -->
       <div class="card">
-        <div class="card-header">
+        <div class="card-header px-4 sm:px-6">
           <h3 class="font-semibold text-gray-800 text-sm">Perolehan Suara</h3>
-          <span class="text-xs text-gray-400" id="vote-summary-sub"></span>
+          <span class="text-xs text-gray-400 flex-shrink-0" id="vote-summary-sub"></span>
         </div>
-        <div class="card-body space-y-3" id="vote-summary">
-          <div class="space-y-3">
-            <div class="skeleton h-12 w-full rounded-lg"></div>
-            <div class="skeleton h-12 w-full rounded-lg"></div>
-            <div class="skeleton h-12 w-full rounded-lg"></div>
-          </div>
+        <!-- FIX #14: loading state awal yang valid -->
+        <div class="card-body space-y-3 px-4 sm:px-6" id="vote-summary">
+          <div class="skeleton h-10 w-full rounded-lg"></div>
+          <div class="skeleton h-10 w-full rounded-lg"></div>
+          <div class="skeleton h-10 w-full rounded-lg"></div>
         </div>
       </div>
 
-      <!-- Quick actions + participation -->
-      <div class="space-y-4">
-        <!-- Participation card -->
-        <div class="card p-5">
+      <!-- Kolom kanan -->
+      <div class="space-y-4 sm:space-y-5">
+
+        <!-- Tingkat Partisipasi -->
+        <div class="card p-4 sm:p-5">
           <h3 class="font-semibold text-gray-800 text-sm mb-3">Tingkat Partisipasi</h3>
           <div class="flex items-center justify-between text-sm mb-1.5">
             <span class="text-gray-500 text-xs">Progress</span>
-            <span class="font-bold text-primary-600" id="participation-pct">0%</span>
+            <span class="font-bold text-primary-600 tabular-nums" id="participation-pct">0%</span>
           </div>
-          <div class="progress-bar mb-3">
-            <div class="progress-fill bg-primary-500" id="participation-fill" style="width:0%"></div>
+          <div class="progress-bar mb-3 h-2.5">
+            <div class="progress-fill bg-primary-500" id="participation-fill"
+                 style="width:0%; transition: width 0.7s ease-out;"></div>
           </div>
           <div class="grid grid-cols-3 gap-2 text-center text-xs">
-            <div class="bg-blue-50 rounded-lg p-2">
-              <p class="font-bold text-blue-700" id="d-total">-</p>
+            <div class="bg-blue-50 rounded-xl p-2.5">
+              <p class="font-bold text-blue-700 tabular-nums" id="d-total">—</p>
               <p class="text-gray-500 mt-0.5">Terdaftar</p>
             </div>
-            <div class="bg-green-50 rounded-lg p-2">
-              <p class="font-bold text-green-700" id="d-voted">-</p>
+            <div class="bg-green-50 rounded-xl p-2.5">
+              <p class="font-bold text-green-700 tabular-nums" id="d-voted">—</p>
               <p class="text-gray-500 mt-0.5">Memilih</p>
             </div>
-            <div class="bg-orange-50 rounded-lg p-2">
-              <p class="font-bold text-orange-700" id="d-not-voted">-</p>
+            <div class="bg-orange-50 rounded-xl p-2.5">
+              <p class="font-bold text-orange-700 tabular-nums" id="d-not-voted">—</p>
               <p class="text-gray-500 mt-0.5">Belum</p>
             </div>
           </div>
         </div>
 
-        <!-- Quick actions -->
-        <div class="card p-5">
+        <!-- Aksi Cepat -->
+        <!-- FIX #20: min-h memadai, teks tidak overflow di mobile -->
+        <div class="card p-4 sm:p-5">
           <h3 class="font-semibold text-gray-800 text-sm mb-3">Aksi Cepat</h3>
           <div class="grid grid-cols-2 gap-2">
-            <a href="./election.html" class="btn btn-outline text-xs py-3 flex-col gap-1 h-auto">
-              <i class="fa-solid fa-calendar-plus text-primary-600 text-lg"></i>
+            <a href="./election.html"
+               class="btn btn-outline text-xs py-3 flex-col gap-1.5 h-auto min-h-[4rem]">
+              <i class="fa-solid fa-calendar-plus text-primary-600 text-lg" aria-hidden="true"></i>
               Pemilihan
             </a>
-            <a href="./candidates.html" class="btn btn-outline text-xs py-3 flex-col gap-1 h-auto">
-              <i class="fa-solid fa-user-plus text-green-600 text-lg"></i>
+            <a href="./candidates.html"
+               class="btn btn-outline text-xs py-3 flex-col gap-1.5 h-auto min-h-[4rem]">
+              <i class="fa-solid fa-user-plus text-green-600 text-lg" aria-hidden="true"></i>
               Kandidat
             </a>
-            <a href="./voters.html" class="btn btn-outline text-xs py-3 flex-col gap-1 h-auto">
-              <i class="fa-solid fa-file-import text-blue-600 text-lg"></i>
+            <a href="./voters.html"
+               class="btn btn-outline text-xs py-3 flex-col gap-1.5 h-auto min-h-[4rem]">
+              <i class="fa-solid fa-file-import text-blue-600 text-lg" aria-hidden="true"></i>
               Import Pemilih
             </a>
-            <a href="./results.html" class="btn btn-outline text-xs py-3 flex-col gap-1 h-auto">
-              <i class="fa-solid fa-chart-bar text-purple-600 text-lg"></i>
+            <a href="./results.html"
+               class="btn btn-outline text-xs py-3 flex-col gap-1.5 h-auto min-h-[4rem]">
+              <i class="fa-solid fa-chart-bar text-purple-600 text-lg" aria-hidden="true"></i>
               Lihat Hasil
             </a>
           </div>
         </div>
 
-        <!-- PIN Akses Panitia — hanya tampil untuk superadmin/admin/ketua_panitia -->
-        <div class="card p-5 hidden" id="pin-access-card">
+        <!-- Widget PIN Akses Panitia (superadmin/admin/ketua_panitia) -->
+        <div class="card p-4 sm:p-5 hidden" id="pin-access-card">
           <div class="flex items-center justify-between mb-3">
             <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-              <i class="fa-solid fa-shield-keyhole text-amber-500"></i>
+              <i class="fa-solid fa-shield-keyhole text-amber-500" aria-hidden="true"></i>
               PIN Akses Panitia
             </h3>
-            <button id="btn-generate-pin" class="btn btn-sm btn-outline text-xs" title="Generate PIN baru">
-              <i class="fa-solid fa-rotate-right"></i>
+            <!-- FIX #3: gunakan Utils.setLoading untuk state tombol generate -->
+            <button id="btn-generate-pin"
+                    class="btn btn-sm btn-outline text-xs gap-1.5"
+                    title="Generate PIN baru">
+              <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
               <span class="hidden sm:inline">Generate</span>
             </button>
           </div>
           <!-- PIN display -->
           <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center mb-3">
             <p class="text-xs text-amber-700 mb-1 font-medium">PIN Aktif Saat Ini</p>
-            <p class="text-3xl font-extrabold tracking-[0.3em] text-amber-800 font-mono select-all" id="pin-value">
-              <span class="inline-block w-24 h-8 skeleton rounded"></span>
+            <p class="text-3xl font-extrabold tracking-[0.3em] text-amber-800 font-mono
+                      select-all tabular-nums" id="pin-value">
+              <span class="inline-block w-24 h-8 skeleton rounded align-middle"></span>
             </p>
             <p class="text-xs text-amber-600 mt-1">Berikan PIN ini ke Panitia</p>
           </div>
-          <!-- Countdown bar -->
+          <!-- Countdown -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-xs text-gray-500">
               <span class="flex items-center gap-1">
-                <i class="fa-solid fa-clock fa-xs text-amber-500"></i>
+                <i class="fa-solid fa-clock fa-xs text-amber-500" aria-hidden="true"></i>
                 Berubah dalam
               </span>
-              <span class="font-mono font-semibold text-amber-700" id="pin-countdown">—</span>
+              <span class="font-mono font-semibold text-amber-700 tabular-nums"
+                    id="pin-countdown">—</span>
             </div>
             <div class="progress-bar h-2 bg-amber-100">
-              <div id="pin-progress" class="progress-fill bg-amber-400 transition-all duration-1000" style="width:100%"></div>
+              <div id="pin-progress"
+                   class="progress-fill bg-amber-400"
+                   style="width:100%"></div>
             </div>
           </div>
-          <p class="text-xs text-gray-400 mt-2 text-center">PIN berubah otomatis setiap 5 menit</p>
+          <p class="text-xs text-gray-400 mt-2 text-center">
+            PIN berubah otomatis setiap 5 menit
+          </p>
         </div>
-      </div>
-    </div>
 
-    <!-- Election list summary -->
-    <div class="card mt-6">
-      <div class="card-header">
+      </div><!-- /kolom kanan -->
+    </div><!-- /grid dua kolom -->
+
+    <!-- ── Daftar Pemilihan ──────────────────────────────────── -->
+    <div class="card mt-5 sm:mt-6">
+      <div class="card-header px-4 sm:px-6">
         <h3 class="font-semibold text-gray-800 text-sm">Daftar Pemilihan</h3>
-        <a href="./election.html" class="btn btn-sm btn-primary text-xs">
-          <i class="fa-solid fa-plus"></i> Buat Baru
+        <a href="./election.html" class="btn btn-sm btn-primary text-xs gap-1">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          Buat Baru
         </a>
       </div>
       <div id="election-list" class="divide-y divide-gray-100">
+        <!-- Skeleton loading -->
         <div class="p-4 space-y-2">
           <div class="skeleton h-5 w-3/4 rounded"></div>
           <div class="skeleton h-4 w-1/2 rounded"></div>
         </div>
       </div>
     </div>
+
   </main>
-</div>
+</div><!-- /main area -->
 
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
@@ -242,22 +319,52 @@
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/components.js"></script>
 <script>
+/* ============================================================
+   dashboard.html — Panel Admin Dashboard
+   eVoting OSIM/S
+   ============================================================ */
+
+// ── Chart colors untuk progress bar kandidat ────────────────
+const DASH_COLORS = [
+  '#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6',
+  '#06b6d4','#f97316','#ec4899',
+];
+
+// ── Bootstrap ───────────────────────────────────────────────
 (async () => {
   if (!Auth.requireAdminPage()) return;
   Sidebar.init();
   Topbar.init();
-  loadDashboard();
 
-  // Widget PIN Akses Panitia — hanya untuk role yang boleh melihat PIN
+  // FIX #1: await loadDashboard agar tidak race condition dengan PIN widget
+  await loadDashboard();
+
+  // Tombol Refresh manual (FIX #13)
+  document.getElementById('btn-refresh').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-refresh');
+    const icon = btn.querySelector('i');
+    if (icon) icon.classList.add('animate-spin');
+    btn.disabled = true;
+    await loadDashboard();
+    btn.disabled = false;
+    if (icon) icon.classList.remove('animate-spin');
+  });
+
+  // Widget PIN — hanya untuk role yang memiliki akses
   const role = Auth.getAdminRole();
   if (role === 'superadmin' || role === 'admin' || role === 'ketua_panitia') {
     document.getElementById('pin-access-card').classList.remove('hidden');
-    initPinWidget();
+    PinWidget.init();
   }
 })();
 
+/* ============================================================
+   DASHBOARD LOADER
+   ============================================================ */
+
 async function loadDashboard() {
   try {
+    // FIX #7: parallel fetch dengan Promise.all
     const [dashRes, elRes] = await Promise.all([
       API.result.getDashboard(),
       API.election.getAll(),
@@ -265,179 +372,305 @@ async function loadDashboard() {
 
     if (dashRes.success && dashRes.data) {
       renderDashboard(dashRes.data);
+    } else {
+      renderDashboardError();
     }
-    if (elRes.success && elRes.data) {
+
+    // FIX #7: Array.isArray guard
+    if (elRes.success && Array.isArray(elRes.data)) {
       renderElectionList(elRes.data.slice(0, 5));
+    } else {
+      renderElectionList([]);
     }
+
   } catch (err) {
-    Toast.error('Gagal memuat data dashboard.');
+    console.error('[Dashboard] loadDashboard error:', err);
+    Toast.error('Gagal memuat data dashboard. Periksa koneksi Anda.');
+    renderDashboardError();
+    renderElectionList([]);
   }
 }
+
+/* ============================================================
+   RENDER DASHBOARD
+   ============================================================ */
 
 function renderDashboard(data) {
-  const stats = data.stats || {};
-  const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  // FIX #8/#9: null guard lengkap
+  const stats      = (data && data.stats) || {};
+  const candidates = (data && data.candidates) || [];
 
-  setEl('s-total-voters',  Utils.formatNumber(stats.totalVoters    || 0));
-  setEl('s-voted',         Utils.formatNumber(stats.voted          || 0));
-  setEl('s-not-voted',     Utils.formatNumber(stats.notVoted       || 0));
-  setEl('s-participation', (stats.participationRate || 0) + '%');
-  setEl('participation-pct', (stats.participationRate || 0) + '%');
-  setEl('d-total',     Utils.formatNumber(stats.totalVoters || 0));
-  setEl('d-voted',     Utils.formatNumber(stats.voted       || 0));
-  setEl('d-not-voted', Utils.formatNumber(stats.notVoted    || 0));
+  // FIX #4: explicit Number/parseFloat casting
+  const totalVoters       = Number(stats.totalVoters       || 0);
+  const voted             = Number(stats.voted             || 0);
+  const notVoted          = Number(stats.notVoted          || 0);
+  const participationRate = parseFloat(stats.participationRate || 0);
+  const totalVotes        = Number(stats.totalVotes        || data.totalVotes || 0);
 
-  const pct = stats.participationRate || 0;
-  document.getElementById('participation-fill').style.width = Math.min(pct, 100) + '%';
+  // Stat cards — FIX #12: set textContent pada <div>, bukan innerHTML nested di <p>
+  const setEl = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(v);
+  };
 
-  // Election banner
+  setEl('s-total-voters',  Utils.formatNumber(totalVoters));
+  setEl('s-voted',         Utils.formatNumber(voted));
+  setEl('s-not-voted',     Utils.formatNumber(notVoted));
+  setEl('s-participation', participationRate + '%');
+  setEl('participation-pct', participationRate + '%');
+  setEl('d-total',     Utils.formatNumber(totalVoters));
+  setEl('d-voted',     Utils.formatNumber(voted));
+  setEl('d-not-voted', Utils.formatNumber(notVoted));
+
+  document.getElementById('participation-fill').style.width =
+    Math.min(participationRate, 100) + '%';
+
+  // FIX #6: Banner — sembunyikan dulu, tampilkan sesuai kondisi
+  const banner = document.getElementById('election-banner');
+  banner.classList.add('hidden');
+
   if (data.hasActiveElection && data.election) {
-    const el    = data.election;
-    const banner = document.getElementById('election-banner');
-    const statusConfig = {
-      active:   { bg: 'bg-green-50 border border-green-200 text-green-800',   icon: 'fa-solid fa-circle-dot text-green-500' },
-      upcoming: { bg: 'bg-yellow-50 border border-yellow-200 text-yellow-800', icon: 'fa-solid fa-clock text-yellow-500' },
-      ended:    { bg: 'bg-gray-100 border border-gray-200 text-gray-700',      icon: 'fa-solid fa-check-circle text-gray-500' },
-      draft:    { bg: 'bg-blue-50 border border-blue-200 text-blue-800',       icon: 'fa-solid fa-file-pen text-blue-500' },
-    };
-    const sc = statusConfig[el.status] || statusConfig.draft;
-    banner.className = `mb-5 rounded-xl p-4 flex items-center gap-3 text-sm ${sc.bg}`;
-    document.getElementById('banner-icon').className  = sc.icon + ' text-xl flex-shrink-0';
-    document.getElementById('banner-title').textContent = el.title;
-    document.getElementById('banner-sub').textContent   =
-      Utils.formatDateTime(el.startDate) + ' — ' + Utils.formatDateTime(el.endDate);
-    banner.classList.remove('hidden');
+    renderElectionBanner(data.election);
   }
 
-  // Vote summary — dengan foto avatar kecil per kandidat
-  const summaryEl = document.getElementById('vote-summary');
-  const totalVotes = stats.totalVotes || 0;
-  document.getElementById('vote-summary-sub').textContent = totalVotes + ' suara masuk';
-
-  if (data.candidates && data.candidates.length > 0) {
-    summaryEl.innerHTML = data.candidates.map((c, i) => {
-      const colors   = ['bg-blue-500','bg-green-500','bg-orange-500','bg-purple-500','bg-red-500'];
-      const pct      = c.percentage || 0;
-      const photoSrc = Utils.buildDriveImgUrl(c.photoUrl);
-      return `
-        <div class="flex items-center gap-2">
-          <!-- Avatar foto kecil -->
-          <div class="w-7 h-7 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
-            ${photoSrc
-              ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-full object-cover object-top"
-                     onerror="this.parentElement.innerHTML='<span class=\\'text-xs font-bold text-gray-500\\'>${c.orderNumber}</span>'">`
-              : `<span class="text-xs font-bold text-gray-500">${c.orderNumber}</span>`}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between text-xs mb-1">
-              <span class="font-medium text-gray-700 truncate">
-                ${Utils.escapeHtml(c.name)}${c.pairName ? ' &amp; ' + Utils.escapeHtml(c.pairName) : ''}
-              </span>
-              <span class="font-bold text-gray-800 ml-2 flex-shrink-0">${Utils.formatNumber(c.votes)} <span class="font-normal text-gray-400">(${pct}%)</span></span>
-            </div>
-            <div class="progress-bar h-2">
-              <div class="progress-fill ${colors[i % colors.length]}" style="width:${pct}%"></div>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-  } else {
-    summaryEl.innerHTML = `<div class="empty-state py-8"><i class="fa-solid fa-chart-bar"></i><p>Belum ada data suara</p></div>`;
-  }
+  // Vote summary
+  renderVoteSummary(candidates, totalVotes);
 }
+
+function renderElectionBanner(el) {
+  const banner = document.getElementById('election-banner');
+  const statusConfig = {
+    active:   {
+      bg:   'bg-green-50 border border-green-200 text-green-800',
+      icon: 'fa-solid fa-circle-dot text-green-500',
+    },
+    upcoming: {
+      bg:   'bg-yellow-50 border border-yellow-200 text-yellow-800',
+      icon: 'fa-solid fa-clock text-yellow-500',
+    },
+    ended:    {
+      bg:   'bg-gray-100 border border-gray-200 text-gray-700',
+      icon: 'fa-solid fa-check-circle text-gray-500',
+    },
+    draft:    {
+      bg:   'bg-blue-50 border border-blue-200 text-blue-800',
+      icon: 'fa-solid fa-file-pen text-blue-500',
+    },
+  };
+  const sc = statusConfig[el.status] || statusConfig.draft;
+
+  // Set class secara atomic: hapus semua class lama, set yang baru
+  banner.className = [
+    'mb-5 rounded-xl p-4 flex items-center gap-3 text-sm flex-wrap sm:flex-nowrap',
+    sc.bg,
+  ].join(' ');
+
+  document.getElementById('banner-icon').className =
+    sc.icon + ' text-xl flex-shrink-0';
+  document.getElementById('banner-title').textContent = el.title || '';
+  document.getElementById('banner-sub').textContent   =
+    Utils.formatDateTime(el.startDate) + ' — ' + Utils.formatDateTime(el.endDate);
+
+  banner.classList.remove('hidden');
+}
+
+function renderVoteSummary(candidates, totalVotes) {
+  const summaryEl = document.getElementById('vote-summary');
+  document.getElementById('vote-summary-sub').textContent =
+    Utils.formatNumber(totalVotes) + ' suara masuk';
+
+  if (!candidates || candidates.length === 0) {
+    summaryEl.innerHTML = `
+      <div class="empty-state py-8">
+        <i class="fa-solid fa-chart-bar" aria-hidden="true"></i>
+        <p>Belum ada data suara</p>
+      </div>`;
+    return;
+  }
+
+  summaryEl.innerHTML = candidates.map((c, i) => {
+    const pct      = parseFloat(c.percentage || 0);
+    const color    = DASH_COLORS[i % DASH_COLORS.length];
+    const photoSrc = Utils.buildDriveImgUrl(c.photoUrl);
+    // FIX #11: escapeHtml pada orderNumber untuk onerror inline HTML
+    const safeNum  = Utils.escapeHtml(String(c.orderNumber || i + 1));
+
+    return `
+      <div class="flex items-center gap-2.5">
+        <!-- Avatar -->
+        <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200
+                    flex items-center justify-center flex-shrink-0"
+             aria-hidden="true">
+          ${photoSrc
+            ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="" loading="lazy"
+                    class="w-full h-full object-cover object-top"
+                    onerror="this.parentElement.innerHTML='<span class=\\'text-xs font-bold text-gray-500\\'>${safeNum}</span>'">`
+            : `<span class="text-xs font-bold text-gray-500">${safeNum}</span>`}
+        </div>
+        <!-- Info + bar -->
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between text-xs mb-1 gap-2">
+            <span class="font-medium text-gray-700 truncate">
+              ${Utils.escapeHtml(c.name || '—')}${c.pairName
+                ? '<span class="text-gray-400"> &amp; ' + Utils.escapeHtml(c.pairName) + '</span>'
+                : ''}
+            </span>
+            <span class="font-bold text-gray-800 flex-shrink-0 tabular-nums">
+              ${Utils.formatNumber(c.votes || 0)}
+              <span class="font-normal text-gray-400">(${pct}%)</span>
+            </span>
+          </div>
+          <div class="progress-bar h-2">
+            <div class="progress-fill" style="width:${pct}%; background-color:${color};"></div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// FIX #14: Tampilkan error state saat dashboard gagal dimuat
+function renderDashboardError() {
+  const statIds = ['s-total-voters','s-voted','s-not-voted','s-participation'];
+  statIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<span class="text-gray-400 text-sm">—</span>';
+  });
+  ['d-total','d-voted','d-not-voted'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '—';
+  });
+  document.getElementById('vote-summary').innerHTML = `
+    <div class="empty-state py-8 text-red-400">
+      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+      <p class="text-gray-500">Gagal memuat data. Klik Refresh untuk coba lagi.</p>
+    </div>`;
+  document.getElementById('vote-summary-sub').textContent = '';
+}
+
+/* ============================================================
+   RENDER ELECTION LIST
+   ============================================================ */
 
 function renderElectionList(elections) {
   const el = document.getElementById('election-list');
   if (!elections.length) {
-    el.innerHTML = `<div class="empty-state py-10"><i class="fa-solid fa-calendar-xmark"></i><p>Belum ada pemilihan.</p><a href="./election.html" class="btn btn-primary btn-sm mt-3">Buat Pemilihan</a></div>`;
+    el.innerHTML = `
+      <div class="empty-state py-10">
+        <i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i>
+        <p>Belum ada pemilihan.</p>
+        <a href="./election.html" class="btn btn-primary btn-sm mt-3 gap-1">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          Buat Pemilihan
+        </a>
+      </div>`;
     return;
   }
   el.innerHTML = elections.map(e => `
-    <div class="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
+    <div class="flex items-center gap-3 px-4 sm:px-6 py-3
+                hover:bg-gray-50 transition-colors">
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium text-gray-800 truncate">${Utils.escapeHtml(e.title)}</p>
-        <p class="text-xs text-gray-500 mt-0.5">${Utils.formatDateTime(e.startDate)} — ${Utils.formatDateTime(e.endDate)}</p>
+        <p class="text-sm font-medium text-gray-800 truncate">
+          ${Utils.escapeHtml(e.title || '—')}
+        </p>
+        <p class="text-xs text-gray-500 mt-0.5 truncate">
+          ${Utils.formatDateTime(e.startDate)} — ${Utils.formatDateTime(e.endDate)}
+        </p>
       </div>
       <div class="flex-shrink-0">${Utils.statusBadgeHtml(e.status)}</div>
     </div>`).join('');
 }
 
-// ── Widget PIN Akses Panitia ───────────────────────────────
+/* ============================================================
+   PIN WIDGET — IIFE module untuk isolasi state timer
+   FIX #2: timer dikelola dalam closure, tidak di global scope
+   ============================================================ */
 
-let _pinIntervalId   = null;  // interval countdown 1 detik
-let _pinRefreshId    = null;  // timeout untuk fetch ulang saat PIN expired
-let _pinIntervalSec  = 300;   // default, diupdate dari respons backend
+const PinWidget = (() => {
+  let _intervalId  = null;  // countdown tick
+  let _refreshId   = null;  // timeout fetch ulang saat expired
+  let _intervalSec = 300;   // diperbarui dari respons backend
 
-function initPinWidget() {
-  document.getElementById('btn-generate-pin').addEventListener('click', handleGeneratePin);
-  fetchAndRenderPin();
-}
-
-async function fetchAndRenderPin() {
-  const res = await API.accessPin.get();
-  if (!res.success) {
-    document.getElementById('pin-value').textContent = '—';
-    document.getElementById('pin-countdown').textContent = 'Gagal memuat';
-    return;
+  function init() {
+    document.getElementById('btn-generate-pin')
+      .addEventListener('click', handleGenerate);
+    fetchAndRender();
   }
-  renderPin(res.data);
-}
 
-function renderPin(data) {
-  _pinIntervalSec = data.intervalSec || 300;
+  // FIX #2: bersihkan timer lama sebelum fetch baru
+  function _clearTimers() {
+    if (_intervalId) { clearInterval(_intervalId); _intervalId = null; }
+    if (_refreshId)  { clearTimeout(_refreshId);   _refreshId  = null; }
+  }
 
-  document.getElementById('pin-value').textContent = data.pin;
+  async function fetchAndRender() {
+    _clearTimers();
+    const res = await API.accessPin.get();
+    if (!res.success) {
+      document.getElementById('pin-value').textContent = '—';
+      document.getElementById('pin-countdown').textContent = 'Gagal memuat';
+      return;
+    }
+    renderPin(res.data);
+  }
 
-  // Bersihkan interval/timeout lama
-  if (_pinIntervalId)  clearInterval(_pinIntervalId);
-  if (_pinRefreshId)   clearTimeout(_pinRefreshId);
+  function renderPin(data) {
+    _clearTimers();
+    _intervalSec = data.intervalSec || 300;
 
-  // Hitung waktu expire dari expiresAt yang dikirim backend
-  const expiresAt = new Date(data.expiresAt).getTime();
+    document.getElementById('pin-value').textContent = data.pin || '—';
 
-  function tick() {
-    const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
-    const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
-    const ss = String(remaining % 60).padStart(2, '0');
-    document.getElementById('pin-countdown').textContent = mm + ':' + ss;
+    const expiresAt = new Date(data.expiresAt).getTime();
 
-    // Progress bar: sisa / total
-    const pct = Math.min(100, Math.round((remaining / _pinIntervalSec) * 100));
-    const bar = document.getElementById('pin-progress');
-    bar.style.width = pct + '%';
-    // Warna bar berubah saat sisa < 60 detik
-    bar.className = 'progress-fill transition-all duration-1000 ' +
-      (remaining <= 60 ? 'bg-red-400' : 'bg-amber-400');
+    function tick() {
+      const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+      const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+      const ss = String(remaining % 60).padStart(2, '0');
 
-    if (remaining <= 0) {
-      clearInterval(_pinIntervalId);
-      // Fetch PIN baru setelah sedikit delay agar backend sudah rotate
-      _pinRefreshId = setTimeout(fetchAndRenderPin, 800);
+      const countdownEl = document.getElementById('pin-countdown');
+      const barEl       = document.getElementById('pin-progress');
+      if (countdownEl) countdownEl.textContent = mm + ':' + ss;
+
+      if (barEl) {
+        const pct = Math.min(100, Math.round((remaining / _intervalSec) * 100));
+        barEl.style.width = pct + '%';
+        // FIX #5: hanya ubah warna via style, tidak replace className
+        barEl.style.backgroundColor = remaining <= 60 ? '#f87171' : '#fbbf24';
+      }
+
+      if (remaining <= 0) {
+        _clearTimers();
+        // Fetch PIN baru setelah delay singkat
+        _refreshId = setTimeout(fetchAndRender, 800);
+      }
+    }
+
+    tick();
+    _intervalId = setInterval(tick, 1000);
+  }
+
+  // FIX #3/#10: gunakan Utils.setLoading + try/catch
+  async function handleGenerate() {
+    const btn = document.getElementById('btn-generate-pin');
+    Utils.setLoading(btn, true);
+
+    try {
+      const res = await API.accessPin.generate();
+      if (res.success) {
+        renderPin(res.data);
+        Toast.success('PIN baru berhasil di-generate.');
+      } else {
+        Toast.error(res.message || 'Gagal generate PIN.');
+      }
+    } catch (err) {
+      Toast.error('Gagal menghubungi server.');
+      console.error('[PinWidget] handleGenerate error:', err);
+    } finally {
+      Utils.setLoading(btn, false);
     }
   }
 
-  tick();
-  _pinIntervalId = setInterval(tick, 1000);
-}
-
-async function handleGeneratePin() {
-  const btn = document.getElementById('btn-generate-pin');
-  const origHtml = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-  const res = await API.accessPin.generate();
-
-  btn.disabled = false;
-  btn.innerHTML = origHtml;
-
-  if (res.success) {
-    renderPin(res.data);
-    Toast.success('PIN baru berhasil di-generate.');
-  } else {
-    Toast.error(res.message || 'Gagal generate PIN.');
-  }
-}
+  return { init };
+})();
 </script>
 </body>
 </html>
