@@ -258,17 +258,57 @@
   }
 
   /* --- Toast Container --- */
+  /* FIX #10 + #11: responsive — full-width di mobile, max-w-sm di sm+ */
   #toast-container {
-    @apply fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none;
+    @apply fixed top-4 z-[100] flex flex-col gap-2 pointer-events-none;
+    /* Mobile: hampir full-width dengan margin kiri-kanan */
+    left: 1rem;
+    right: 1rem;
   }
+  @screen sm {
+    #toast-container {
+      left: auto;
+      right: 1rem;
+      width: 24rem; /* max-w-sm */
+    }
+  }
+
+  /* FIX #8 + #16 + #17: animasi masuk dari kanan (natural untuk pojok kanan atas) */
   .toast {
-    @apply pointer-events-auto max-w-sm w-full shadow-lg rounded-xl p-4 flex items-start gap-3
-           text-sm font-medium animate-slide-up;
+    @apply pointer-events-auto w-full shadow-lg rounded-xl p-3.5 flex items-start gap-3
+           text-sm font-medium;
+    /* Animasi masuk: slide dari kanan */
+    animation: toastSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+    /* FIX #2 + #9: transisi exit didefinisikan di sini agar siap saat .toast-exit ditambahkan */
+    transition: opacity 0.25s ease, transform 0.25s ease, max-height 0.3s ease,
+                padding 0.3s ease, margin 0.3s ease;
   }
+
+  /* FIX #9: kelas exit yang di-trigger oleh dismiss() */
+  .toast.toast-exit {
+    opacity: 0;
+    transform: translateX(calc(100% + 1rem));
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    overflow: hidden;
+  }
+
   .toast-success { @apply bg-white border border-green-200 text-green-800; }
-  .toast-error   { @apply bg-white border border-red-200 text-red-800; }
-  .toast-warning { @apply bg-white border border-yellow-200 text-yellow-800; }
-  .toast-info    { @apply bg-white border border-blue-200 text-blue-800; }
+  .toast-error   { @apply bg-white border border-red-200   text-red-800;   }
+  .toast-warning { @apply bg-white border border-yellow-200 text-yellow-700; }
+  .toast-info    { @apply bg-white border border-blue-200  text-blue-800;  }
+
+  /* FIX #13: tombol close dengan touch target yang memadai */
+  .toast-close-btn {
+    @apply flex-shrink-0 text-gray-400 hover:text-gray-700 transition-colors duration-150
+           rounded-md flex items-center justify-center;
+    /* Minimal 32×32px untuk touch target */
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+    margin: -0.25rem -0.25rem -0.25rem 0;
+  }
 }
 
 /* ============================================================
@@ -278,6 +318,21 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .text-balance { text-wrap: balance; }
+}
+
+/* ============================================================
+   TOAST KEYFRAMES
+   FIX #8 + #17: animasi masuk dari kanan untuk toast
+   ============================================================ */
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(calc(100% + 1rem));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* ============================================================
