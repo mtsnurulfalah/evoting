@@ -80,6 +80,40 @@ const Auth = (() => {
     return isAdmin() && getAdminRole() === 'superadmin';
   }
 
+  function isKetuaPanitia() {
+    return isAdmin() && getAdminRole() === 'ketua_panitia';
+  }
+
+  function isPanitia() {
+    return isAdmin() && getAdminRole() === 'panitia';
+  }
+
+  /**
+   * Cek apakah role admin punya akses ke halaman settings.
+   * Hanya superadmin yang boleh.
+   */
+  function canAccessSettings() {
+    return isSuperAdmin();
+  }
+
+  /**
+   * Update photoUrl di local session (setelah upload foto profil).
+   */
+  function updateProfilePhoto(photoUrl) {
+    const data = getUserData();
+    data.photoUrl = photoUrl;
+    sessionStorage.setItem(KEY_USER_DATA, JSON.stringify(data));
+  }
+
+  /**
+   * Update name di local session (setelah update profil).
+   */
+  function updateProfileName(name) {
+    const data = getUserData();
+    data.name = name;
+    sessionStorage.setItem(KEY_USER_DATA, JSON.stringify(data));
+  }
+
   // ── Voter session ────────────────────────────────────────
 
   function setVoterSession(responseData) {
@@ -139,11 +173,19 @@ const Auth = (() => {
   /**
    * Guard untuk halaman admin.
    * Jika tidak login sebagai admin → redirect ke admin login.
+   * @param {string[]} [allowedRoles] - Jika diberikan, role selain ini di-redirect ke dashboard.
    */
-  function requireAdminPage() {
+  function requireAdminPage(allowedRoles) {
     if (!isAdmin()) {
       window.location.replace('/admin/login.html');
       return false;
+    }
+    if (allowedRoles && allowedRoles.length > 0) {
+      if (allowedRoles.indexOf(getAdminRole()) === -1) {
+        // Role tidak punya akses ke halaman ini → redirect ke dashboard
+        window.location.replace('/admin/dashboard.html');
+        return false;
+      }
     }
     return true;
   }
@@ -195,10 +237,12 @@ const Auth = (() => {
     setSession, clearSession,
     getToken, getUserType, getUserData, getElectionData,
     isLoggedIn, isVoter, isAdmin, isExpired,
-    getAdminRole, isSuperAdmin,
+    getAdminRole, isSuperAdmin, isKetuaPanitia, isPanitia,
+    canAccessSettings,
     setVoterSession, setAdminSession,
     logoutVoter, logoutAdmin,
     requireVoter, requireAdminPage, redirectIfLoggedIn,
     requireNotVoted, markAsVoted,
+    updateProfilePhoto, updateProfileName,
   };
 })();
