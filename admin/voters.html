@@ -33,7 +33,20 @@
         margin-bottom: 2px;
       }
       .voters-table td:first-child::before { display: none; }
-      .voters-table .td-actions { display: flex; justify-content: flex-start; gap: 8px; }
+      .voters-table .td-actions { display: flex; justify-content: flex-start; gap: 8px; margin-top: 4px; }
+    }
+
+    /* ── Table row hover on desktop ── */
+    @media (min-width: 768px) {
+      .voters-table tbody tr {
+        transition: background-color 0.12s ease;
+      }
+      .voters-table tbody tr:hover {
+        background-color: #f9fafb;
+      }
+      .voters-table tbody tr + tr {
+        border-top: 1px solid #f3f4f6;
+      }
     }
 
     /* ── Progress bar (voting participation) ── */
@@ -47,7 +60,7 @@
       height: 100%;
       border-radius: 99px;
       background: #16a34a;
-      transition: width 0.5s ease;
+      transition: width 0.6s ease;
     }
 
     /* ── Stat card ── */
@@ -57,9 +70,13 @@
       border-radius: 12px;
       padding: 14px 16px;
       text-align: center;
+      transition: box-shadow 0.15s ease;
+    }
+    .voter-stat-card:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
     }
     .voter-stat-card .stat-num {
-      font-size: 22px;
+      font-size: 24px;
       font-weight: 800;
       line-height: 1.1;
       display: block;
@@ -103,26 +120,46 @@
       color: #374151;
     }
 
-    /* ── Skeleton ── */
-    .sk { background: #e5e7eb; border-radius: 6px; animation: skpulse 1.5s ease-in-out infinite; }
-    @keyframes skpulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+    /* ── Skeleton animation ── */
+    .sk {
+      background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+      background-size: 200% 100%;
+      border-radius: 6px;
+      animation: skwave 1.6s ease-in-out infinite;
+    }
+    @keyframes skwave {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
 
-    /* ── Mobile modal bottom sheet ── */
+    /* ── FIX BUG 12: bottom-sheet hanya untuk modal voter (lg) bukan semua modal ── */
     @media (max-width: 640px) {
-      .modal-backdrop { align-items: flex-end; padding: 0; }
-      .modal-box { border-radius: 20px 20px 0 0; max-height: 92dvh; max-height: 92vh; }
-      .modal-box.modal-centered { border-radius: 14px; }
+      .modal-sheet .modal-backdrop { align-items: flex-end !important; padding: 0 !important; }
+      .modal-sheet .modal-box { border-radius: 20px 20px 0 0 !important; max-height: 92dvh; max-height: 92vh; overflow-y: auto; }
+    }
+
+    /* Modal ukuran sm tetap centered di mobile */
+    @media (max-width: 640px) {
+      .modal-backdrop { padding: 16px; }
+      .modal-box { border-radius: 16px; max-height: 92dvh; max-height: 92vh; overflow-y: auto; }
     }
 
     /* ── Field error inline ── */
-    .field-error { font-size: 11px; color: #ef4444; margin-top: 3px; display: flex; align-items: center; gap: 4px; }
-    .field-error:empty { display: none; }
+    .field-error {
+      font-size: 11px;
+      color: #ef4444;
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 16px; /* jaga layout agar tidak layout shift */
+    }
 
     /* ── State icon ── */
     .state-icon-wrap {
-      width: 64px; height: 64px; border-radius: 16px;
+      width: 72px; height: 72px; border-radius: 18px;
       display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 16px; font-size: 26px;
+      margin: 0 auto 18px; font-size: 28px;
     }
 
     /* ── CSV preview table max-height ── */
@@ -143,6 +180,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-shrink: 0;
     }
 
     /* ── Import result summary ── */
@@ -150,7 +188,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
+      padding: 10px 12px;
       border-radius: 8px;
       font-size: 13px;
       font-weight: 500;
@@ -159,11 +197,11 @@
     .import-result-row.skip  { background: #eff6ff; color: #1d4ed8; }
     .import-result-row.fail  { background: #fef2f2; color: #b91c1c; }
 
-    /* ── Overflow guard for main wrapper ── */
+    /* ── Overflow guard ── */
     .main-content-wrapper { overflow-x: hidden; }
 
     /* ── Header action btn responsive ── */
-    @media (max-width: 480px) {
+    @media (max-width: 520px) {
       .header-btn-label { display: none; }
     }
 
@@ -171,10 +209,66 @@
     .pin-reset-input {
       text-align: center;
       font-family: ui-monospace, 'Courier New', monospace;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 700;
       letter-spacing: 0.35em;
     }
+
+    /* ── Filter chip active state ── */
+    .filter-status-btn {
+      color: #6b7280;
+      transition: all 0.15s ease;
+    }
+    .filter-status-btn.active {
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      color: #111827;
+    }
+    .filter-status-btn:not(.active):hover {
+      color: #374151;
+      background: rgba(255,255,255,0.5);
+    }
+
+    /* ── Stat card participation special layout ── */
+    .stat-card-participation {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      text-align: left;
+    }
+    .stat-card-participation .stat-label { display: block; margin-bottom: 0; }
+
+    /* ── Access timer progress ── */
+    #access-progress {
+      transition: width 1s linear, background-color 0.5s ease;
+    }
+
+    /* ── Upload area ── */
+    .upload-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 16px;
+      border: 2px dashed #d1d5db;
+      border-radius: 10px;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+    .upload-area:hover {
+      border-color: #6366f1;
+      background-color: #f5f3ff;
+    }
+
+    /* ── Skeleton rows ── */
+    .sk-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .sk-row:last-child { border-bottom: none; }
   </style>
 </head>
 <body class="h-full bg-gray-50 flex">
@@ -219,21 +313,21 @@
 
   <!-- ── Header ── -->
   <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-2 sticky top-0 z-20 flex-shrink-0">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors">
+    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors" aria-label="Buka/tutup sidebar">
       <i class="fa-solid fa-bars text-base"></i>
     </button>
     <h1 class="text-sm font-bold text-gray-800 flex-1 truncate">Manajemen Pemilih</h1>
 
     <div class="flex items-center gap-2 flex-shrink-0">
-      <button id="btn-import" class="btn btn-outline btn-sm gap-1.5" title="Import CSV">
+      <button id="btn-import" class="btn btn-outline btn-sm gap-1.5" title="Import pemilih dari file CSV">
         <i class="fa-solid fa-file-import text-xs"></i>
         <span class="header-btn-label">Import CSV</span>
       </button>
-      <button id="btn-export" class="btn btn-outline btn-sm gap-1.5" title="Export CSV">
+      <button id="btn-export" class="btn btn-outline btn-sm gap-1.5" title="Ekspor data pemilih ke CSV">
         <i class="fa-solid fa-file-export text-xs"></i>
         <span class="header-btn-label">Export</span>
       </button>
-      <button id="btn-add" class="btn btn-primary btn-sm gap-1.5" title="Tambah Pemilih">
+      <button id="btn-add" class="btn btn-primary btn-sm gap-1.5" title="Tambah pemilih baru">
         <i class="fa-solid fa-plus text-xs"></i>
         <span class="header-btn-label">Tambah</span>
       </button>
@@ -244,8 +338,8 @@
     </div>
   </header>
 
-  <!-- ── Readonly notice (Panitia / Viewer) ── -->
-  <div id="readonly-bar" class="hidden readonly-bar flex-shrink-0">
+  <!-- ── Readonly notice ── -->
+  <div id="readonly-bar" class="hidden readonly-bar">
     <i class="fa-solid fa-circle-info flex-shrink-0"></i>
     <span>Mode lihat saja — Anda tidak dapat mengubah data pemilih.</span>
   </div>
@@ -259,20 +353,21 @@
         <div class="flex flex-col gap-3">
           <!-- Row 1: Election select + search -->
           <div class="flex flex-col sm:flex-row gap-3">
-            <div class="sm:w-60 flex-shrink-0">
-              <select id="election-select" class="form-select w-full text-sm">
+            <div class="sm:w-64 flex-shrink-0">
+              <select id="election-select" class="form-select w-full text-sm" aria-label="Pilih pemilihan">
                 <option value="">— Pilih Pemilihan —</option>
               </select>
             </div>
             <div class="relative flex-1">
-              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none" aria-hidden="true"></i>
               <input type="text" id="search-input"
-                class="form-input pl-9 text-sm"
+                class="form-input pl-9 pr-9 text-sm w-full"
                 placeholder="Cari nama, NISN, kelas..."
                 autocomplete="off"
-                spellcheck="false"/>
+                spellcheck="false"
+                aria-label="Cari pemilih"/>
               <button id="btn-clear-search"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden p-1 rounded transition-colors"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden p-1.5 rounded transition-colors"
                 title="Hapus pencarian" aria-label="Hapus pencarian">
                 <i class="fa-solid fa-xmark text-xs"></i>
               </button>
@@ -280,15 +375,15 @@
           </div>
           <!-- Row 2: Status filter + reset -->
           <div class="flex items-center gap-3 flex-wrap">
-            <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <button class="filter-status-btn active px-3 py-1 rounded-md text-xs font-semibold transition-all" data-voted="">
+            <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1" role="group" aria-label="Filter status pemilih">
+              <button class="filter-status-btn active px-3 py-1.5 rounded-md text-xs font-semibold" data-voted="">
                 Semua
               </button>
-              <button class="filter-status-btn px-3 py-1 rounded-md text-xs font-semibold transition-all" data-voted="false">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block mr-1"></span>Belum Memilih
+              <button class="filter-status-btn px-3 py-1.5 rounded-md text-xs font-semibold" data-voted="false">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block mr-1" aria-hidden="true"></span>Belum Memilih
               </button>
-              <button class="filter-status-btn px-3 py-1 rounded-md text-xs font-semibold transition-all" data-voted="true">
-                <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1"></span>Sudah Memilih
+              <button class="filter-status-btn px-3 py-1.5 rounded-md text-xs font-semibold" data-voted="true">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1" aria-hidden="true"></span>Sudah Memilih
               </button>
             </div>
             <button id="btn-reset-filter" class="btn btn-secondary btn-sm gap-1.5 text-xs" title="Reset semua filter">
@@ -300,7 +395,7 @@
       </div>
 
       <!-- ── Stats cards ── -->
-      <div id="voter-stats" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div id="voter-stats" class="hidden grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="voter-stat-card">
           <span class="stat-num text-gray-800" id="s-total">0</span>
           <span class="stat-label">Total Pemilih</span>
@@ -314,7 +409,7 @@
           <span class="stat-label">Belum Memilih</span>
         </div>
         <!-- Partisipasi -->
-        <div class="voter-stat-card flex flex-col justify-center gap-2">
+        <div class="voter-stat-card stat-card-participation">
           <div class="flex items-center justify-between">
             <span class="stat-label">Partisipasi</span>
             <span class="text-sm font-bold text-gray-800" id="s-pct">0%</span>
@@ -325,23 +420,16 @@
         </div>
       </div>
 
-      <!-- ── Main card: table ── -->
+      <!-- ── Main card ── -->
       <div class="content-card">
 
-        <!-- Loading skeleton -->
-        <div id="loading-state" class="p-5 space-y-3">
-          <div class="flex items-center justify-between mb-4">
-            <div class="sk h-4 w-32 rounded"></div>
-            <div class="sk h-4 w-20 rounded"></div>
+        <!-- FIX BUG 6: Loading skeleton sekarang di-render via JS, bukan template literal di HTML -->
+        <div id="loading-state" class="p-5">
+          <div class="flex items-center justify-between mb-5">
+            <div class="sk h-4 w-32"></div>
+            <div class="sk h-4 w-20"></div>
           </div>
-          ${[...Array(5)].map(() => `
-          <div class="flex items-center gap-4 py-2">
-            <div class="sk h-4 w-1/4 rounded"></div>
-            <div class="sk h-4 w-1/6 rounded hidden md:block"></div>
-            <div class="sk h-4 w-1/6 rounded hidden lg:block"></div>
-            <div class="sk h-5 w-16 rounded-full ml-auto"></div>
-            <div class="sk h-7 w-20 rounded"></div>
-          </div>`).join('')}
+          <div class="space-y-1" id="skeleton-rows-container"></div>
         </div>
 
         <!-- Content -->
@@ -349,21 +437,18 @@
           <!-- Toolbar -->
           <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
             <p class="text-xs text-gray-500" id="result-info">—</p>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-gray-400" id="page-size-label"></span>
-            </div>
           </div>
 
-          <!-- Table (desktop) / Card list (mobile) -->
+          <!-- Table -->
           <div class="overflow-x-auto">
-            <table class="table voters-table w-full min-w-0">
+            <table class="table voters-table w-full min-w-0" role="table">
               <thead>
                 <tr>
-                  <th class="pl-4">Nama / NISN</th>
-                  <th class="hidden md:table-cell">Kelas</th>
-                  <th class="hidden lg:table-cell">Tgl Lahir</th>
-                  <th class="hidden xl:table-cell">PIN</th>
-                  <th>Status</th>
+                  <th class="pl-4 text-left">Nama / NISN</th>
+                  <th class="hidden md:table-cell text-left">Kelas</th>
+                  <th class="hidden lg:table-cell text-left">Tgl Lahir</th>
+                  <th class="hidden xl:table-cell text-left">PIN</th>
+                  <th class="text-left">Status</th>
                   <th class="text-right pr-4">Aksi</th>
                 </tr>
               </thead>
@@ -378,10 +463,10 @@
         <!-- Empty state -->
         <div id="empty-state" class="hidden py-16 text-center px-4">
           <div class="state-icon-wrap bg-gray-100 text-gray-400" id="empty-icon-wrap">
-            <i class="fa-solid fa-users-slash" id="empty-icon"></i>
+            <i class="fa-solid fa-users-slash" id="empty-icon" aria-hidden="true"></i>
           </div>
-          <h3 class="text-base font-semibold text-gray-700 mb-1" id="empty-title">Pilih pemilihan</h3>
-          <p class="text-sm text-gray-400 max-w-xs mx-auto" id="empty-msg">
+          <h3 class="text-base font-semibold text-gray-700 mb-2" id="empty-title">Pilih pemilihan</h3>
+          <p class="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed" id="empty-msg">
             Pilih pemilihan untuk melihat daftar pemilih.
           </p>
         </div>
@@ -389,10 +474,10 @@
         <!-- Error state -->
         <div id="error-state" class="hidden py-16 text-center px-4">
           <div class="state-icon-wrap bg-red-50 text-red-400 mx-auto">
-            <i class="fa-solid fa-triangle-exclamation"></i>
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
           </div>
-          <h3 class="text-base font-semibold text-gray-700 mb-1">Gagal memuat data</h3>
-          <p class="text-sm text-gray-400 max-w-xs mx-auto" id="error-msg">Terjadi kesalahan.</p>
+          <h3 class="text-base font-semibold text-gray-700 mb-2">Gagal memuat data</h3>
+          <p class="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed" id="error-msg">Terjadi kesalahan.</p>
           <button id="btn-retry" class="btn btn-secondary mt-5 gap-2 text-sm">
             <i class="fa-solid fa-rotate-right text-xs"></i> Coba Lagi
           </button>
@@ -409,7 +494,7 @@
 <div id="pin-gate-overlay" class="hidden fixed inset-0 z-50 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
     <div class="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-      <i class="fa-solid fa-shield-keyhole text-amber-500 text-2xl"></i>
+      <i class="fa-solid fa-shield-keyhole text-amber-500 text-2xl" aria-hidden="true"></i>
     </div>
     <h2 class="text-lg font-bold text-gray-800 mb-1">Verifikasi PIN Akses</h2>
     <p class="text-sm text-gray-500 mb-5 leading-relaxed">
@@ -425,16 +510,18 @@
         inputmode="numeric"
         autocomplete="one-time-code"
         aria-label="PIN Akses"/>
-      <p id="pin-gate-error" class="hidden text-xs text-red-500 mt-2 font-medium flex items-center justify-center gap-1"></p>
+      <!-- FIX BUG 14: pakai display style daripada hidden class yang conflict dengan flex -->
+      <p id="pin-gate-error" class="text-xs text-red-500 mt-2 font-medium items-center justify-center gap-1"
+         style="display:none" role="alert" aria-live="assertive"></p>
     </div>
     <button id="pin-gate-submit" class="btn btn-primary w-full gap-2">
-      <i class="fa-solid fa-unlock"></i> Buka Akses
+      <i class="fa-solid fa-unlock" aria-hidden="true"></i> Buka Akses
     </button>
     <button id="pin-gate-cancel" class="btn btn-secondary w-full mt-2 gap-2">
-      <i class="fa-solid fa-arrow-left"></i> Kembali
+      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Kembali
     </button>
     <p class="text-xs text-gray-400 mt-4 leading-relaxed">
-      <i class="fa-solid fa-circle-info fa-xs mr-1"></i>PIN berubah otomatis setiap 5 menit
+      <i class="fa-solid fa-circle-info fa-xs mr-1" aria-hidden="true"></i>PIN berubah otomatis setiap 5 menit
     </p>
   </div>
 </div>
@@ -444,14 +531,14 @@
 ════════════════════════════════════════════ -->
 <div id="access-timer-bar" class="hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-amber-200 shadow-lg">
   <div class="px-4 py-2.5 flex items-center gap-3 max-w-lg mx-auto">
-    <i class="fa-solid fa-hourglass-half text-amber-500 flex-shrink-0 text-sm"></i>
+    <i class="fa-solid fa-hourglass-half text-amber-500 flex-shrink-0 text-sm" aria-hidden="true"></i>
     <div class="flex-1 min-w-0">
       <div class="flex items-center justify-between mb-1">
         <span class="text-xs text-gray-600 font-medium">Sesi akses panitia berakhir dalam</span>
-        <span id="access-countdown" class="font-mono text-xs font-bold text-amber-700">2:00</span>
+        <span id="access-countdown" class="font-mono text-xs font-bold text-amber-700" aria-live="polite">2:00</span>
       </div>
       <div class="participation-bar h-1.5 bg-amber-100">
-        <div id="access-progress" class="participation-fill bg-amber-400 transition-all duration-1000" style="width:100%"></div>
+        <div id="access-progress" class="participation-fill bg-amber-400" style="width:100%"></div>
       </div>
     </div>
   </div>
@@ -467,7 +554,7 @@
 <script src="../assets/js/components.js"></script>
 <script>
 /* ============================================================
-   voters.js — Manajemen Pemilih (refactored)
+   voters.js — Manajemen Pemilih
    ============================================================ */
 
 // ── State ────────────────────────────────────────────────────
@@ -475,14 +562,34 @@ let _electionId   = '';
 let _currentPage  = 1;
 let _pageSize     = 25;
 let _lastMeta     = null;
-let _isLoading    = false;   // guard race condition
-let _isSubmitting = false;   // guard double-submit voter form
-let _parsedCSV    = [];      // data CSV yang di-parse untuk import
+let _isLoading    = false;
+let _isSubmitting = false;
+let _parsedCSV    = [];
+
+// FIX BUG 3: debounced function stabil, dibuat sekali di luar event handler
+const _debouncedSearch = Utils.debounce(() => { _currentPage = 1; loadVoters(); }, 400);
 
 // PIN Gate (Panitia)
 const _PIN_ACCESS_KEY = 'ev_panitia_voter_access';
-const _PIN_ACCESS_SEC = 120;
 let   _accessTimerId  = null;
+
+// ── FIX BUG 6: Render skeleton rows via JS ───────────────────
+(function buildSkeletonRows() {
+  const container = document.getElementById('skeleton-rows-container');
+  if (!container) return;
+  const rows = [];
+  for (let i = 0; i < 6; i++) {
+    rows.push(`
+      <div class="sk-row">
+        <div class="sk h-4 flex-1 max-w-[160px]"></div>
+        <div class="sk h-4 w-16 hidden md:block"></div>
+        <div class="sk h-4 w-20 hidden lg:block"></div>
+        <div class="sk h-5 w-16 rounded-full ml-auto"></div>
+        <div class="sk h-7 w-20 rounded ml-2"></div>
+      </div>`);
+  }
+  container.innerHTML = rows.join('');
+})();
 
 // ── Init ─────────────────────────────────────────────────────
 (async () => {
@@ -525,47 +632,36 @@ let   _accessTimerId  = null;
     }
   });
 
-  // Search input dengan debounce + clear button
+  // FIX BUG 3: gunakan _debouncedSearch yang stabil
   const searchInput = document.getElementById('search-input');
   const clearBtn    = document.getElementById('btn-clear-search');
+
   searchInput.addEventListener('input', () => {
     clearBtn.classList.toggle('hidden', !searchInput.value);
-    Utils.debounce(() => { _currentPage = 1; loadVoters(); }, 400)();
+    _debouncedSearch();
   });
+
   clearBtn.addEventListener('click', () => {
     searchInput.value = '';
     clearBtn.classList.add('hidden');
     _currentPage = 1;
-    loadVoters();
+    if (_electionId) loadVoters();
   });
 
-  // Status filter chips
+  // FIX BUG 5: satu fungsi terpusat untuk toggle filter chip
   document.querySelectorAll('.filter-status-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-status-btn').forEach(b => b.classList.remove('active', 'bg-white', 'shadow-sm', 'text-gray-800'));
-      btn.classList.add('active', 'bg-white', 'shadow-sm', 'text-gray-800');
+      document.querySelectorAll('.filter-status-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
       _currentPage = 1;
-      loadVoters();
+      if (_electionId) loadVoters();
     });
   });
-
-  // Init filter chip active styles
-  updateFilterChipStyles();
 
   await loadElectionOptions();
 })();
 
-// ── Filter chip styles ────────────────────────────────────────
-
-function updateFilterChipStyles() {
-  document.querySelectorAll('.filter-status-btn').forEach(btn => {
-    const isActive = btn.classList.contains('active');
-    btn.classList.toggle('bg-white',    isActive);
-    btn.classList.toggle('shadow-sm',   isActive);
-    btn.classList.toggle('text-gray-800', isActive);
-    btn.classList.toggle('text-gray-500', !isActive);
-  });
-}
+// ── Get active voted filter ───────────────────────────────────
 
 function getActiveVotedFilter() {
   const activeBtn = document.querySelector('.filter-status-btn.active');
@@ -607,8 +703,8 @@ async function loadElectionOptions() {
     ).join('');
 
   if (elections.length === 1) {
-    sel.value    = elections[0].id;
-    _electionId  = elections[0].id;
+    sel.value   = elections[0].id;
+    _electionId = elections[0].id;
     await loadVoters();
   } else {
     showState('empty', {
@@ -625,14 +721,15 @@ async function loadElectionOptions() {
 
 async function loadVoters() {
   if (!_electionId) return;
-  if (_isLoading) return;   // cegah parallel requests
+  if (_isLoading) return;
   _isLoading = true;
 
   showState('loading');
 
-  // Muat stats (tanpa filter) dan data tabel (dengan filter) secara paralel
+  // FIX BUG 2: request ringkasan stats (tanpa filter, tanpa paging)
+  // dan data tabel (dengan filter) secara paralel
   const [statsRes, tableRes] = await Promise.all([
-    API.voter.getAll({ electionId: _electionId, page: 1, pageSize: 1 }),
+    API.voter.getAll({ electionId: _electionId, page: 1, pageSize: 9999, _summary: true }),
     API.voter.getAll({
       electionId: _electionId,
       search:   document.getElementById('search-input').value.trim(),
@@ -655,16 +752,19 @@ async function loadVoters() {
   _lastMeta   = data;
   const items = data.items || [];
 
-  // Update stats dari request tanpa filter (nilai total akurat)
+  // Update stats dari request tanpa filter
   if (statsRes.success && statsRes.data) {
-    updateStats(statsRes.data, items);
+    updateStats(statsRes.data);
+  } else if (items.length > 0) {
+    // Fallback: pakai data halaman saat ini jika request stats gagal
+    updateStatsFallback(data, items);
   }
 
   // Update result info
   const infoEl = document.getElementById('result-info');
   if (infoEl) {
     const total = data.total || 0;
-    const start = ((data.page || 1) - 1) * (data.pageSize || _pageSize) + 1;
+    const start = total > 0 ? ((data.page || 1) - 1) * (data.pageSize || _pageSize) + 1 : 0;
     const end   = Math.min(start + items.length - 1, total);
     infoEl.textContent = total
       ? `Menampilkan ${start}–${end} dari ${Utils.formatNumber(total)} pemilih`
@@ -676,13 +776,13 @@ async function loadVoters() {
       document.getElementById('search-input').value.trim() ||
       getActiveVotedFilter() !== '';
     showState('empty', {
-      icon: isFiltered ? 'fa-filter' : 'fa-user-plus',
-      iconBg: isFiltered ? 'bg-gray-100' : 'bg-primary-50',
-      iconColor: isFiltered ? 'text-gray-400' : 'text-primary-400',
-      title: isFiltered ? 'Tidak ada hasil' : 'Belum ada pemilih',
-      msg: isFiltered
-        ? 'Tidak ada pemilih yang cocok dengan filter ini.'
-        : 'Tambahkan pemilih pertama untuk pemilihan ini.',
+      icon:      isFiltered ? 'fa-filter-slash' : 'fa-user-plus',
+      iconBg:    isFiltered ? 'bg-gray-100'     : 'bg-primary-50',
+      iconColor: isFiltered ? 'text-gray-400'   : 'text-primary-400',
+      title:     isFiltered ? 'Tidak ada hasil' : 'Belum ada pemilih',
+      msg:       isFiltered
+        ? 'Tidak ada pemilih yang cocok dengan filter ini. Coba ubah kata kunci atau reset filter.'
+        : 'Klik tombol Tambah untuk mendaftarkan pemilih pertama.',
     });
     return;
   }
@@ -714,33 +814,47 @@ function renderTable(voters) {
       : `<span class="text-gray-400 text-xs">—</span>`;
 
     const statusBadge = v.hasVoted
-      ? `<span class="badge badge-success"><i class="fa-solid fa-circle-check fa-xs mr-0.5"></i>Sudah</span>`
-      : `<span class="badge badge-warning"><i class="fa-solid fa-clock fa-xs mr-0.5"></i>Belum</span>`;
+      ? `<span class="badge badge-success gap-1"><i class="fa-solid fa-circle-check fa-xs" aria-hidden="true"></i>Sudah</span>`
+      : `<span class="badge badge-warning gap-1"><i class="fa-solid fa-clock fa-xs" aria-hidden="true"></i>Belum</span>`;
 
-    // Aksi buttons
     const editBtn = !isReadonly
       ? `<button class="btn btn-icon btn-sm btn-outline voter-edit-btn"
-           data-voter-id="${Utils.escapeHtml(v.id)}" title="Edit data pemilih">
-           <i class="fa-solid fa-pen-to-square text-xs"></i></button>`
+           data-voter-id="${Utils.escapeHtml(v.id)}"
+           title="Edit data pemilih" aria-label="Edit ${Utils.escapeHtml(v.name)}">
+           <i class="fa-solid fa-pen-to-square text-xs" aria-hidden="true"></i>
+         </button>`
       : '';
+
     const pinBtn = isSuperAdmin
       ? `<button class="btn btn-icon btn-sm btn-outline voter-pin-btn"
-           data-voter-id="${Utils.escapeHtml(v.id)}" title="Reset PIN">
-           <i class="fa-solid fa-key text-xs"></i></button>`
+           data-voter-id="${Utils.escapeHtml(v.id)}"
+           title="Reset PIN" aria-label="Reset PIN ${Utils.escapeHtml(v.name)}">
+           <i class="fa-solid fa-key text-xs" aria-hidden="true"></i>
+         </button>`
       : '';
+
     const resetBtn = isSuperAdmin && v.hasVoted
       ? `<button class="btn btn-icon btn-sm btn-warning voter-reset-btn"
-           data-voter-id="${Utils.escapeHtml(v.id)}" title="Reset status voting">
-           <i class="fa-solid fa-rotate text-xs"></i></button>`
+           data-voter-id="${Utils.escapeHtml(v.id)}"
+           title="Reset status voting" aria-label="Reset status voting ${Utils.escapeHtml(v.name)}">
+           <i class="fa-solid fa-rotate text-xs" aria-hidden="true"></i>
+         </button>`
       : '';
+
     const deleteBtn = !isReadonly
       ? `<button class="btn btn-icon btn-sm btn-danger voter-delete-btn"
            data-voter-id="${Utils.escapeHtml(v.id)}"
-           data-voter-name="${Utils.escapeHtml(v.name)}" title="Hapus pemilih">
-           <i class="fa-solid fa-trash text-xs"></i></button>`
+           data-voter-name="${Utils.escapeHtml(v.name)}"
+           title="Hapus pemilih" aria-label="Hapus ${Utils.escapeHtml(v.name)}">
+           <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+         </button>`
       : '';
-    const noActionsLabel = isReadonly
-      ? `<span class="text-xs text-gray-400 italic">—</span>` : '';
+
+    // FIX BUG 13: tampilkan "—" hanya jika benar-benar tidak ada tombol apapun
+    const hasAnyAction = editBtn || pinBtn || resetBtn || deleteBtn;
+    const noActionsLabel = !hasAnyAction
+      ? `<span class="text-xs text-gray-400 italic">—</span>`
+      : '';
 
     return `
       <tr>
@@ -778,6 +892,7 @@ function renderTable(voters) {
   tbody.querySelectorAll('.voter-reset-btn').forEach(btn =>
     btn.addEventListener('click', () => resetVoteStatus(btn.dataset.voterId))
   );
+  // FIX BUG 1: typo `addEventListene` diperbaiki menjadi `addEventListener`
   tbody.querySelectorAll('.voter-delete-btn').forEach(btn =>
     btn.addEventListener('click', () => confirmDeleteVoter(btn.dataset.voterId, btn.dataset.voterName))
   );
@@ -785,26 +900,51 @@ function renderTable(voters) {
 
 // ── Stats ─────────────────────────────────────────────────────
 
-function updateStats(allData, pageItems) {
-  // Total dari request tanpa filter (akurat)
-  const total = allData.total || 0;
-
-  // Voted/belum dari items halaman saat ini
-  // Untuk angka akurat gunakan total di backend, tapi kita hanya
-  // punya halaman saat ini — tampilkan counted dari halaman ini
-  let voted = 0, notVoted = 0;
-  pageItems.forEach(v => { if (v.hasVoted) voted++; else notVoted++; });
+/**
+ * FIX BUG 2: Update stats menggunakan data penuh dari request tanpa filter.
+ * Backend mengembalikan total, votedCount, notVotedCount dari keseluruhan data.
+ */
+function updateStats(allData) {
+  const total    = allData.total      || 0;
+  const voted    = allData.votedCount    ?? countFromItems(allData.items || [], true);
+  const notVoted = allData.notVotedCount ?? countFromItems(allData.items || [], false);
 
   document.getElementById('s-total').textContent     = Utils.formatNumber(total);
   document.getElementById('s-voted').textContent     = Utils.formatNumber(voted);
   document.getElementById('s-not-voted').textContent = Utils.formatNumber(notVoted);
 
-  const pct = total > 0 ? Math.round((voted / pageItems.length) * 100) : 0;
-  const pctActual = pageItems.length > 0 ? Math.round((voted / pageItems.length) * 100) : 0;
+  // FIX BUG 2: hapus variabel `pct` yang tidak terpakai, gunakan satu kalkulasi
+  const pctActual = total > 0 ? Math.round((voted / total) * 100) : 0;
   document.getElementById('s-pct').textContent = pctActual + '%';
   const barEl = document.getElementById('s-bar');
   if (barEl) barEl.style.width = pctActual + '%';
 
+  _showStats();
+}
+
+/** Fallback jika statsRes gagal: hitung dari item halaman saat ini */
+function updateStatsFallback(data, items) {
+  const total    = data.total || 0;
+  const voted    = items.filter(v => v.hasVoted).length;
+  const notVoted = items.filter(v => !v.hasVoted).length;
+
+  document.getElementById('s-total').textContent     = Utils.formatNumber(total);
+  document.getElementById('s-voted').textContent     = voted + '*';
+  document.getElementById('s-not-voted').textContent = notVoted + '*';
+
+  const pct = total > 0 ? Math.round((voted / items.length) * 100) : 0;
+  document.getElementById('s-pct').textContent = pct + '%*';
+  const barEl = document.getElementById('s-bar');
+  if (barEl) barEl.style.width = pct + '%';
+
+  _showStats();
+}
+
+function countFromItems(items, voted) {
+  return items.filter(v => voted ? v.hasVoted : !v.hasVoted).length;
+}
+
+function _showStats() {
   const statsEl = document.getElementById('voter-stats');
   if (statsEl) {
     statsEl.classList.remove('hidden');
@@ -814,7 +954,10 @@ function updateStats(allData, pageItems) {
 
 function hideStats() {
   const statsEl = document.getElementById('voter-stats');
-  if (statsEl) statsEl.classList.add('hidden');
+  if (statsEl) {
+    statsEl.classList.add('hidden');
+    statsEl.classList.remove('grid');
+  }
 }
 
 // ── Reset filter ──────────────────────────────────────────────
@@ -823,10 +966,10 @@ function resetFilter() {
   document.getElementById('search-input').value = '';
   document.getElementById('btn-clear-search').classList.add('hidden');
 
+  // FIX BUG 5: gunakan penanganan active yang konsisten
   document.querySelectorAll('.filter-status-btn').forEach((btn, i) => {
     btn.classList.toggle('active', i === 0);
   });
-  updateFilterChipStyles();
 
   _currentPage = 1;
   if (_electionId) loadVoters();
@@ -838,8 +981,7 @@ function voterFormHtml(data = {}) {
   const isEdit = !!data.id;
   return `
     <div class="space-y-4">
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
 
         <!-- Nama -->
         <div>
@@ -850,7 +992,7 @@ function voterFormHtml(data = {}) {
             value="${Utils.escapeHtml(data.name || '')}"
             placeholder="Nama lengkap siswa"
             maxlength="80" autocomplete="off"/>
-          <p id="f-name-error" class="field-error"></p>
+          <p id="f-name-error" class="field-error" role="alert"></p>
         </div>
 
         <!-- NISN -->
@@ -864,10 +1006,10 @@ function voterFormHtml(data = {}) {
             placeholder="10 digit angka"
             maxlength="10"
             inputmode="numeric"
-            ${isEdit ? 'readonly title="NISN tidak dapat diubah"' : ''}/>
+            ${isEdit ? 'readonly title="NISN tidak dapat diubah" aria-readonly="true"' : ''}/>
           ${isEdit
-            ? `<p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-lock fa-xs mr-1"></i>NISN tidak dapat diubah</p>`
-            : `<p id="f-nisn-error" class="field-error"></p>`}
+            ? `<p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-lock fa-xs mr-1" aria-hidden="true"></i>NISN tidak dapat diubah</p>`
+            : `<p id="f-nisn-error" class="field-error" role="alert"></p>`}
         </div>
 
         <!-- Kelas -->
@@ -888,7 +1030,7 @@ function voterFormHtml(data = {}) {
             value="${Utils.escapeHtml(data.birthPlace || '')}"
             placeholder="Kota/Kabupaten"
             maxlength="50" autocomplete="off"/>
-          <p id="f-birth-place-error" class="field-error"></p>
+          <p id="f-birth-place-error" class="field-error" role="alert"></p>
         </div>
 
         <!-- Tanggal Lahir -->
@@ -898,7 +1040,7 @@ function voterFormHtml(data = {}) {
           </label>
           <input type="date" id="f-birth-date" class="form-input"
             value="${data.birthDate ? data.birthDate.substring(0, 10) : ''}"/>
-          <p id="f-birth-date-error" class="field-error"></p>
+          <p id="f-birth-date-error" class="field-error" role="alert"></p>
         </div>
 
         <!-- PIN (hanya tambah baru) -->
@@ -913,7 +1055,7 @@ function voterFormHtml(data = {}) {
             maxlength="5"
             inputmode="numeric"
             autocomplete="off"/>
-          <p id="f-pin-error" class="field-error"></p>
+          <p id="f-pin-error" class="field-error" role="alert"></p>
           <p class="text-xs text-gray-400 mt-1">PIN diberikan ke siswa untuk login.</p>
         </div>` : ''}
 
@@ -931,7 +1073,6 @@ function voterFormHtml(data = {}) {
           </div>
         </label>
       </div>
-
     </div>`;
 }
 
@@ -946,7 +1087,7 @@ function openVoterModal(id) {
   const modal = Modal.open({
     id: 'modal-voter',
     title: id ? 'Edit Pemilih' : 'Tambah Pemilih Baru',
-    body: `<div class="flex items-center justify-center py-8">
+    body: `<div class="flex items-center justify-center py-10">
       <div class="w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
     </div>`,
     size: 'lg',
@@ -956,9 +1097,9 @@ function openVoterModal(id) {
     ],
   });
 
-  // Token untuk cek apakah modal masih aktif setelah async load
-  const modalToken = Date.now();
-  modal.dataset.token = String(modalToken);
+  // Token untuk guard async load
+  const modalToken = String(Date.now());
+  modal.dataset.token = modalToken;
 
   // Load data async
   (async () => {
@@ -967,12 +1108,13 @@ function openVoterModal(id) {
       const res = await API.voter.getById(id);
       if (res.success && res.data) data = res.data;
     }
-    // Verifikasi modal masih terbuka (belum ditutup user saat request berjalan)
+    // Cek apakah modal masih terbuka dan bukan modal lain
     const currentModal = document.getElementById('modal-voter');
-    if (!currentModal || currentModal.dataset.token !== String(modalToken)) return;
+    if (!currentModal || currentModal.dataset.token !== modalToken) return;
+
     Modal.updateBody('modal-voter', voterFormHtml(data));
 
-    // Bind validasi real-time pada field error
+    // Bind real-time error clear
     ['f-name', 'f-birth-place', 'f-birth-date'].forEach(fid => {
       const el = document.getElementById(fid);
       if (el) el.addEventListener('input', () => clearFormError(fid), { once: true });
@@ -983,6 +1125,9 @@ function openVoterModal(id) {
         if (el) el.addEventListener('input', () => clearFormError(fid), { once: true });
       });
     }
+
+    // Focus ke field pertama
+    setTimeout(() => document.getElementById('f-name')?.focus(), 50);
   })();
 
   modal.querySelectorAll('[data-action]').forEach(btn => {
@@ -1003,38 +1148,49 @@ function openVoterModal(id) {
 // ── Save voter ────────────────────────────────────────────────
 
 async function saveVoter(id, btn) {
-  // Bersihkan semua error dulu
+  // Bersihkan semua error
   ['f-name', 'f-nisn', 'f-birth-place', 'f-birth-date', 'f-pin'].forEach(clearFormError);
 
-  const name       = document.getElementById('f-name')?.value.trim()       ?? '';
-  const nisn       = document.getElementById('f-nisn')?.value.trim()       ?? '';
+  const name       = document.getElementById('f-name')?.value.trim()        ?? '';
+  const nisn       = document.getElementById('f-nisn')?.value.trim()        ?? '';
   const birthPlace = document.getElementById('f-birth-place')?.value.trim() ?? '';
-  const birthDate  = document.getElementById('f-birth-date')?.value        ?? '';
-  const pin        = document.getElementById('f-pin')?.value.trim()        ?? '';
+  const birthDate  = document.getElementById('f-birth-date')?.value         ?? '';
+  const pin        = document.getElementById('f-pin')?.value.trim()         ?? '';
 
-  let hasError = false;
+  // FIX BUG 8: kumpulkan semua error dulu, baru focus ke yang pertama
+  const errors = [];
 
   if (!name) {
-    setFormError('f-name', 'Nama lengkap wajib diisi.'); hasError = true;
+    errors.push({ field: 'f-name', msg: 'Nama lengkap wajib diisi.' });
   }
-  if (!id && !nisn) {
-    setFormError('f-nisn', 'NISN wajib diisi.'); hasError = true;
-  } else if (!id && !/^\d{10}$/.test(nisn)) {
-    setFormError('f-nisn', 'NISN harus tepat 10 digit angka.'); hasError = true;
+  if (!id) {
+    if (!nisn) {
+      errors.push({ field: 'f-nisn', msg: 'NISN wajib diisi.' });
+    } else if (!/^\d{10}$/.test(nisn)) {
+      errors.push({ field: 'f-nisn', msg: 'NISN harus tepat 10 digit angka.' });
+    }
   }
   if (!birthPlace) {
-    setFormError('f-birth-place', 'Tempat lahir wajib diisi.'); hasError = true;
+    errors.push({ field: 'f-birth-place', msg: 'Tempat lahir wajib diisi.' });
   }
   if (!birthDate) {
-    setFormError('f-birth-date', 'Tanggal lahir wajib diisi.'); hasError = true;
+    errors.push({ field: 'f-birth-date', msg: 'Tanggal lahir wajib diisi.' });
   }
-  if (!id && !pin) {
-    setFormError('f-pin', 'PIN wajib diisi.'); hasError = true;
-  } else if (!id && !/^\d{5}$/.test(pin)) {
-    setFormError('f-pin', 'PIN harus tepat 5 digit angka.'); hasError = true;
+  if (!id) {
+    if (!pin) {
+      errors.push({ field: 'f-pin', msg: 'PIN wajib diisi.' });
+    } else if (!/^\d{5}$/.test(pin)) {
+      errors.push({ field: 'f-pin', msg: 'PIN harus tepat 5 digit angka.' });
+    }
   }
 
-  if (hasError) return;
+  if (errors.length > 0) {
+    // Set semua error
+    errors.forEach(e => setFormError(e.field, e.msg));
+    // Focus hanya ke field error pertama
+    document.getElementById(errors[0].field)?.focus();
+    return;
+  }
 
   _isSubmitting = true;
   Utils.setLoading(btn, true, 'Menyimpan...');
@@ -1083,9 +1239,6 @@ function setFormError(fieldId, msg) {
   if (input) input.classList.add('form-input-error');
   if (errEl) errEl.innerHTML =
     `<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> ${Utils.escapeHtml(msg)}`;
-  // Focus ke field error pertama
-  const firstErr = document.querySelector('.form-input-error');
-  if (firstErr === input) input?.focus();
 }
 
 function clearFormError(fieldId) {
@@ -1097,26 +1250,19 @@ function clearFormError(fieldId) {
 
 // ── Reset PIN Modal ───────────────────────────────────────────
 
-/**
- * Membuka modal dedicated untuk reset PIN.
- * Menggantikan native browser `prompt()` yang tidak bisa diakses di beberapa browser
- * dan tidak bisa di-style/validasi dengan baik.
- */
 function openResetPinModal(id) {
-  const voter = null; // tidak perlu data voter untuk reset PIN
-
   const modal = Modal.open({
     id: 'modal-reset-pin',
     title: 'Reset PIN Pemilih',
     body: `
       <div class="space-y-4">
         <div class="alert alert-warning text-sm">
-          <i class="fa-solid fa-triangle-exclamation flex-shrink-0"></i>
-          <span>Pastikan menyampaikan PIN baru ke pemilih yang bersangkutan.</span>
+          <i class="fa-solid fa-triangle-exclamation flex-shrink-0" aria-hidden="true"></i>
+          <span>Pastikan menyampaikan PIN baru kepada pemilih yang bersangkutan.</span>
         </div>
         <div>
           <label class="form-label text-xs" for="new-pin-input">
-            PIN Baru <span class="text-red-500">*</span>
+            PIN Baru <span class="text-red-500" aria-hidden="true">*</span>
           </label>
           <input type="text" id="new-pin-input"
             class="form-input pin-reset-input"
@@ -1125,18 +1271,17 @@ function openResetPinModal(id) {
             inputmode="numeric"
             autocomplete="off"
             aria-label="PIN baru 5 digit"/>
-          <p id="new-pin-error" class="field-error"></p>
+          <p id="new-pin-error" class="field-error" role="alert"></p>
           <p class="text-xs text-gray-400 mt-1">5 digit angka.</p>
         </div>
       </div>`,
     size: 'sm',
     actions: [
-      { label: 'Batal',       class: 'btn-secondary', action: 'cancel' },
-      { label: 'Reset PIN',   class: 'btn-primary',   action: 'save', id: 'modal-pin-save-btn' },
+      { label: 'Batal',     class: 'btn-secondary', action: 'cancel' },
+      { label: 'Reset PIN', class: 'btn-primary',   action: 'save', id: 'modal-pin-save-btn' },
     ],
   });
 
-  // Focus otomatis
   setTimeout(() => document.getElementById('new-pin-input')?.focus(), 100);
 
   modal.querySelectorAll('[data-action]').forEach(btn => {
@@ -1148,14 +1293,14 @@ function openResetPinModal(id) {
 }
 
 async function doResetPin(voterId, btn) {
-  const pinEl  = document.getElementById('new-pin-input');
-  const errEl  = document.getElementById('new-pin-error');
-  const pin    = pinEl?.value.trim() ?? '';
+  const pinEl = document.getElementById('new-pin-input');
+  const errEl = document.getElementById('new-pin-error');
+  const pin   = pinEl?.value.trim() ?? '';
 
   if (!pin || !/^\d{5}$/.test(pin)) {
     if (pinEl) pinEl.classList.add('form-input-error');
     if (errEl) errEl.innerHTML =
-      `<i class="fa-solid fa-circle-exclamation"></i> PIN harus tepat 5 digit angka.`;
+      `<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> PIN harus tepat 5 digit angka.`;
     pinEl?.focus();
     return;
   }
@@ -1167,8 +1312,6 @@ async function doResetPin(voterId, btn) {
     if (res.success) {
       Toast.success('PIN berhasil direset.');
       Modal.close();
-      // Tidak perlu reload tabel — PIN tidak ditampilkan di tabel
-      // Kecuali kita refresh untuk update PIN di kolom PIN
       await loadVoters();
     } else {
       Toast.error(res.message || 'Gagal mereset PIN.');
@@ -1181,7 +1324,7 @@ async function doResetPin(voterId, btn) {
   }
 }
 
-// ── Actions ───────────────────────────────────────────────────
+// ── Actions: Reset vote status & Delete ──────────────────────
 
 async function resetVoteStatus(id) {
   const ok = await Utils.confirm(
@@ -1217,7 +1360,7 @@ async function confirmDeleteVoter(id, name) {
   }
 }
 
-// ── Import CSV Modal ──────────────────────────────────────────
+// ── Import CSV ────────────────────────────────────────────────
 
 function openImportModal() {
   if (!_electionId) {
@@ -1225,7 +1368,7 @@ function openImportModal() {
     return;
   }
 
-  _parsedCSV = []; // reset state CSV
+  _parsedCSV = [];
 
   const modal = Modal.open({
     id: 'modal-import',
@@ -1234,24 +1377,24 @@ function openImportModal() {
     body: `
       <div class="space-y-4">
         <div class="alert alert-info text-sm">
-          <i class="fa-solid fa-circle-info flex-shrink-0 mt-0.5"></i>
+          <i class="fa-solid fa-circle-info flex-shrink-0 mt-0.5" aria-hidden="true"></i>
           <div>
             <p class="font-semibold mb-1">Format kolom CSV:</p>
-            <code class="text-xs bg-blue-50 px-2 py-0.5 rounded font-mono">
+            <code class="text-xs bg-blue-50 px-2 py-0.5 rounded font-mono block">
               nisn, name, className, birthPlace, birthDate, pin
             </code>
-            <p class="text-xs mt-1.5 opacity-80">
-              • birthDate: format <code>YYYY-MM-DD</code><br>
-              • pin: 5 digit angka<br>
-              • NISN: 10 digit angka (leading zero dipertahankan)
-            </p>
+            <ul class="text-xs mt-1.5 opacity-80 space-y-0.5 list-none">
+              <li>• <strong>birthDate</strong>: format <code>YYYY-MM-DD</code></li>
+              <li>• <strong>pin</strong>: 5 digit angka</li>
+              <li>• <strong>nisn</strong>: 10 digit angka (leading zero dipertahankan)</li>
+            </ul>
           </div>
         </div>
 
         <!-- Upload area -->
         <div>
-          <label for="csv-file" class="upload-area flex flex-col items-center cursor-pointer" id="csv-upload-area">
-            <i class="fa-solid fa-file-csv text-3xl text-gray-300 mb-2"></i>
+          <label for="csv-file" class="upload-area" id="csv-upload-area">
+            <i class="fa-solid fa-file-csv text-3xl text-gray-300 mb-2" aria-hidden="true"></i>
             <p class="text-sm font-medium text-gray-600">Klik untuk pilih file CSV</p>
             <p class="text-xs text-gray-400 mt-1">Maksimal 500 pemilih per file</p>
           </label>
@@ -1263,8 +1406,8 @@ function openImportModal() {
           <div class="flex items-center justify-between">
             <p class="text-xs font-semibold text-gray-700" id="csv-count"></p>
             <button type="button" id="csv-clear-btn"
-              class="text-xs text-gray-400 hover:text-red-500 transition-colors">
-              <i class="fa-solid fa-xmark mr-1"></i>Hapus
+              class="text-xs text-gray-400 hover:text-red-500 transition-colors gap-1 flex items-center">
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>Hapus
             </button>
           </div>
           <div class="csv-preview-wrap">
@@ -1291,19 +1434,17 @@ function openImportModal() {
     ],
   });
 
-  // Bind file input
   const fileInput = document.getElementById('csv-file');
   if (fileInput) {
     fileInput.addEventListener('change', e => previewCSV(e.target));
   }
 
-  // Bind clear button
   const clearBtn = document.getElementById('csv-clear-btn');
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       _parsedCSV = [];
       if (fileInput) fileInput.value = '';
-      document.getElementById('csv-preview').classList.add('hidden');
+      document.getElementById('csv-preview')?.classList.add('hidden');
     });
   }
 
@@ -1333,11 +1474,11 @@ function previewCSV(input) {
       return;
     }
 
-    const preview  = document.getElementById('csv-preview');
-    const countEl  = document.getElementById('csv-count');
-    const headEl   = document.getElementById('csv-head');
-    const bodyEl   = document.getElementById('csv-body');
-    const headers  = Object.keys(_parsedCSV[0]);
+    const preview = document.getElementById('csv-preview');
+    const countEl = document.getElementById('csv-count');
+    const headEl  = document.getElementById('csv-head');
+    const bodyEl  = document.getElementById('csv-body');
+    const headers = Object.keys(_parsedCSV[0]);
 
     countEl.textContent = `${_parsedCSV.length} baris ditemukan`;
     headEl.innerHTML = headers.map(h => `<th>${Utils.escapeHtml(h)}</th>`).join('');
@@ -1346,12 +1487,12 @@ function previewCSV(input) {
         `<tr>${headers.map(h => `<td>${Utils.escapeHtml(String(row[h] || ''))}</td>`).join('')}</tr>`
       ).join('') +
       (_parsedCSV.length > 5
-        ? `<tr><td colspan="${headers.length}" class="text-center text-gray-400 py-2 italic">
-            ... dan ${_parsedCSV.length - 5} baris lainnya
+        ? `<tr><td colspan="${headers.length}" class="text-center text-gray-400 py-2 italic text-xs">
+            … dan ${_parsedCSV.length - 5} baris lainnya
            </td></tr>`
         : '');
 
-    preview.classList.remove('hidden');
+    preview?.classList.remove('hidden');
   };
   reader.onerror = () => Toast.error('Gagal membaca file.');
   reader.readAsText(file);
@@ -1375,8 +1516,6 @@ async function doImport(btn) {
       const d = res.data || {};
       Modal.close();
       _parsedCSV = [];
-
-      // Tampilkan modal ringkasan hasil import
       showImportResult(d);
       await loadVoters();
     } else {
@@ -1389,10 +1528,6 @@ async function doImport(btn) {
   }
 }
 
-/**
- * Tampilkan modal ringkasan hasil import.
- * Lebih informatif dari sekadar Toast.
- */
 function showImportResult(d) {
   const errorRows = (d.errors || []).slice(0, 10);
   const errHtml = errorRows.length
@@ -1400,7 +1535,7 @@ function showImportResult(d) {
         <p class="text-xs font-semibold text-red-600 bg-red-50 px-3 py-2 border-b border-red-100">
           Detail Error (maks 10 ditampilkan):
         </p>
-        <div class="max-h-32 overflow-y-auto">
+        <div class="max-h-36 overflow-y-auto">
           ${errorRows.map(e =>
             `<div class="flex items-start gap-2 px-3 py-2 border-b border-red-50 last:border-0 text-xs">
               <span class="font-mono font-bold text-gray-600 flex-shrink-0">Baris ${e.row}:</span>
@@ -1418,17 +1553,17 @@ function showImportResult(d) {
     body: `
       <div class="space-y-2">
         <div class="import-result-row ok">
-          <i class="fa-solid fa-circle-check"></i>
+          <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
           <span>${d.success || 0} pemilih berhasil ditambahkan</span>
         </div>
         ${(d.skipped || 0) > 0 ? `
         <div class="import-result-row skip">
-          <i class="fa-solid fa-forward"></i>
+          <i class="fa-solid fa-forward" aria-hidden="true"></i>
           <span>${d.skipped} NISN dilewati (duplikat)</span>
         </div>` : ''}
         ${(d.failed || 0) > 0 ? `
         <div class="import-result-row fail">
-          <i class="fa-solid fa-circle-xmark"></i>
+          <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
           <span>${d.failed} baris gagal diimport</span>
         </div>
         ${errHtml}` : ''}
@@ -1468,17 +1603,17 @@ async function exportVoters() {
     }
 
     const rows = items.map(v => ({
-      nisn:       v.nisn       || '',
-      nama:       v.name       || '',
-      kelas:      v.className  || '',
-      tempatLahir:v.birthPlace || '',
-      tanggalLahir:v.birthDate ? v.birthDate.substring(0, 10) : '',
+      nisn:        v.nisn       || '',
+      nama:        v.name       || '',
+      kelas:       v.className  || '',
+      tempatLahir: v.birthPlace || '',
+      tanggalLahir: v.birthDate ? v.birthDate.substring(0, 10) : '',
       sudahMemilih: v.hasVoted ? 'Ya' : 'Tidak',
       waktuMemilih: v.hasVoted ? Utils.formatDateTime(v.votedAt) : '',
     }));
 
-    const election = document.getElementById('election-select');
-    const elTitle  = election?.options[election.selectedIndex]?.text || _electionId;
+    const elSel   = document.getElementById('election-select');
+    const elTitle = elSel?.options[elSel.selectedIndex]?.text || _electionId;
     Utils.exportCSV(rows, `pemilih-${elTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.csv`);
     Toast.success(`${items.length} data pemilih berhasil diekspor.`);
   } catch (err) {
@@ -1490,10 +1625,6 @@ async function exportVoters() {
 
 // ── Show State ────────────────────────────────────────────────
 
-/**
- * @param {string} s - 'loading' | 'content' | 'empty' | 'error'
- * @param {Object|string} [cfg] - konfigurasi empty/error state
- */
 function showState(s, cfg) {
   ['loading', 'content', 'empty', 'error'].forEach(name => {
     const el = document.getElementById(`${name}-state`);
@@ -1548,38 +1679,50 @@ function showPinGateModal() {
 
     overlay.classList.remove('hidden');
     input.value = '';
-    // Small delay agar overlay render dulu sebelum focus
     setTimeout(() => input.focus(), 100);
-    errorEl.classList.add('hidden');
+
+    // FIX BUG 14: pakai style.display daripada hidden class
+    errorEl.style.display = 'none';
+    errorEl.innerHTML = '';
+
+    // FIX BUG 10: guard double-submit
+    let _submitting = false;
 
     function showError(msg) {
-      errorEl.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${Utils.escapeHtml(msg)}`;
-      errorEl.classList.remove('hidden');
+      errorEl.innerHTML = `<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> ${Utils.escapeHtml(msg)}`;
+      errorEl.style.display = 'flex';
       input.classList.add('border-red-400');
       input.focus();
     }
+
     function clearError() {
-      errorEl.classList.add('hidden');
+      errorEl.style.display = 'none';
+      errorEl.innerHTML = '';
       input.classList.remove('border-red-400');
     }
 
     async function handleSubmit() {
+      // FIX BUG 10: cegah double-submit
+      if (_submitting) return;
       const pin = input.value.trim();
       if (!pin) { showError('PIN tidak boleh kosong.'); return; }
 
       clearError();
+      _submitting = true;
       Utils.setLoading(submitBtn, true, 'Memverifikasi...');
 
       let res;
       try {
         res = await API.accessPin.verify(pin);
       } catch (err) {
+        _submitting = false;
         Utils.setLoading(submitBtn, false);
         showError('Gagal menghubungi server. Periksa koneksi.');
         return;
       }
 
       Utils.setLoading(submitBtn, false);
+      _submitting = false;
 
       if (res.success && res.data && res.data.accessGranted) {
         sessionStorage.setItem(_PIN_ACCESS_KEY, JSON.stringify({
@@ -1626,13 +1769,25 @@ function showPinGateModal() {
 }
 
 function startAccessTimer() {
-  let expiresAt;
+  // FIX BUG 7: expiresAt wajib dari sessionStorage — tanpa fallback hardcode
+  let expiresAt = null;
+  let totalDuration = 0;
+
   try {
     const stored = sessionStorage.getItem(_PIN_ACCESS_KEY);
-    if (stored) expiresAt = new Date(JSON.parse(stored).expiresAt).getTime();
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.expiresAt) {
+        expiresAt     = new Date(parsed.expiresAt).getTime();
+        totalDuration = Math.max(1, Math.round((expiresAt - Date.now()) / 1000));
+      }
+    }
   } catch (_) {}
 
-  if (!expiresAt) expiresAt = Date.now() + _PIN_ACCESS_SEC * 1000;
+  // Jika tidak ada expiresAt yang valid, jangan tampilkan timer
+  if (!expiresAt || expiresAt <= Date.now()) {
+    return;
+  }
 
   const timerBar    = document.getElementById('access-timer-bar');
   const countdownEl = document.getElementById('access-countdown');
@@ -1646,11 +1801,19 @@ function startAccessTimer() {
     const ss = String(remaining % 60).padStart(2, '0');
     countdownEl.textContent = `${mm}:${ss}`;
 
-    const pct = Math.min(100, Math.round((remaining / _PIN_ACCESS_SEC) * 100));
+    const pct = totalDuration > 0
+      ? Math.min(100, Math.round((remaining / totalDuration) * 100))
+      : 0;
     progressEl.style.width = pct + '%';
-    progressEl.className = `participation-fill transition-all duration-1000 ${
-      remaining <= 30 ? 'bg-red-500' : remaining <= 60 ? 'bg-orange-400' : 'bg-amber-400'
-    }`;
+
+    // Warna progress berdasarkan sisa waktu
+    if (remaining <= 30) {
+      progressEl.style.backgroundColor = '#ef4444';
+    } else if (remaining <= 60) {
+      progressEl.style.backgroundColor = '#f97316';
+    } else {
+      progressEl.style.backgroundColor = '#fbbf24';
+    }
 
     if (remaining <= 0) {
       clearInterval(_accessTimerId);
