@@ -385,7 +385,14 @@ const Utils = (() => {
     for (let i = 0; i < line.length; i++) {
       const c = line[i];
       if (c === '"') {
-        inQuotes = !inQuotes;
+        // Sesuai RFC 4180: dua tanda kutip berturutan ("") di dalam
+        // field yang di-quote merepresentasikan satu tanda kutip literal.
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++; // lewati kutip kedua
+        } else {
+          inQuotes = !inQuotes;
+        }
       } else if (c === ',' && !inQuotes) {
         result.push(current);
         current = '';
@@ -455,7 +462,11 @@ const Utils = (() => {
     const a    = document.createElement('a');
     a.href     = url;
     a.download = filename;
+    // Anchor harus di-append ke DOM agar download bekerja di semua browser
+    // (terutama Firefox yang tidak meng-handle click() pada elemen yang tidak terpasang).
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
 
