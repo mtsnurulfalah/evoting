@@ -179,6 +179,17 @@ const API = (() => {
     update: (data) => request('config.update', data),
   };
 
+  // ── Voter Access PIN ─────────────────────────────────────
+
+  const accessPin = {
+    /** Generate PIN baru secara manual (superadmin/admin/ketua_panitia) */
+    generate: () => request('accessPin.generate', {}),
+    /** Ambil PIN aktif + sisa waktu (superadmin/admin/ketua_panitia) */
+    get: () => request('accessPin.get', {}),
+    /** Verifikasi PIN yang dimasukkan panitia */
+    verify: (pin) => request('accessPin.verify', { pin }),
+  };
+
   // ── Logs ─────────────────────────────────────────────────
 
   const logs = {
@@ -211,5 +222,5 @@ const API = (() => {
     return _pendingRequests > 0;
   }
 
-  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, adminUsers, isPending };
+  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, adminUsers, accessPin, isPending };
 })();
