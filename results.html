@@ -9,249 +9,479 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="/assets/css/tailwind.css"/>
+  <noscript>
+    <style>body { font-family: sans-serif; padding: 2rem; text-align: center; } </style>
+    <p>JavaScript diperlukan untuk menampilkan halaman ini.</p>
+  </noscript>
 </head>
 <body class="min-h-screen bg-gray-50">
 
 <div id="toast-container"></div>
 
-<!-- Topbar -->
-<header class="bg-white border-b border-gray-200 py-3 px-4 shadow-sm">
-  <div class="max-w-3xl mx-auto flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <div class="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
+<!-- ── Topbar ───────────────────────────────────────────── -->
+<header class="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+  <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+    <!-- Brand -->
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
         <i class="fa-solid fa-box-ballot text-white text-xs"></i>
       </div>
-      <span class="text-sm font-semibold text-gray-700" data-app-name>eVoting OSIM</span>
+      <span class="text-sm font-semibold text-gray-700 truncate" data-app-name>eVoting OSIM</span>
     </div>
-    <a href="/index.html" class="btn btn-sm btn-secondary text-xs">
-      <i class="fa-solid fa-arrow-left"></i> Kembali
-    </a>
+    <!-- Actions -->
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <!-- Refresh button (ditampilkan setelah data loaded) -->
+      <button id="btn-refresh" class="hidden btn btn-sm btn-outline text-xs gap-1.5" title="Muat ulang data">
+        <i class="fa-solid fa-rotate-right text-xs"></i>
+        <span class="hidden sm:inline">Refresh</span>
+      </button>
+      <a href="/index.html" class="btn btn-sm btn-secondary text-xs gap-1.5">
+        <i class="fa-solid fa-arrow-left text-xs"></i>
+        <span class="hidden sm:inline">Kembali</span>
+      </a>
+    </div>
   </div>
 </header>
 
-<!-- Main -->
-<main class="max-w-3xl mx-auto px-4 py-8">
+<!-- ── Main ─────────────────────────────────────────────── -->
+<main class="max-w-3xl mx-auto px-4 py-6 space-y-5">
 
-  <!-- Loading -->
-  <div id="loading-state" class="text-center py-20">
-    <div class="inline-block w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
-    <p class="text-gray-500 text-sm">Memuat hasil pemilihan...</p>
-  </div>
-
-  <!-- Not available -->
-  <div id="unavailable-state" class="hidden">
-    <div class="card max-w-md mx-auto p-10 text-center">
-      <i class="fa-solid fa-lock text-5xl text-gray-300 mb-4"></i>
-      <h3 class="font-bold text-gray-700 mb-2">Hasil Belum Dipublikasikan</h3>
-      <p class="text-gray-500 text-sm">Hasil pemilihan akan dipublikasikan setelah pemilihan selesai dan diumumkan oleh panitia.</p>
+  <!-- ── State: Loading ─────────────────────────────────── -->
+  <div id="loading-state" class="py-24 flex flex-col items-center gap-4 text-center">
+    <div class="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+    <div>
+      <p class="text-gray-700 font-medium text-sm">Memuat hasil pemilihan...</p>
+      <p class="text-gray-400 text-xs mt-1">Mohon tunggu sebentar</p>
     </div>
   </div>
 
-  <!-- Content -->
-  <div id="content-state" class="hidden space-y-6">
+  <!-- ── State: Error (network / config) ────────────────── -->
+  <div id="error-state" class="hidden">
+    <div class="card max-w-md mx-auto p-10 text-center">
+      <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-triangle-exclamation text-2xl text-red-400"></i>
+      </div>
+      <h3 class="font-bold text-gray-800 mb-2">Gagal Memuat Data</h3>
+      <p class="text-gray-500 text-sm mb-5" id="error-message">
+        Terjadi kesalahan saat menghubungi server. Periksa koneksi internet Anda.
+      </p>
+      <button id="btn-retry" class="btn btn-primary btn-sm mx-auto gap-2">
+        <i class="fa-solid fa-rotate-right"></i> Coba Lagi
+      </button>
+    </div>
+  </div>
 
-    <!-- Header -->
-    <div class="text-center">
-      <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-full px-4 py-1.5 text-xs font-medium mb-3">
+  <!-- ── State: Unavailable (belum dipublikasikan) ──────── -->
+  <div id="unavailable-state" class="hidden">
+    <div class="card max-w-md mx-auto p-10 text-center">
+      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-lock text-2xl text-gray-400"></i>
+      </div>
+      <h3 class="font-bold text-gray-800 mb-2">Hasil Belum Dipublikasikan</h3>
+      <p class="text-gray-500 text-sm">
+        Hasil pemilihan akan ditampilkan di sini setelah pemilihan selesai dan diumumkan oleh panitia.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── State: Content ─────────────────────────────────── -->
+  <div id="content-state" class="hidden space-y-5">
+
+    <!-- Header pemilihan -->
+    <div class="text-center pt-2">
+      <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-700
+                  rounded-full px-4 py-1.5 text-xs font-semibold mb-3">
         <i class="fa-solid fa-chart-bar"></i>
         Hasil Resmi Pemilihan
       </div>
-      <h1 class="text-2xl font-extrabold text-gray-800" id="result-title"></h1>
+      <h1 class="text-2xl font-extrabold text-gray-800 leading-tight" id="result-title">
+        Hasil Pemilihan
+      </h1>
       <p class="text-gray-500 text-sm mt-1" id="result-subtitle"></p>
+      <!-- Last updated indicator -->
+      <p class="text-gray-400 text-xs mt-2 flex items-center justify-center gap-1.5" id="last-updated-wrap">
+        <i class="fa-regular fa-clock"></i>
+        <span id="last-updated-text">—</span>
+      </p>
     </div>
 
-    <!-- Stats cards -->
+    <!-- Stats cards — 2 col mobile, 4 col sm+ -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="stats-cards"></div>
 
     <!-- Winner section -->
-    <div id="winner-section" class="hidden card p-6 bg-gradient-to-br from-primary-600 to-primary-800 text-white text-center">
-      <div class="inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1 text-xs font-medium mb-3">
-        <i class="fa-solid fa-trophy text-yellow-300"></i>
-        Pasangan Terpilih
-      </div>
-      <h2 class="text-xl font-extrabold mb-1" id="winner-name"></h2>
-      <p class="text-white/80 text-sm mb-3" id="winner-meta"></p>
-      <div class="inline-flex items-center gap-2 bg-white/20 rounded-lg px-4 py-2">
-        <i class="fa-solid fa-check-circle text-green-300"></i>
-        <span class="font-bold text-lg" id="winner-votes"></span>
-        <span class="text-white/80 text-sm">suara</span>
-        <span class="text-white/60">·</span>
-        <span class="font-semibold" id="winner-pct"></span>
+    <div id="winner-section" class="hidden card overflow-hidden">
+      <div class="bg-gradient-to-br from-primary-600 to-primary-800 p-5 sm:p-6 text-white text-center">
+        <div class="inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1
+                    text-xs font-semibold mb-3">
+          <i class="fa-solid fa-trophy text-yellow-300"></i>
+          Pasangan Terpilih
+        </div>
+        <h2 class="text-lg sm:text-xl font-extrabold mb-1 leading-snug" id="winner-name"></h2>
+        <p class="text-white/75 text-sm mb-4" id="winner-meta"></p>
+        <div class="inline-flex items-center gap-2 bg-white/20 rounded-xl px-5 py-2.5">
+          <i class="fa-solid fa-check-circle text-green-300 text-sm"></i>
+          <span class="font-extrabold text-lg tabular-nums" id="winner-votes"></span>
+          <span class="text-white/75 text-sm">suara</span>
+          <span class="text-white/40 mx-1">·</span>
+          <span class="font-bold" id="winner-pct"></span>
+        </div>
       </div>
     </div>
 
-    <!-- Candidate results -->
+    <!-- Tie notice (tampil jika isTied) -->
+    <div id="tie-section" class="hidden card p-5 border-yellow-200 bg-yellow-50 text-center">
+      <i class="fa-solid fa-scale-balanced text-yellow-500 text-2xl mb-2"></i>
+      <h3 class="font-bold text-yellow-800 text-sm mb-1">Perolehan Suara Seri</h3>
+      <p class="text-yellow-700 text-xs" id="tie-message">
+        Beberapa kandidat memiliki jumlah suara yang sama. Keputusan akhir ditentukan oleh panitia.
+      </p>
+    </div>
+
+    <!-- Perolehan Suara per Kandidat -->
     <div class="card">
-      <div class="card-header">
+      <div class="card-header px-4 sm:px-6">
         <h3 class="font-semibold text-gray-800 text-sm">Perolehan Suara</h3>
-        <span class="text-xs text-gray-500" id="total-votes-text"></span>
+        <span class="text-xs text-gray-400 flex-shrink-0" id="total-votes-text"></span>
       </div>
-      <div class="card-body space-y-4" id="candidate-results"></div>
+      <!-- Empty candidates state -->
+      <div id="candidates-empty" class="hidden py-10 text-center text-gray-400">
+        <i class="fa-solid fa-users text-3xl text-gray-300 mb-3"></i>
+        <p class="text-sm">Belum ada data kandidat.</p>
+      </div>
+      <div class="divide-y divide-gray-100" id="candidate-results"></div>
     </div>
 
-    <!-- Participation -->
-    <div class="card p-5">
+    <!-- Partisipasi Pemilih -->
+    <div class="card p-4 sm:p-5">
       <h3 class="font-semibold text-gray-800 text-sm mb-4">Partisipasi Pemilih</h3>
-      <div class="flex items-center justify-between text-sm mb-2">
-        <span class="text-gray-600">Tingkat Partisipasi</span>
-        <span class="font-bold text-primary-600" id="participation-rate"></span>
+      <!-- Rate + bar -->
+      <div class="flex items-center justify-between text-sm mb-2 gap-2">
+        <span class="text-gray-600 text-xs sm:text-sm">Tingkat Partisipasi</span>
+        <span class="font-extrabold text-primary-600 tabular-nums flex-shrink-0"
+              id="participation-rate">0%</span>
       </div>
-      <div class="progress-bar mb-4">
-        <div class="progress-fill bg-primary-500" id="participation-bar" style="width:0%"></div>
+      <div class="progress-bar mb-4 h-3">
+        <div class="progress-fill" id="participation-bar"
+             style="width:0%; background-color:#2563eb;"></div>
       </div>
-      <div class="grid grid-cols-3 gap-3 text-center">
-        <div class="bg-gray-50 rounded-lg p-3">
-          <p class="text-lg font-bold text-gray-800" id="stat-total"></p>
-          <p class="text-xs text-gray-500">Total Pemilih</p>
+      <!-- Stat grid: 1 col di xs, 3 col di sm+ -->
+      <div class="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+        <div class="bg-blue-50 rounded-xl p-3">
+          <p class="text-base sm:text-lg font-extrabold text-blue-700 tabular-nums"
+             id="stat-total">—</p>
+          <p class="text-xs text-gray-500 mt-0.5">Total Pemilih</p>
         </div>
-        <div class="bg-green-50 rounded-lg p-3">
-          <p class="text-lg font-bold text-green-600" id="stat-voted"></p>
-          <p class="text-xs text-gray-500">Sudah Memilih</p>
+        <div class="bg-green-50 rounded-xl p-3">
+          <p class="text-base sm:text-lg font-extrabold text-green-600 tabular-nums"
+             id="stat-voted">—</p>
+          <p class="text-xs text-gray-500 mt-0.5">Sudah Memilih</p>
         </div>
-        <div class="bg-orange-50 rounded-lg p-3">
-          <p class="text-lg font-bold text-orange-600" id="stat-not-voted"></p>
-          <p class="text-xs text-gray-500">Belum Memilih</p>
+        <div class="bg-orange-50 rounded-xl p-3">
+          <p class="text-base sm:text-lg font-extrabold text-orange-600 tabular-nums"
+             id="stat-not-voted">—</p>
+          <p class="text-xs text-gray-500 mt-0.5">Belum Memilih</p>
         </div>
       </div>
     </div>
 
-    <p class="text-center text-xs text-gray-400">
-      Data diperbarui secara real-time. Hasil bersifat resmi setelah diverifikasi panitia.
+    <!-- Footer note -->
+    <p class="text-center text-xs text-gray-400 pb-4">
+      <i class="fa-regular fa-circle-check mr-1 text-green-400"></i>
+      Data diperbarui secara berkala. Hasil bersifat resmi setelah diverifikasi panitia.
     </p>
-  </div>
+
+  </div><!-- /content-state -->
 </main>
 
+<!-- ── Scripts ───────────────────────────────────────────── -->
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/utils.js"></script>
 <script src="/assets/js/api.js"></script>
 <script src="/assets/js/auth.js"></script>
 <script src="/assets/js/components.js"></script>
 <script>
+/* ============================================================
+   results.html — Halaman Hasil Publik
+   eVoting OSIM/S
+   ============================================================ */
+
+// Palet warna untuk progress bar kandidat
 const CHART_COLORS = [
-  '#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6',
-  '#06b6d4','#f97316','#ec4899','#84cc16','#14b8a6',
+  '#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed',
+  '#0891b2', '#ea580c', '#db2777', '#65a30d', '#0d9488',
 ];
 
-(async () => {
-  loadAppConfig();
-  showState('loading');
+// State module
+const ResultsPage = (() => {
+  let _refreshTimer = null;
+  const REFRESH_INTERVAL_MS = 60 * 1000; // 60 detik
 
-  try {
-    const res = await API.result.getPublic();
-    if (!res.success) {
-      showState('unavailable');
-      return;
+  // ── Init ──────────────────────────────────────────────
+  async function init() {
+    // Muat config aplikasi (app name, dll.) — await agar title ter-update sebelum render
+    await loadAppConfig();
+
+    // Tombol refresh & retry
+    document.getElementById('btn-refresh').addEventListener('click', () => loadData(true));
+    document.getElementById('btn-retry').addEventListener('click', () => loadData(false));
+
+    await loadData(false);
+  }
+
+  // ── Muat data ─────────────────────────────────────────
+  async function loadData(isRefresh) {
+    if (!isRefresh) {
+      showState('loading');
+    } else {
+      // Saat refresh: tampilkan spinner kecil di tombol
+      const btn = document.getElementById('btn-refresh');
+      const icon = btn ? btn.querySelector('i') : null;
+      if (icon) icon.classList.add('animate-spin');
     }
 
-    const data = res.data;
-    renderResults(data);
-    showState('content');
-  } catch (_) {
-    showState('unavailable');
+    try {
+      // FIX #3: Baca electionId dari URL param jika ada
+      const electionId = Utils.getQueryParam('electionId') || undefined;
+      const res = await API.result.getPublic(electionId);
+
+      if (!res.success) {
+        // FIX #4: Bedakan 'belum dipublikasikan' vs error lain
+        const isNetworkErr = res.errorCode === 'NETWORK_ERROR' || res.errorCode === 'CONFIG_ERROR';
+        if (isNetworkErr) {
+          document.getElementById('error-message').textContent = res.message ||
+            'Gagal menghubungi server. Periksa koneksi internet Anda.';
+          showState('error');
+        } else {
+          showState('unavailable');
+        }
+        return;
+      }
+
+      renderResults(res.data || {});
+      showState('content');
+
+      // Tampilkan tombol refresh & jadwalkan auto-refresh
+      document.getElementById('btn-refresh').classList.remove('hidden');
+      scheduleAutoRefresh();
+
+    } catch (err) {
+      // FIX #4: Exception → tampilkan error state bukan unavailable
+      console.error('[ResultsPage] loadData error:', err);
+      document.getElementById('error-message').textContent =
+        'Terjadi kesalahan tidak terduga. Silakan coba lagi.';
+      showState('error');
+    } finally {
+      // Hapus spinner tombol refresh
+      const icon = document.querySelector('#btn-refresh i');
+      if (icon) icon.classList.remove('animate-spin');
+    }
   }
-})();
 
-function renderResults(data) {
-  const stats     = data.stats     || {};
-  const candidates = data.candidates || [];
-  const winner    = data.winner;
+  // ── Render hasil ──────────────────────────────────────
+  function renderResults(data) {
+    // FIX #7: Null-guard sebelum destructuring
+    const stats      = (data && data.stats)      || {};
+    const candidates = (data && data.candidates) || [];
+    const winner     = (data && data.winner)     || null;
 
-  // Title
-  document.getElementById('result-title').textContent    = 'Hasil Pemilihan';
-  document.getElementById('result-subtitle').textContent = `Total ${Utils.formatNumber(stats.totalVotes || 0)} suara sah`;
-  document.getElementById('total-votes-text').textContent = `${Utils.formatNumber(stats.totalVotes || 0)} suara`;
-  document.title = 'Hasil Pemilihan — eVoting OSIM';
+    // FIX #5: Pastikan semua angka adalah Number
+    const totalVotes        = Number(stats.totalVotes        || data.totalVotes || 0);
+    const totalVoters       = Number(stats.totalVoters       || 0);
+    const voted             = Number(stats.voted             || 0);
+    const notVoted          = Number(stats.notVoted          || 0);
+    const participationRate = parseFloat(stats.participationRate || 0);
 
-  // Stats cards
-  const statsEl = document.getElementById('stats-cards');
-  statsEl.innerHTML = [
-    { label: 'Total Pemilih',   value: stats.totalVoters || 0,        icon: 'fa-users',        color: 'text-blue-600  bg-blue-50' },
-    { label: 'Sudah Memilih',   value: stats.voted || 0,              icon: 'fa-check-circle', color: 'text-green-600 bg-green-50' },
-    { label: 'Belum Memilih',   value: stats.notVoted || 0,           icon: 'fa-clock',        color: 'text-orange-600 bg-orange-50' },
-    { label: 'Partisipasi',     value: (stats.participationRate || 0) + '%', icon: 'fa-chart-pie', color: 'text-primary-600 bg-primary-50' },
-  ].map(s => `
-    <div class="card p-4 text-center">
-      <div class="inline-flex items-center justify-center w-9 h-9 rounded-lg ${s.color} mb-2">
-        <i class="fa-solid ${s.icon} text-sm"></i>
-      </div>
-      <p class="text-xl font-extrabold text-gray-800">${Utils.escapeHtml(String(s.value))}</p>
-      <p class="text-xs text-gray-500 mt-0.5">${Utils.escapeHtml(s.label)}</p>
-    </div>`).join('');
+    // Title
+    document.getElementById('result-title').textContent    = 'Hasil Pemilihan';
+    document.getElementById('result-subtitle').textContent =
+      totalVotes > 0
+        ? `Total ${Utils.formatNumber(totalVotes)} suara sah`
+        : 'Pemilihan telah selesai';
+    document.getElementById('total-votes-text').textContent =
+      Utils.formatNumber(totalVotes) + ' suara';
 
-  // Winner
-  if (winner && !winner.isTied) {
-    const w = winner.candidate;
-    document.getElementById('winner-name').textContent =
-      w.name + (w.pairName ? ' & ' + w.pairName : '');
-    document.getElementById('winner-meta').textContent =
-      'No. Urut ' + w.orderNumber + (w.className ? ' · ' + w.className : '');
+    // Last updated timestamp
+    document.getElementById('last-updated-text').textContent =
+      'Diperbarui: ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+    // Stats cards
+    renderStatsCards({ totalVoters, voted, notVoted, participationRate });
+
+    // FIX #6: Reset winner & tie section sebelum render ulang
+    document.getElementById('winner-section').classList.add('hidden');
+    document.getElementById('tie-section').classList.add('hidden');
+
+    // Winner / Tie
+    if (winner) {
+      if (winner.isTied) {
+        // FIX #13: Tampilkan tie notice
+        const tiedNames = (winner.tiedWith || []).join(', ');
+        if (tiedNames) {
+          document.getElementById('tie-message').textContent =
+            `Kandidat berikut memiliki suara seri: ${tiedNames}. Keputusan akhir ditentukan oleh panitia.`;
+        }
+        document.getElementById('tie-section').classList.remove('hidden');
+      } else if (winner.candidate) {
+        renderWinner(winner.candidate);
+        document.getElementById('winner-section').classList.remove('hidden');
+      }
+    }
+
+    // Candidates
+    renderCandidates(candidates, winner, totalVotes);
+
+    // Participation bar
+    document.getElementById('participation-rate').textContent = participationRate + '%';
+    document.getElementById('participation-bar').style.width  = Math.min(participationRate, 100) + '%';
+    document.getElementById('stat-total').textContent         = Utils.formatNumber(totalVoters);
+    document.getElementById('stat-voted').textContent         = Utils.formatNumber(voted);
+    document.getElementById('stat-not-voted').textContent     = Utils.formatNumber(notVoted);
+  }
+
+  // ── Stats cards ───────────────────────────────────────
+  function renderStatsCards({ totalVoters, voted, notVoted, participationRate }) {
+    // FIX #14: Tidak ada double-space di class
+    const items = [
+      { label: 'Total Pemilih', value: Utils.formatNumber(totalVoters),   icon: 'fa-users',        bg: 'bg-blue-50',    text: 'text-blue-600'    },
+      { label: 'Sudah Memilih', value: Utils.formatNumber(voted),          icon: 'fa-check-circle', bg: 'bg-green-50',   text: 'text-green-600'   },
+      { label: 'Belum Memilih', value: Utils.formatNumber(notVoted),       icon: 'fa-clock',        bg: 'bg-orange-50',  text: 'text-orange-600'  },
+      { label: 'Partisipasi',   value: participationRate + '%',            icon: 'fa-chart-pie',    bg: 'bg-primary-50', text: 'text-primary-600' },
+    ];
+    document.getElementById('stats-cards').innerHTML = items.map(s => `
+      <div class="card p-3 sm:p-4 text-center">
+        <div class="inline-flex items-center justify-center w-9 h-9 rounded-lg ${s.bg} ${s.text} mb-2">
+          <i class="fa-solid ${s.icon} text-sm"></i>
+        </div>
+        <p class="text-xl font-extrabold text-gray-800 tabular-nums leading-none">${s.value}</p>
+        <p class="text-xs text-gray-500 mt-1 leading-tight">${s.label}</p>
+      </div>`).join('');
+  }
+
+  // ── Winner ────────────────────────────────────────────
+  function renderWinner(w) {
+    const name = Utils.escapeHtml(w.name) +
+      (w.pairName
+        ? ' <span class="font-medium text-white/80">&amp; ' + Utils.escapeHtml(w.pairName) + '</span>'
+        : '');
+    document.getElementById('winner-name').innerHTML = name;
+
+    const meta = 'No. Urut ' + Utils.escapeHtml(String(w.orderNumber || '')) +
+      (w.className ? ' · ' + Utils.escapeHtml(w.className) : '');
+    document.getElementById('winner-meta').textContent = meta;
     document.getElementById('winner-votes').textContent = Utils.formatNumber(w.votes);
-    document.getElementById('winner-pct').textContent   = w.percentage + '%';
-    document.getElementById('winner-section').classList.remove('hidden');
+    document.getElementById('winner-pct').textContent   = parseFloat(w.percentage || 0) + '%';
   }
 
-  // Candidate results — tambah foto thumbnail kecil di samping nama
-  const resultEl = document.getElementById('candidate-results');
-  const totalVotes = stats.totalVotes || 0;
-  resultEl.innerHTML = candidates.map((c, i) => {
-    const pct        = c.percentage || 0;
-    const isWinner   = winner && !winner.isTied && winner.candidate.id === c.id;
-    const photoSrc   = Utils.buildDriveImgUrl(c.photoUrl);
-    const pairSrc    = Utils.buildDriveImgUrl(c.pairPhotoUrl);
-    return `
-      <div class="flex items-center gap-3 ${isWinner ? 'bg-primary-50 -mx-2 px-2 py-2 rounded-xl' : ''}">
-        <!-- Foto paslon kecil -->
-        <div class="hidden sm:flex items-center gap-1 flex-shrink-0">
-          <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+  // ── Candidates ────────────────────────────────────────
+  function renderCandidates(candidates, winner, totalVotes) {
+    const resultEl     = document.getElementById('candidate-results');
+    const emptyEl      = document.getElementById('candidates-empty');
+
+    // FIX #11: Empty state jika tidak ada kandidat
+    if (!candidates || candidates.length === 0) {
+      resultEl.innerHTML = '';
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+    emptyEl.classList.add('hidden');
+
+    resultEl.innerHTML = candidates.map((c, i) => {
+      const pct      = parseFloat(c.percentage || 0); // FIX #5
+      const isWinner = winner && !winner.isTied && winner.candidate && winner.candidate.id === c.id;
+      const photoSrc = Utils.buildDriveImgUrl(c.photoUrl);
+      const pairSrc  = Utils.buildDriveImgUrl(c.pairPhotoUrl);
+      const color    = CHART_COLORS[i % CHART_COLORS.length];
+      const orderNum = Utils.escapeHtml(String(c.orderNumber || i + 1));
+
+      // FIX #1: Nama & pasangan dibuat via escapeHtml, tidak ada raw string injection
+      const nameHtml = Utils.escapeHtml(c.name || '—') +
+        (c.pairName
+          ? '<span class="font-normal text-gray-500"> &amp; ' + Utils.escapeHtml(c.pairName) + '</span>'
+          : '');
+
+      // Foto paslon — hidden di xs (ditampilkan ab sm)
+      const photoHtml = `
+        <div class="hidden sm:flex items-center gap-0.5 flex-shrink-0">
+          <div class="w-9 h-9 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center
+                      border-2 ${isWinner ? 'border-primary-400' : 'border-transparent'}">
             ${photoSrc
-              ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-full object-cover object-top"
-                     onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-xs\\'></i>'">`
+              ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="" loading="lazy"
+                      class="w-full h-full object-cover object-top"
+                      onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-xs\\'></i>'">`
               : '<i class="fa-solid fa-user text-gray-400 text-xs"></i>'}
           </div>
           ${pairSrc ? `
-          <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center -ml-2">
-            <img src="${Utils.escapeHtml(pairSrc)}" class="w-full h-full object-cover object-top"
+          <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center
+                      -ml-2 border-2 border-white">
+            <img src="${Utils.escapeHtml(pairSrc)}" alt="" loading="lazy"
+                 class="w-full h-full object-cover object-top"
                  onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-xs\\'></i>'">
           </div>` : ''}
-        </div>
-        <!-- Nomor urut (mobile) -->
-        <div class="sm:hidden w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0
-          ${isWinner ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}">
-          ${c.orderNumber}
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-1">
-            <p class="text-sm font-semibold text-gray-800 truncate">
-              ${Utils.escapeHtml(c.name)}${c.pairName ? ' <span class="text-gray-500 font-normal">&amp; ' + Utils.escapeHtml(c.pairName) + '</span>' : ''}
+        </div>`;
+
+      // FIX #18: Nomor urut fallback di mobile — ukuran konsisten
+      const mobileNumHtml = `
+        <div class="sm:hidden w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
+                    font-bold text-sm ${isWinner ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}">
+          ${orderNum}
+        </div>`;
+
+      return `
+        <div class="flex items-center gap-3 px-4 sm:px-6 py-3
+                    ${isWinner ? 'bg-primary-50' : 'hover:bg-gray-50/80'} transition-colors">
+          ${photoHtml}
+          ${mobileNumHtml}
+          <!-- FIX #15: min-w-0 agar teks tidak overflow -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap mb-1.5">
+              <p class="text-sm font-semibold text-gray-800 min-w-0 break-words">${nameHtml}</p>
+              ${isWinner
+                ? '<span class="badge badge-success flex-shrink-0 gap-1"><i class="fa-solid fa-trophy fa-xs"></i>Terpilih</span>'
+                : ''}
+            </div>
+            <!-- Progress bar -->
+            <div class="flex items-center gap-2">
+              <div class="progress-bar flex-1 h-2.5">
+                <div class="progress-fill" style="width:${pct}%; background-color:${color};"></div>
+              </div>
+              <span class="text-xs text-gray-500 tabular-nums w-9 text-right flex-shrink-0">${pct}%</span>
+            </div>
+          </div>
+          <!-- Vote count -->
+          <div class="text-right flex-shrink-0 pl-1 min-w-[4rem]">
+            <p class="text-sm font-extrabold text-gray-800 tabular-nums leading-none">
+              ${Utils.formatNumber(c.votes || 0)}
             </p>
-            ${isWinner ? '<span class="badge badge-success flex-shrink-0"><i class="fa-solid fa-trophy fa-xs"></i> Terpilih</span>' : ''}
+            <p class="text-xs text-gray-400 mt-0.5">suara</p>
           </div>
-          <div class="progress-bar h-2.5">
-            <div class="progress-fill"
-              style="width:${pct}%; background-color:${CHART_COLORS[i % CHART_COLORS.length]}"></div>
-          </div>
-        </div>
-        <div class="text-right flex-shrink-0 w-24">
-          <p class="text-sm font-bold text-gray-800">${Utils.formatNumber(c.votes)} <span class="text-xs font-normal text-gray-500">suara</span></p>
-          <p class="text-xs text-gray-500">${pct}%</p>
-        </div>
-      </div>`;
-  }).join('');
+        </div>`;
+    }).join('');
+  }
 
-  // Participation
-  const rate = stats.participationRate || 0;
-  document.getElementById('participation-rate').textContent = rate + '%';
-  document.getElementById('participation-bar').style.width  = Math.min(rate, 100) + '%';
-  document.getElementById('stat-total').textContent     = Utils.formatNumber(stats.totalVoters || 0);
-  document.getElementById('stat-voted').textContent     = Utils.formatNumber(stats.voted || 0);
-  document.getElementById('stat-not-voted').textContent = Utils.formatNumber(stats.notVoted || 0);
-}
+  // ── Auto refresh ──────────────────────────────────────
+  function scheduleAutoRefresh() {
+    if (_refreshTimer) clearInterval(_refreshTimer);
+    _refreshTimer = setInterval(() => loadData(true), REFRESH_INTERVAL_MS);
+  }
 
-function showState(state) {
-  document.getElementById('loading-state').classList.toggle('hidden', state !== 'loading');
-  document.getElementById('unavailable-state').classList.toggle('hidden', state !== 'unavailable');
-  document.getElementById('content-state').classList.toggle('hidden', state !== 'content');
-}
+  // ── State switcher ────────────────────────────────────
+  function showState(state) {
+    const states = ['loading', 'error', 'unavailable', 'content'];
+    states.forEach(s => {
+      document.getElementById(s + '-state').classList.toggle('hidden', s !== state);
+    });
+    // Sembunyikan tombol refresh kecuali saat content
+    if (state !== 'content') {
+      document.getElementById('btn-refresh').classList.add('hidden');
+      if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
+    }
+  }
+
+  return { init };
+})();
+
+// ── Bootstrap ──────────────────────────────────────────────
+ResultsPage.init();
 </script>
 </body>
 </html>
