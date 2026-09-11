@@ -14,7 +14,7 @@
 <div id="toast-container"></div>
 <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
 
-<!-- Sidebar (shared structure) -->
+<!-- Sidebar -->
 <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
   <div class="px-5 py-4 border-b border-gray-100">
     <div class="flex items-center gap-3">
@@ -42,33 +42,57 @@
   </div>
 </aside>
 
-<div class="flex-1 flex flex-col min-w-0">
-  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-4 sticky top-0 z-20">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1"><i class="fa-solid fa-bars text-lg"></i></button>
-    <h1 class="text-base font-semibold text-gray-800 flex-1">Manajemen Pemilihan</h1>
-    <button id="btn-create" class="btn btn-primary text-sm">
-      <i class="fa-solid fa-plus"></i> Buat Pemilihan
+<!-- Main content -->
+<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-3 sticky top-0 z-20 flex-shrink-0">
+    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1 flex-shrink-0">
+      <i class="fa-solid fa-bars text-lg"></i>
+    </button>
+    <h1 class="text-base font-semibold text-gray-800 flex-1 truncate">Manajemen Pemilihan</h1>
+    <button id="btn-create" class="btn btn-primary btn-sm flex-shrink-0">
+      <i class="fa-solid fa-plus"></i>
+      <span class="hidden sm:inline ml-1">Buat Pemilihan</span>
     </button>
   </header>
 
-  <main class="flex-1 p-4 md:p-6 overflow-auto">
-    <div id="loading-state" class="text-center py-16">
-      <div class="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-3"></div>
-      <p class="text-gray-500 text-sm">Memuat data...</p>
+  <!-- Main -->
+  <main class="flex-1 p-4 md:p-6 overflow-y-auto overflow-x-hidden">
+
+    <!-- Loading state -->
+    <div id="loading-state" class="flex flex-col items-center justify-center py-20">
+      <div class="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
+      <p class="text-gray-500 text-sm">Memuat data pemilihan...</p>
     </div>
 
-    <div id="content-state" class="hidden space-y-4" id="election-cards"></div>
+    <!-- Content state (list of election cards) -->
+    <div id="content-state" class="hidden space-y-4"></div>
 
+    <!-- Empty state -->
     <div id="empty-state" class="hidden">
       <div class="empty-state">
-        <i class="fa-solid fa-calendar-xmark"></i>
-        <h3 class="text-base font-semibold text-gray-600">Belum ada pemilihan</h3>
-        <p>Buat pemilihan pertama untuk memulai.</p>
-        <button onclick="openCreateModal()" class="btn btn-primary mt-4">
-          <i class="fa-solid fa-plus"></i> Buat Pemilihan
+        <i class="fa-solid fa-calendar-xmark text-4xl text-gray-300 mb-3"></i>
+        <h3 class="text-base font-semibold text-gray-600 mb-1">Belum ada pemilihan</h3>
+        <p class="text-sm text-gray-400">Buat pemilihan pertama untuk mulai mengelola proses e-voting.</p>
+        <button id="btn-create-empty" class="btn btn-primary mt-5">
+          <i class="fa-solid fa-plus mr-1"></i> Buat Pemilihan
         </button>
       </div>
     </div>
+
+    <!-- Error state -->
+    <div id="error-state" class="hidden">
+      <div class="empty-state">
+        <i class="fa-solid fa-triangle-exclamation text-4xl text-red-300 mb-3"></i>
+        <h3 class="text-base font-semibold text-gray-600 mb-1">Gagal memuat data</h3>
+        <p class="text-sm text-gray-400" id="error-msg">Terjadi kesalahan saat memuat data pemilihan.</p>
+        <button id="btn-retry" class="btn btn-secondary mt-5">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Coba Lagi
+        </button>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -78,21 +102,42 @@
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/components.js"></script>
 <script>
-let _elections = [];
+/* ============================================================
+   election.js — Manajemen Pemilihan
+   ============================================================ */
 
+// ── State ────────────────────────────────────────────────────
+let _elections   = [];
+let _isSubmitting = false; // guard double-submit
+
+// ── Inisialisasi ─────────────────────────────────────────────
 (async () => {
   if (!Auth.requireAdminPage()) return;
-  Sidebar.init(); Topbar.init();
+  Sidebar.init();
+  Topbar.init();
+
   document.getElementById('btn-create').addEventListener('click', openCreateModal);
-  loadElections();
+  document.getElementById('btn-create-empty').addEventListener('click', openCreateModal);
+  document.getElementById('btn-retry').addEventListener('click', loadElections);
+
+  await loadElections();
 })();
+
+// ── Load & Render ────────────────────────────────────────────
 
 async function loadElections() {
   showState('loading');
   const res = await API.election.getAll();
-  if (!res.success) { Toast.error(res.message); showState('empty'); return; }
+  if (!res.success) {
+    document.getElementById('error-msg').textContent = res.message || 'Gagal memuat data pemilihan.';
+    showState('error');
+    return;
+  }
   _elections = res.data || [];
-  if (!_elections.length) { showState('empty'); return; }
+  if (!_elections.length) {
+    showState('empty');
+    return;
+  }
   renderElections();
   showState('content');
 }
@@ -100,218 +145,429 @@ async function loadElections() {
 function renderElections() {
   const container = document.getElementById('content-state');
   container.innerHTML = _elections.map(e => electionCardHtml(e)).join('');
+  bindCardEvents(container);
+}
 
-  // Event delegation untuk tombol aksi
+/**
+ * Ikat semua event listener pada cards menggunakan event delegation.
+ * Satu listener per container, bukan per-button, untuk efisiensi.
+ */
+function bindCardEvents(container) {
+  // Aksi utama: edit, delete, toggle
   container.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', (ev) => {
+    btn.addEventListener('click', ev => {
       ev.stopPropagation();
       const { action, id } = btn.dataset;
       if (action === 'edit')   openEditModal(id);
       if (action === 'delete') confirmDelete(id);
-      if (action === 'toggle') toggleActive(id);
+      if (action === 'toggle') toggleActive(id, btn);
     });
   });
 
-  // Event delegation untuk tombol ubah status (data-* approach — safe dari XSS)
+  // Tombol ubah status workflow
   container.querySelectorAll('.status-btn').forEach(btn => {
-    btn.addEventListener('click', (ev) => {
+    btn.addEventListener('click', ev => {
       ev.stopPropagation();
-      const electionId = btn.dataset.electionId;
-      const status     = btn.dataset.status;
-      if (electionId && status) setStatus(electionId, status);
+      const { electionId, status } = btn.dataset;
+      if (electionId && status) setStatus(electionId, status, btn);
     });
   });
 }
 
+// ── Card HTML ────────────────────────────────────────────────
+
 function electionCardHtml(e) {
-  const isViewer = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
+  // FIX #18: sinkronkan logika role dengan backend —
+  // hanya superadmin & admin yang boleh edit/create/delete/setStatus
+  const role = Auth.getAdminRole();
+  const canEdit = (role === 'superadmin' || role === 'admin');
+  const canDelete = (role === 'superadmin');
+
+  const hasStarted = e.status === 'active' || e.status === 'ended';
+  const activeLabel = e.isActive ? 'Nonaktifkan' : 'Aktifkan';
+  const activeIcon  = e.isActive ? 'toggle-on text-green-500' : 'toggle-off text-gray-400';
+
   return `
-    <div class="card p-5">
-      <div class="flex flex-col sm:flex-row sm:items-start gap-3">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap mb-1">
-            ${Utils.statusBadgeHtml(e.status)}
-            ${e.isActive ? '<span class="badge badge-success"><i class="fa-solid fa-wifi fa-xs"></i> Aktif</span>' : '<span class="badge badge-gray">Nonaktif</span>'}
+    <div class="card overflow-hidden" data-election-id="${e.id}">
+
+      <!-- Card header -->
+      <div class="p-4 sm:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-start gap-3">
+
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              ${Utils.statusBadgeHtml(e.status)}
+              ${e.isActive
+                ? '<span class="badge badge-success"><i class="fa-solid fa-wifi fa-xs mr-1"></i>Aktif</span>'
+                : '<span class="badge badge-gray"><i class="fa-solid fa-wifi-slash fa-xs mr-1"></i>Nonaktif</span>'}
+            </div>
+            <h3 class="text-base font-bold text-gray-800 leading-snug">
+              ${Utils.escapeHtml(e.title)}
+            </h3>
+            ${e.description
+              ? `<p class="text-sm text-gray-500 mt-1 line-clamp-2">${Utils.escapeHtml(e.description)}</p>`
+              : ''}
+            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-xs text-gray-500">
+              <span title="Tanggal Mulai">
+                <i class="fa-solid fa-calendar-plus text-primary-400 mr-1"></i>
+                ${Utils.formatDateTime(e.startDate)}
+              </span>
+              <span title="Tanggal Selesai">
+                <i class="fa-solid fa-calendar-check text-red-400 mr-1"></i>
+                ${Utils.formatDateTime(e.endDate)}
+              </span>
+            </div>
           </div>
-          <h3 class="text-base font-bold text-gray-800 mt-1">${Utils.escapeHtml(e.title)}</h3>
-          ${e.description ? `<p class="text-sm text-gray-500 mt-0.5 line-clamp-1">${Utils.escapeHtml(e.description)}</p>` : ''}
-          <div class="flex flex-wrap gap-4 mt-2 text-xs text-gray-500">
-            <span><i class="fa-solid fa-calendar-plus mr-1"></i>${Utils.formatDateTime(e.startDate)}</span>
-            <span><i class="fa-solid fa-calendar-check mr-1 text-red-400"></i>${Utils.formatDateTime(e.endDate)}</span>
-          </div>
+
+          <!-- Action buttons -->
+          ${canEdit ? `
+          <div class="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
+            <button class="btn btn-sm btn-outline gap-1.5 min-w-[80px] justify-center"
+              data-action="toggle" data-id="${e.id}"
+              title="${activeLabel}">
+              <i class="fa-solid fa-${activeIcon}"></i>
+              <span class="text-xs">${activeLabel}</span>
+            </button>
+            <button class="btn btn-sm btn-outline" data-action="edit" data-id="${e.id}" title="Edit">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            ${canDelete ? `
+            <button class="btn btn-sm btn-danger" data-action="delete" data-id="${e.id}" title="Hapus">
+              <i class="fa-solid fa-trash"></i>
+            </button>` : ''}
+          </div>` : ''}
         </div>
-        ${!isViewer ? `
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <button class="btn btn-sm btn-outline" data-action="toggle" data-id="${e.id}" title="${e.isActive ? 'Nonaktifkan' : 'Aktifkan'}">
-            <i class="fa-solid fa-${e.isActive ? 'toggle-on text-green-500' : 'toggle-off text-gray-400'}"></i>
-          </button>
-          <button class="btn btn-sm btn-outline" data-action="edit" data-id="${e.id}">
-            <i class="fa-solid fa-pen-to-square"></i>
-          </button>
-          <button class="btn btn-sm btn-danger" data-action="delete" data-id="${e.id}">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </div>` : ''}
       </div>
 
-      <!-- Status controls -->
-      ${!isViewer ? `
-      <div class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
-        <p class="text-xs text-gray-500 w-full sm:w-auto self-center">Ubah status:</p>
-        ${['draft','upcoming','active','ended'].map(s =>
-          `<button class="btn btn-sm ${e.status === s ? 'btn-primary' : 'btn-outline'} text-xs status-btn"
-            data-election-id="${Utils.escapeHtml(e.id)}"
-            data-status="${s}">${statusLabel(s)}</button>`
-        ).join('')}
+      <!-- Status workflow -->
+      ${canEdit ? `
+      <div class="border-t border-gray-100 bg-gray-50/60 px-4 sm:px-5 py-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mr-1 flex-shrink-0">
+            Status:
+          </p>
+          ${['draft','upcoming','active','ended'].map(s => {
+            const isCurrent = e.status === s;
+            const isDestructive = (s === 'ended' && e.status === 'active')
+                               || (s === 'active' && e.status === 'draft');
+            return `<button
+              class="status-btn btn btn-sm ${isCurrent ? 'btn-primary' : 'btn-outline'} text-xs py-1.5 px-3"
+              data-election-id="${e.id}"
+              data-status="${s}"
+              ${isCurrent ? 'aria-current="true"' : ''}
+              title="${isCurrent ? 'Status saat ini' : 'Ubah ke: ' + statusLabel(s)}"
+            >${isCurrent ? `<i class="fa-solid fa-check fa-xs mr-1"></i>` : ''}${statusLabel(s)}</button>`;
+          }).join('')}
+        </div>
       </div>` : ''}
     </div>`;
 }
 
 function statusLabel(s) {
-  return { draft:'Draft', upcoming:'Akan Dimulai', active:'Berlangsung', ended:'Selesai' }[s] || s;
+  const map = { draft: 'Draft', upcoming: 'Akan Dimulai', active: 'Berlangsung', ended: 'Selesai' };
+  return map[s] || s;
 }
 
-async function setStatus(id, status) {
-  const res = await API.election.setStatus(id, status, status === 'active');
-  if (res.success) { Toast.success('Status berhasil diubah.'); loadElections(); }
-  else Toast.error(res.message);
-}
+// ── Aksi Status ──────────────────────────────────────────────
 
-async function toggleActive(id) {
+/**
+ * FIX #2 & #19: pertahankan nilai isActive eksisting saat ubah status.
+ * Tidak lagi otomatis mengubah isActive berdasarkan status baru.
+ */
+async function setStatus(id, status, btn) {
   const el = _elections.find(e => e.id === id);
   if (!el) return;
-  const res = await API.election.setStatus(id, el.status, !el.isActive);
-  if (res.success) { Toast.success('Status aktif berhasil diubah.'); loadElections(); }
-  else Toast.error(res.message);
+
+  // Jangan proses jika sudah status yang sama
+  if (el.status === status) return;
+
+  // Konfirmasi untuk transisi yang berdampak besar
+  const needsConfirm = (status === 'active' && el.status !== 'upcoming')
+                    || (status === 'ended');
+  if (needsConfirm) {
+    const msg = status === 'ended'
+      ? `Mengubah status ke "Selesai" akan menutup pemilihan "${el.title}". Lanjutkan?`
+      : `Mengaktifkan pemilihan "${el.title}" langsung dari status "${statusLabel(el.status)}"?\nPastikan kandidat dan pemilih sudah disiapkan.`;
+    const ok = await Utils.confirm(msg, 'Konfirmasi Perubahan Status');
+    if (!ok) return;
+  }
+
+  // Loading state pada tombol yang diklik
+  Utils.setLoading(btn, true, statusLabel(status));
+
+  // Pertahankan isActive eksisting — tidak otomatis diubah
+  const res = await API.election.setStatus(id, status, el.isActive);
+  Utils.setLoading(btn, false);
+
+  if (res.success) {
+    Toast.success(`Status berhasil diubah ke "${statusLabel(status)}".`);
+    loadElections();
+  } else {
+    Toast.error(res.message);
+  }
+}
+
+/**
+ * FIX #3: tambahkan loading state pada tombol toggle.
+ */
+async function toggleActive(id, btn) {
+  const el = _elections.find(e => e.id === id);
+  if (!el) return;
+
+  const newActive = !el.isActive;
+  const actionLabel = newActive ? 'Mengaktifkan...' : 'Menonaktifkan...';
+
+  Utils.setLoading(btn, true, actionLabel);
+  const res = await API.election.setStatus(id, el.status, newActive);
+  Utils.setLoading(btn, false);
+
+  if (res.success) {
+    Toast.success(newActive ? 'Pemilihan diaktifkan.' : 'Pemilihan dinonaktifkan.');
+    loadElections();
+  } else {
+    Toast.error(res.message);
+  }
 }
 
 async function confirmDelete(id) {
   const el = _elections.find(e => e.id === id);
   if (!el) return;
   const ok = await Utils.confirm(
-    `Hapus pemilihan "${el.title}"? Data yang terhubung mungkin ikut terpengaruh.`,
-    'Konfirmasi Hapus', true
+    `Hapus pemilihan "${el.title}"?\n\nData kandidat dan pemilih yang terhubung mungkin juga terpengaruh. Pemilihan yang sudah memiliki suara tidak dapat dihapus.`,
+    'Konfirmasi Hapus',
+    true
   );
   if (!ok) return;
   const res = await API.election.delete(id);
-  if (res.success) { Toast.success('Pemilihan berhasil dihapus.'); loadElections(); }
-  else Toast.error(res.message);
-}
-
-// ── Modal Form ───────────────────────────────────────────────
-
-function electionFormHtml(data = {}) {
-  return `
-    <div class="space-y-4">
-      <div class="form-group">
-        <label class="form-label">Judul Pemilihan <span class="text-red-500">*</span></label>
-        <input type="text" id="f-title" class="form-input" value="${Utils.escapeHtml(data.title||'')}" placeholder="Pemilihan Ketua OSIM 2025/2026"/>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Deskripsi</label>
-        <textarea id="f-desc" class="form-textarea" rows="2" placeholder="Deskripsi singkat...">${Utils.escapeHtml(data.description||'')}</textarea>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="form-group mb-0">
-          <label class="form-label">Tanggal &amp; Waktu Mulai <span class="text-red-500">*</span></label>
-          <input type="datetime-local" id="f-start" class="form-input" value="${data.startDate ? new Date(data.startDate).toISOString().slice(0,16) : ''}"/>
-        </div>
-        <div class="form-group mb-0">
-          <label class="form-label">Tanggal &amp; Waktu Selesai <span class="text-red-500">*</span></label>
-          <input type="datetime-local" id="f-end" class="form-input" value="${data.endDate ? new Date(data.endDate).toISOString().slice(0,16) : ''}"/>
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="form-group mb-0">
-          <label class="form-label">Status Awal</label>
-          <select id="f-status" class="form-select">
-            <option value="draft"    ${(data.status||'draft')==='draft'    ? 'selected':''}>Draft</option>
-            <option value="upcoming" ${data.status==='upcoming' ? 'selected':''}>Akan Dimulai</option>
-            <option value="active"   ${data.status==='active'   ? 'selected':''}>Berlangsung</option>
-            <option value="ended"    ${data.status==='ended'    ? 'selected':''}>Selesai</option>
-          </select>
-        </div>
-        <div class="form-group mb-0 flex items-end gap-3 pb-1">
-          <label class="flex items-center gap-2 cursor-pointer select-none text-sm">
-            <input type="checkbox" id="f-active" class="w-4 h-4 accent-primary-600" ${data.isActive ? 'checked':''}/> Aktifkan Sekarang
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer select-none text-sm">
-            <input type="checkbox" id="f-public" class="w-4 h-4 accent-primary-600" ${data.showResultPublic ? 'checked':''}/> Publikasikan Hasil
-          </label>
-        </div>
-      </div>
-    </div>`;
-}
-
-function openCreateModal() {
-  const modal = Modal.open({
-    id: 'modal-election', title: 'Buat Pemilihan Baru', body: electionFormHtml(), size: 'lg',
-    actions: [
-      { label: 'Batal', class: 'btn-secondary', action: 'cancel' },
-      { label: 'Simpan', class: 'btn-primary', action: 'save', id: 'modal-save-btn' },
-    ],
-  });
-  modal.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
-      await saveElection(null, btn);
-    });
-  });
-}
-
-function openEditModal(id) {
-  const data = _elections.find(e => e.id === id);
-  if (!data) return;
-  const modal = Modal.open({
-    id: 'modal-election', title: 'Edit Pemilihan', body: electionFormHtml(data), size: 'lg',
-    actions: [
-      { label: 'Batal', class: 'btn-secondary', action: 'cancel' },
-      { label: 'Simpan Perubahan', class: 'btn-primary', action: 'save', id: 'modal-save-btn' },
-    ],
-  });
-  modal.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
-      await saveElection(id, btn);
-    });
-  });
-}
-
-async function saveElection(id, btn) {
-  const title  = document.getElementById('f-title')?.value.trim();
-  const desc   = document.getElementById('f-desc')?.value.trim();
-  const start  = document.getElementById('f-start')?.value;
-  const end    = document.getElementById('f-end')?.value;
-  const status = document.getElementById('f-status')?.value;
-  const isActive = document.getElementById('f-active')?.checked;
-  const showPublic = document.getElementById('f-public')?.checked;
-
-  if (!title || !start || !end) {
-    Toast.warning('Judul, tanggal mulai, dan tanggal selesai wajib diisi.'); return;
-  }
-  if (new Date(end) <= new Date(start)) {
-    Toast.warning('Tanggal selesai harus setelah tanggal mulai.'); return;
-  }
-
-  Utils.setLoading(btn, true, 'Menyimpan...');
-  const payload = { title, description: desc, startDate: start, endDate: end, status, isActive, showResultPublic: showPublic };
-  if (id) payload.id = id;
-
-  const res = id ? await API.election.update(payload) : await API.election.create(payload);
-  Utils.setLoading(btn, false);
-
   if (res.success) {
-    Toast.success(id ? 'Pemilihan berhasil diperbarui.' : 'Pemilihan berhasil dibuat.');
-    Modal.close(); loadElections();
+    Toast.success('Pemilihan berhasil dihapus.');
+    loadElections();
   } else {
     Toast.error(res.message);
   }
 }
 
+// ── Modal Form ───────────────────────────────────────────────
+
+function electionFormHtml(data = {}) {
+  // Format datetime-local value dari ISO string
+  function toDatetimeLocal(iso) {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      if (isNaN(d)) return '';
+      // Format: YYYY-MM-DDTHH:mm (lokal, bukan UTC)
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch { return ''; }
+  }
+
+  return `
+    <div class="space-y-4">
+
+      <!-- Judul -->
+      <div class="form-group">
+        <label class="form-label" for="f-title">
+          Judul Pemilihan <span class="text-red-500">*</span>
+        </label>
+        <input type="text" id="f-title" class="form-input"
+          value="${Utils.escapeHtml(data.title || '')}"
+          placeholder="Contoh: Pemilihan Ketua OSIM 2025/2026"
+          maxlength="120" autocomplete="off"/>
+      </div>
+
+      <!-- Deskripsi -->
+      <div class="form-group">
+        <label class="form-label" for="f-desc">Deskripsi</label>
+        <textarea id="f-desc" class="form-textarea" rows="2"
+          placeholder="Deskripsi singkat tentang pemilihan ini..."
+          maxlength="500">${Utils.escapeHtml(data.description || '')}</textarea>
+      </div>
+
+      <!-- Tanggal -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="form-group mb-0">
+          <label class="form-label" for="f-start">
+            Mulai <span class="text-red-500">*</span>
+          </label>
+          <input type="datetime-local" id="f-start" class="form-input"
+            value="${toDatetimeLocal(data.startDate)}"/>
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label" for="f-end">
+            Selesai <span class="text-red-500">*</span>
+          </label>
+          <input type="datetime-local" id="f-end" class="form-input"
+            value="${toDatetimeLocal(data.endDate)}"/>
+        </div>
+      </div>
+
+      <!-- Status & opsi -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="form-group mb-0">
+          <label class="form-label" for="f-status">Status Awal</label>
+          <select id="f-status" class="form-select">
+            <option value="draft"    ${(data.status || 'draft') === 'draft'    ? 'selected' : ''}>Draft</option>
+            <option value="upcoming" ${data.status === 'upcoming' ? 'selected' : ''}>Akan Dimulai</option>
+            <option value="active"   ${data.status === 'active'   ? 'selected' : ''}>Berlangsung</option>
+            <option value="ended"    ${data.status === 'ended'    ? 'selected' : ''}>Selesai</option>
+          </select>
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label">Opsi</label>
+          <div class="flex flex-col gap-2 pt-1">
+            <label class="flex items-center gap-2.5 cursor-pointer select-none">
+              <input type="checkbox" id="f-active" class="w-4 h-4 accent-primary-600 flex-shrink-0"
+                ${data.isActive ? 'checked' : ''}/>
+              <span class="text-sm text-gray-700">Aktifkan pemilihan</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer select-none">
+              <input type="checkbox" id="f-public" class="w-4 h-4 accent-primary-600 flex-shrink-0"
+                ${data.showResultPublic ? 'checked' : ''}/>
+              <span class="text-sm text-gray-700">Publikasikan hasil</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+    </div>`;
+}
+
+/**
+ * FIX #4: Gunakan satu fungsi helper untuk bind modal actions,
+ * menghindari pola duplikasi addEventListener di open & edit.
+ */
+function bindModalActions(modal, id) {
+  modal.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.action === 'cancel') {
+        Modal.close();
+        return;
+      }
+      if (btn.dataset.action === 'save') {
+        // FIX #4: guard double-submit
+        if (_isSubmitting) return;
+        await saveElection(id || null, btn);
+      }
+    });
+  });
+}
+
+function openCreateModal() {
+  const modal = Modal.open({
+    id: 'modal-election',
+    title: 'Buat Pemilihan Baru',
+    body: electionFormHtml(),
+    size: 'lg',
+    actions: [
+      { label: 'Batal',  class: 'btn-secondary', action: 'cancel' },
+      { label: 'Simpan', class: 'btn-primary',   action: 'save', id: 'modal-save-btn' },
+    ],
+  });
+  bindModalActions(modal, null);
+}
+
+function openEditModal(id) {
+  const data = _elections.find(e => e.id === id);
+  if (!data) {
+    Toast.error('Data pemilihan tidak ditemukan.');
+    return;
+  }
+  const modal = Modal.open({
+    id: 'modal-election',
+    title: 'Edit Pemilihan',
+    body: electionFormHtml(data),
+    size: 'lg',
+    actions: [
+      { label: 'Batal',            class: 'btn-secondary', action: 'cancel' },
+      { label: 'Simpan Perubahan', class: 'btn-primary',   action: 'save', id: 'modal-save-btn' },
+    ],
+  });
+  bindModalActions(modal, id);
+}
+
+async function saveElection(id, btn) {
+  // FIX #4: set flag sebelum proses
+  _isSubmitting = true;
+
+  const title      = document.getElementById('f-title')?.value.trim();
+  const desc       = document.getElementById('f-desc')?.value.trim();
+  const start      = document.getElementById('f-start')?.value;
+  const end        = document.getElementById('f-end')?.value;
+  const status     = document.getElementById('f-status')?.value;
+  const isActive   = document.getElementById('f-active')?.checked ?? false;
+  const showPublic = document.getElementById('f-public')?.checked ?? false;
+
+  // Validasi
+  if (!title) {
+    Toast.warning('Judul pemilihan wajib diisi.');
+    _isSubmitting = false;
+    return;
+  }
+  if (title.length < 5) {
+    Toast.warning('Judul pemilihan minimal 5 karakter.');
+    _isSubmitting = false;
+    return;
+  }
+  if (!start) {
+    Toast.warning('Tanggal mulai wajib diisi.');
+    _isSubmitting = false;
+    return;
+  }
+  if (!end) {
+    Toast.warning('Tanggal selesai wajib diisi.');
+    _isSubmitting = false;
+    return;
+  }
+  if (new Date(end) <= new Date(start)) {
+    Toast.warning('Tanggal selesai harus setelah tanggal mulai.');
+    _isSubmitting = false;
+    return;
+  }
+
+  Utils.setLoading(btn, true, 'Menyimpan...');
+
+  // FIX #6: gunakan id langsung (tanpa escapeHtml) sebagai payload ke API
+  const payload = {
+    title,
+    description: desc,
+    startDate:   start,
+    endDate:     end,
+    status,
+    isActive,
+    showResultPublic: showPublic,
+  };
+  if (id) payload.id = id;
+
+  const res = id
+    ? await API.election.update(payload)
+    : await API.election.create(payload);
+
+  Utils.setLoading(btn, false);
+  _isSubmitting = false;
+
+  if (res.success) {
+    Toast.success(id ? 'Pemilihan berhasil diperbarui.' : 'Pemilihan berhasil dibuat.');
+    Modal.close();
+    loadElections();
+  } else {
+    Toast.error(res.message || 'Terjadi kesalahan. Silakan coba lagi.');
+  }
+}
+
+// ── Show State ───────────────────────────────────────────────
+
+/**
+ * FIX #1: Hapus duplicate ID. Gunakan satu fungsi terpusat
+ * untuk mengontrol visibility state, dengan tambahan error-state.
+ */
 function showState(s) {
-  document.getElementById('loading-state').classList.toggle('hidden', s !== 'loading');
-  document.getElementById('content-state').classList.toggle('hidden', s !== 'content');
-  document.getElementById('empty-state').classList.toggle('hidden', s !== 'empty');
+  const states = ['loading', 'content', 'empty', 'error'];
+  states.forEach(name => {
+    const el = document.getElementById(`${name}-state`);
+    if (el) el.classList.toggle('hidden', s !== name);
+  });
 }
 </script>
 </body>
