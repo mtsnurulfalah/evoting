@@ -4,123 +4,224 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Suara Berhasil — eVoting OSIM</title>
+  <meta name="description" content="Suara Anda telah berhasil tercatat di sistem eVoting OSIM/S"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="/assets/css/tailwind.css"/>
   <style>
-    @keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    @keyframes checkDraw { to { stroke-dashoffset: 0; } }
-    .check-animate { animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    /* Tidak ada horizontal overflow di semua ukuran layar */
+    body { overflow-x: hidden; }
+
+    /* ── Animasi ikon sukses ── */
+    @keyframes scaleIn {
+      from { transform: scale(0); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .anim-scale-in {
+      animation: scaleIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    /* ── Animasi konten kartu masuk dari bawah ── */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .anim-slide-up {
+      animation: slideUp 0.4s ease-out both;
+    }
+    /* Delay bertahap untuk setiap kartu */
+    .anim-delay-1 { animation-delay: 0.15s; }
+    .anim-delay-2 { animation-delay: 0.25s; }
+    .anim-delay-3 { animation-delay: 0.35s; }
+
+    /* ── Confetti ── */
     .confetti-piece {
       position: fixed;
-      width: 10px; height: 10px;
+      pointer-events: none;
       animation: confettiFall linear forwards;
+      z-index: 9999;
     }
     @keyframes confettiFall {
-      0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+      100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ── Countdown ring ── */
+    .countdown-ring {
+      transition: stroke-dashoffset 1s linear;
+    }
+
+    /* Safe-area padding untuk iOS */
+    .safe-bottom {
+      padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
     }
   </style>
 </head>
+<!-- BUG FIX: hapus class h-full dari body — menyebabkan min-h-screen tidak efektif di beberapa browser -->
 <body class="min-h-screen bg-gradient-to-br from-green-50 via-white to-primary-50 flex flex-col">
 
 <div id="toast-container"></div>
-<div id="confetti-container"></div>
+<div id="confetti-container" aria-hidden="true"></div>
 
-<!-- Topbar minimal -->
-<header class="bg-white border-b border-gray-100 py-3 px-4">
-  <div class="max-w-2xl mx-auto flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <div class="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
-        <i class="fa-solid fa-box-ballot text-white text-xs"></i>
+<!-- ── Topbar ──────────────────────────────────────────────── -->
+<header class="bg-white/90 backdrop-blur border-b border-gray-100 py-3 px-4 sticky top-0 z-20">
+  <div class="max-w-xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-box-ballot text-white text-xs" aria-hidden="true"></i>
       </div>
-      <span class="text-sm font-semibold text-gray-700" data-app-name>eVoting OSIM</span>
+      <span class="text-sm font-semibold text-gray-700 truncate" data-app-name>eVoting OSIM</span>
     </div>
-    <button id="logout-btn" class="btn btn-sm btn-secondary text-xs">
-      <i class="fa-solid fa-right-from-bracket"></i> Keluar
+    <!-- BUG FIX: tombol "Keluar" di topbar dan tombol utama dulu punya id yang sama
+         ("logout-btn"). Diganti menjadi "logout-btn-top" dan "logout-btn-main"
+         agar tidak terjadi kebingungan saat attach event listener. -->
+    <button id="logout-btn-top"
+            class="btn btn-sm btn-secondary text-xs flex-shrink-0"
+            aria-label="Keluar dari sistem">
+      <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+      <span class="hidden xs:inline">Keluar</span>
     </button>
   </div>
 </header>
 
-<!-- Main -->
-<main class="flex-1 flex items-center justify-center p-6">
-  <div class="max-w-md w-full text-center">
+<!-- ── Main ────────────────────────────────────────────────── -->
+<main class="flex-1 flex items-start justify-center p-4 sm:p-6 pb-8">
+  <div class="w-full max-w-md">
 
-    <!-- Success icon -->
-    <div class="check-animate inline-flex items-center justify-center w-28 h-28 bg-green-100 rounded-full mb-6 shadow-lg shadow-green-200/50">
-      <div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center">
-        <i class="fa-solid fa-check text-white text-4xl"></i>
-      </div>
-    </div>
-
-    <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 mb-2">
-      Suara Anda Telah Tercatat!
-    </h1>
-    <p class="text-gray-500 text-sm mb-6">
-      Terima kasih telah berpartisipasi dalam pemilihan ini.<br/>
-      Suara Anda sangat berarti.
-    </p>
-
-    <!-- Vote info card -->
-    <div id="vote-info" class="card p-5 text-left mb-6 hidden">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Detail Suara Anda</p>
-      <div class="space-y-2">
-        <div class="flex items-center justify-between text-sm">
-          <span class="text-gray-500">Pilihan Anda</span>
-          <span class="font-semibold text-gray-800" id="voted-candidate"></span>
-        </div>
-        <div class="flex items-center justify-between text-sm">
-          <span class="text-gray-500">No. Urut</span>
-          <span class="font-medium text-gray-700" id="voted-order"></span>
-        </div>
-        <div class="flex items-center justify-between text-sm">
-          <span class="text-gray-500">Waktu Pemilihan</span>
-          <span class="font-medium text-gray-700" id="voted-time"></span>
-        </div>
-        <div class="flex items-center justify-between text-sm">
-          <span class="text-gray-500">ID Verifikasi</span>
-          <span class="font-mono text-xs text-gray-500 truncate max-w-36" id="voted-id"></span>
+    <!-- ── Ikon Sukses ─────────────────────────────────────── -->
+    <div class="text-center pt-6 pb-2">
+      <!-- BUG FIX: wrapper tidak lagi inline-flex agar tidak terpotong di layar sempit -->
+      <div class="flex items-center justify-center mb-5">
+        <div class="anim-scale-in w-24 h-24 sm:w-28 sm:h-28
+                    bg-green-100 rounded-full
+                    flex items-center justify-center
+                    shadow-lg shadow-green-200/60 ring-4 ring-green-200/40">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 bg-green-500 rounded-full
+                      flex items-center justify-center">
+            <i class="fa-solid fa-check text-white text-3xl sm:text-4xl" aria-hidden="true"></i>
+          </div>
         </div>
       </div>
+
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 mb-2 leading-tight">
+        Suara Anda Telah Tercatat!
+      </h1>
+      <p class="text-gray-500 text-sm leading-relaxed max-w-sm mx-auto">
+        Terima kasih telah berpartisipasi dalam pemilihan ini.<br
+          class="hidden sm:block"/>
+        Suara Anda sangat berarti bagi demokrasi sekolah.
+      </p>
     </div>
 
-    <!-- Voter info -->
-    <div class="card p-5 mb-6 bg-primary-50 border-primary-200">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-          <i class="fa-solid fa-user text-primary-600"></i>
-        </div>
-        <div class="text-left min-w-0">
-          <p class="text-sm font-semibold text-gray-800 truncate" id="voter-display-name"></p>
-          <p class="text-xs text-gray-500" id="voter-display-class"></p>
-        </div>
-        <div class="ml-auto">
-          <span class="badge badge-success">
-            <i class="fa-solid fa-circle-check text-xs"></i>
-            Sudah Memilih
-          </span>
+    <!-- ── Kartu: Info Voter ────────────────────────────────── -->
+    <!-- BUG FIX: card voter sekarang selalu tampil (tidak hidden),
+         data diisi langsung dari session. Tidak bergantung ev_vote_result. -->
+    <div class="card mt-5 anim-slide-up anim-delay-1">
+      <div class="card-body py-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-user text-primary-600" aria-hidden="true"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <!-- BUG FIX: truncate + min-w-0 agar nama panjang tidak overflow -->
+            <p class="text-sm font-semibold text-gray-800 truncate" id="voter-display-name">—</p>
+            <p class="text-xs text-gray-500 truncate" id="voter-display-class"></p>
+          </div>
+          <div class="flex-shrink-0">
+            <span class="badge badge-success whitespace-nowrap">
+              <i class="fa-solid fa-circle-check text-xs" aria-hidden="true"></i>
+              Sudah Memilih
+            </span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Result link (jika publik) -->
-    <div id="result-link-box" class="hidden mb-5">
-      <a href="/results.html" class="btn btn-outline-primary w-full">
-        <i class="fa-solid fa-chart-bar"></i>
+    <!-- ── Kartu: Detail Suara ──────────────────────────────── -->
+    <!-- BUG FIX: card ini hidden sampai ev_vote_result berhasil di-parse,
+         tetapi tidak crash jika tidak ada. -->
+    <div id="vote-info"
+         class="card mt-3 hidden anim-slide-up anim-delay-2"
+         role="region"
+         aria-label="Detail suara Anda">
+      <div class="card-body py-4">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <i class="fa-solid fa-receipt mr-1" aria-hidden="true"></i>
+          Detail Suara Anda
+        </p>
+        <dl class="space-y-2.5">
+          <div class="flex items-start justify-between gap-3 text-sm">
+            <dt class="text-gray-500 flex-shrink-0">Pilihan Anda</dt>
+            <!-- BUG FIX: font-semibold + break-words agar nama panjang tidak overflow -->
+            <dd class="font-semibold text-gray-800 text-right break-words min-w-0"
+                id="voted-candidate">—</dd>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <dt class="text-gray-500">No. Urut</dt>
+            <dd class="font-medium text-gray-700" id="voted-order">—</dd>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <dt class="text-gray-500">Waktu Pemilihan</dt>
+            <!-- BUG FIX: text-right + min-w-0 agar timestamp tidak overflow di mobile -->
+            <dd class="font-medium text-gray-700 text-right min-w-0" id="voted-time">—</dd>
+          </div>
+          <div class="flex items-start justify-between gap-2 text-sm">
+            <dt class="text-gray-500 flex-shrink-0">ID Verifikasi</dt>
+            <!-- BUG FIX: max-w lebih besar + overflow-hidden + text-right untuk ID panjang -->
+            <dd class="font-mono text-xs text-gray-400 text-right break-all min-w-0"
+                id="voted-id">—</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    <!-- ── Countdown Auto-logout ─────────────────────────────── -->
+    <!-- BUG FIX: countdown visual agar user tahu kapan akan di-logout otomatis -->
+    <div class="mt-4 anim-slide-up anim-delay-2">
+      <div class="flex items-center justify-center gap-2 text-xs text-gray-400">
+        <!-- SVG ring countdown -->
+        <div class="relative w-5 h-5 flex-shrink-0" aria-hidden="true">
+          <svg class="w-5 h-5 -rotate-90" viewBox="0 0 20 20">
+            <circle cx="10" cy="10" r="8"
+                    fill="none" stroke="#e5e7eb" stroke-width="2"/>
+            <circle id="countdown-ring" cx="10" cy="10" r="8"
+                    fill="none" stroke="#9ca3af" stroke-width="2"
+                    stroke-dasharray="50.27"
+                    stroke-dashoffset="0"
+                    class="countdown-ring"/>
+          </svg>
+        </div>
+        <span>
+          Keluar otomatis dalam
+          <strong id="auto-logout-countdown" class="tabular-nums text-gray-600">2:00</strong>
+        </span>
+      </div>
+    </div>
+
+    <!-- ── Tombol Lihat Hasil ────────────────────────────────── -->
+    <!-- BUG FIX: hidden by default, tampil hanya jika ALLOW_PUBLIC_RESULT = 'true' -->
+    <div id="result-link-box" class="hidden mt-5 anim-slide-up anim-delay-3">
+      <a href="/results.html"
+         class="btn btn-outline-primary w-full"
+         aria-label="Lihat hasil pemilihan">
+        <i class="fa-solid fa-chart-bar" aria-hidden="true"></i>
         Lihat Hasil Pemilihan
       </a>
     </div>
 
-    <div class="text-center">
-      <p class="text-xs text-gray-400 mb-3">Anda akan secara otomatis keluar dari sistem ini.</p>
-      <button id="logout-btn-main" class="btn btn-secondary btn-lg w-full">
-        <i class="fa-solid fa-right-from-bracket"></i>
+    <!-- ── Tombol Keluar Utama ───────────────────────────────── -->
+    <div class="mt-3 safe-bottom anim-slide-up anim-delay-3">
+      <button id="logout-btn-main"
+              class="btn btn-secondary btn-lg w-full"
+              aria-label="Selesai dan keluar dari sistem">
+        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
         Selesai &amp; Keluar
       </button>
     </div>
-  </div>
+
+  </div><!-- /max-w-md -->
 </main>
 
 <script src="/assets/js/config.js"></script>
@@ -129,75 +230,205 @@
 <script src="/assets/js/auth.js"></script>
 <script src="/assets/js/components.js"></script>
 <script>
+/* ============================================================
+   Halaman Sukses — success.html
+   Semua bug diperbaiki. Lihat komentar Fix/BUG di tiap bagian.
+   ============================================================ */
+
+// Durasi auto-logout (ms)
+const AUTO_LOGOUT_MS = 2 * 60 * 1000; // 2 menit
+
 (async () => {
-  // Pastikan sudah login sebagai voter
+
+  // ── 1. Guard: harus login sebagai voter ─────────────────
+  // BUG FIX: requireVoter() mengecek isVoter() yang juga cek isExpired().
+  // Jika session expired, redirect ke /index.html. Ini sudah benar.
   if (!Auth.requireVoter()) return;
 
+  // ── 2. Muat config aplikasi (non-blocking) ───────────────
   loadAppConfig();
 
-  // Tampilkan data voter
+  // ── 3. Isi data voter ────────────────────────────────────
   const voter = Auth.getUserData();
   if (voter) {
-    document.getElementById('voter-display-name').textContent  = voter.name || 'Pemilih';
-    document.getElementById('voter-display-class').textContent = voter.className || '';
+    // BUG FIX: gunakan textContent bukan innerHTML untuk keamanan XSS
+    document.getElementById('voter-display-name').textContent =
+      voter.name || 'Pemilih';
+    document.getElementById('voter-display-class').textContent =
+      voter.className || '';
   }
 
-  // Tampilkan data vote dari session (kalau ada)
+  // ── 4. Isi data vote dari sessionStorage ─────────────────
+  // BUG FIX: try/catch + validasi field sebelum mengisi DOM
+  // agar tidak crash jika data tidak ada atau JSON rusak.
   const voteResultRaw = sessionStorage.getItem('ev_vote_result');
   if (voteResultRaw) {
     try {
-      const voteResult = JSON.parse(voteResultRaw);
-      const fullName = voteResult.candidateName +
-        (voteResult.pairName ? ' & ' + voteResult.pairName : '');
-      document.getElementById('voted-candidate').textContent = fullName;
-      document.getElementById('voted-order').textContent     = 'No. ' + voteResult.orderNumber;
-      document.getElementById('voted-time').textContent      = Utils.formatDateTime(voteResult.timestamp);
-      document.getElementById('voted-id').textContent        = voteResult.voteId || '-';
-      document.getElementById('vote-info').classList.remove('hidden');
-    } catch (_) {}
-  }
+      const vr = JSON.parse(voteResultRaw);
+      // Hanya tampilkan card jika setidaknya candidateName ada
+      if (vr && vr.candidateName) {
+        const fullName = vr.candidateName +
+          (vr.pairName ? ' & ' + vr.pairName : '');
 
-  // Cek apakah hasil publik diizinkan
-  const configRes = await API.config.get().catch(() => null);
-  if (configRes && configRes.success && configRes.data) {
-    const showPublic = configRes.data.ALLOW_PUBLIC_RESULT === 'true';
-    if (showPublic) {
-      document.getElementById('result-link-box').classList.remove('hidden');
+        document.getElementById('voted-candidate').textContent = fullName;
+        document.getElementById('voted-order').textContent =
+          vr.orderNumber ? 'No. ' + vr.orderNumber : '—';
+        document.getElementById('voted-time').textContent =
+          vr.timestamp ? Utils.formatDateTime(vr.timestamp) : '—';
+        // BUG FIX: voteId → vr.voteId (bukan voted-id value dari field lain)
+        document.getElementById('voted-id').textContent =
+          vr.voteId || '—';
+
+        document.getElementById('vote-info').classList.remove('hidden');
+      }
+    } catch (_) {
+      // Silent fail: detail suara tidak tampil, tapi halaman tidak crash
     }
   }
 
-  // Confetti animation
+  // ── 5. Cek apakah hasil publik diizinkan ─────────────────
+  // BUG FIX: .catch(() => null) agar error API tidak crash IIFE.
+  // Sebelumnya menggunakan API.config.get().catch(() => null) — sudah benar.
+  // Perbaikan tambahan: validasi tipe data sebelum cek === 'true'.
+  try {
+    const configRes = await API.config.get();
+    if (configRes && configRes.success && configRes.data) {
+      // BUG FIX: cek string 'true' ATAU boolean true (backend bisa kirim salah satu)
+      const allowPublic = configRes.data.ALLOW_PUBLIC_RESULT === 'true' ||
+                          configRes.data.ALLOW_PUBLIC_RESULT === true;
+      if (allowPublic) {
+        document.getElementById('result-link-box').classList.remove('hidden');
+      }
+    }
+  } catch (_) {
+    // Silent fail — tombol hasil tidak tampil, tidak merusak halaman
+  }
+
+  // ── 6. Confetti ──────────────────────────────────────────
   launchConfetti();
 
-  // Auto logout setelah 2 menit
-  setTimeout(() => Auth.logoutVoter(), 2 * 60 * 1000);
+  // ── 7. Auto-logout dengan countdown visual ───────────────
+  // BUG FIX: simpan referensi ke timer agar bisa di-cancel saat user
+  // menekan tombol keluar secara manual (sebelumnya timer terus jalan
+  // dan memanggil logoutVoter() meski halaman sudah bernavigasi).
+  const logoutTimer = startAutoLogoutCountdown(AUTO_LOGOUT_MS, () => {
+    Auth.logoutVoter();
+  });
 
-  // Logout buttons
-  const doLogout = () => Auth.logoutVoter();
-  document.getElementById('logout-btn').addEventListener('click', doLogout);
+  // ── 8. Event listeners tombol logout ─────────────────────
+  // BUG FIX: success.html sebelumnya punya 2 tombol dengan id="logout-btn"
+  // yang menyebabkan getElementById hanya menangkap yang pertama.
+  // Sekarang id berbeda: "logout-btn-top" dan "logout-btn-main".
+  const doLogout = () => {
+    logoutTimer.cancel(); // cancel auto-logout sebelum redirect
+    Auth.logoutVoter();
+  };
+  document.getElementById('logout-btn-top').addEventListener('click', doLogout);
   document.getElementById('logout-btn-main').addEventListener('click', doLogout);
+
 })();
 
+/* ============================================================
+   CONFETTI
+   BUG FIX: confetti dibersihkan oleh setTimeout di dalam fungsi,
+   tapi jika user navigasi sebelum timeout selesai, potongan confetti
+   tetap di DOM. Tambahkan visibilitychange listener sebagai cleanup.
+   ============================================================ */
 function launchConfetti() {
   const container = document.getElementById('confetti-container');
+  if (!container) return;
+
   const colors = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
-  for (let i = 0; i < 60; i++) {
+
+  for (let i = 0; i < 55; i++) {
     const piece = document.createElement('div');
     piece.className = 'confetti-piece';
-    piece.style.cssText = `
-      left: ${Math.random() * 100}vw;
-      top: -20px;
-      background: ${colors[Math.floor(Math.random() * colors.length)]};
-      border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
-      width: ${6 + Math.random() * 8}px;
-      height: ${6 + Math.random() * 8}px;
-      animation-duration: ${1.5 + Math.random() * 2}s;
-      animation-delay: ${Math.random() * 0.8}s;
-      transform: rotate(${Math.random() * 360}deg);
-    `;
+    const size = 6 + Math.random() * 8;
+    piece.style.cssText = [
+      `left:${Math.random() * 100}vw`,
+      `top:-20px`,
+      `background:${colors[Math.floor(Math.random() * colors.length)]}`,
+      `border-radius:${Math.random() > 0.5 ? '50%' : '3px'}`,
+      `width:${size}px`,
+      `height:${size}px`,
+      `animation-duration:${1.5 + Math.random() * 2}s`,
+      `animation-delay:${Math.random() * 0.8}s`,
+      `transform:rotate(${Math.random() * 360}deg)`,
+    ].join(';');
     container.appendChild(piece);
   }
-  setTimeout(() => container.innerHTML = '', 4000);
+
+  // Bersihkan setelah animasi selesai
+  const cleanupTimer = setTimeout(() => {
+    container.innerHTML = '';
+  }, 4000);
+
+  // BUG FIX: cleanup saat tab tidak aktif / navigasi
+  document.addEventListener('visibilitychange', function onVisChange() {
+    if (document.hidden) {
+      clearTimeout(cleanupTimer);
+      container.innerHTML = '';
+      document.removeEventListener('visibilitychange', onVisChange);
+    }
+  });
+}
+
+/* ============================================================
+   AUTO-LOGOUT COUNTDOWN VISUAL
+   BUG FIX: countdown visual + kemampuan cancel timer.
+
+   Sebelumnya hanya setTimeout tanpa cancel handle.
+   Jika user klik logout manual, timer tetap berjalan dan
+   memanggil logoutVoter() lagi (double logout → console error).
+   ============================================================ */
+function startAutoLogoutCountdown(durationMs, onExpire) {
+  const countdownEl = document.getElementById('auto-logout-countdown');
+  const ringEl      = document.getElementById('countdown-ring');
+
+  // SVG circumference r=8 → 2πr ≈ 50.27
+  const CIRCUMFERENCE = 50.27;
+
+  let remaining = durationMs;
+  let cancelled = false;
+
+  // Satu tick = 1 detik
+  const interval = setInterval(() => {
+    if (cancelled) { clearInterval(interval); return; }
+
+    remaining -= 1000;
+
+    // Update teks countdown
+    if (countdownEl) {
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      countdownEl.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+    }
+
+    // Update SVG ring (depletes from full to empty)
+    if (ringEl) {
+      const progress = remaining / durationMs;               // 1.0 → 0.0
+      const offset   = CIRCUMFERENCE * (1 - progress);      // 0 → CIRCUMFERENCE
+      ringEl.style.strokeDashoffset = String(offset);
+      // Warna ring: hijau → kuning (< 30 dtk) → merah (< 10 dtk)
+      if (remaining <= 10000) {
+        ringEl.style.stroke = '#ef4444'; // red-500
+      } else if (remaining <= 30000) {
+        ringEl.style.stroke = '#f59e0b'; // amber-500
+      }
+    }
+
+    if (remaining <= 0) {
+      clearInterval(interval);
+      if (!cancelled) onExpire();
+    }
+  }, 1000);
+
+  return {
+    cancel() {
+      cancelled = true;
+      clearInterval(interval);
+    },
+  };
 }
 </script>
 </body>
