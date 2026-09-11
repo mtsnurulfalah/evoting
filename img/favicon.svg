@@ -1,0 +1,352 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 512 512"
+  width="512"
+  height="512"
+  fill="none"
+>
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bgGradient" x1="80" y1="60" x2="430" y2="450">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="55%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+
+    <!-- Blue object gradient -->
+    <linearGradient id="blueGradient" x1="140" y1="140" x2="390" y2="400">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+
+    <!-- Ballot gradient -->
+    <linearGradient id="paperGradient" x1="180" y1="180" x2="330" y2="340">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e8f1ff"/>
+    </linearGradient>
+
+    <!-- Subtle shadow -->
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow
+        dx="0"
+        dy="12"
+        stdDeviation="14"
+        flood-color="#0f172a"
+        flood-opacity="0.22"
+      />
+    </filter>
+
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Clip rounded app icon -->
+    <clipPath id="iconClip">
+      <rect x="24" y="24" width="464" height="464" rx="108"/>
+    </clipPath>
+  </defs>
+
+  <!-- Transparent background outside icon -->
+
+  <!-- App Icon -->
+  <g clip-path="url(#iconClip)">
+
+    <!-- Main rounded background -->
+    <rect
+      x="24"
+      y="24"
+      width="464"
+      height="464"
+      rx="108"
+      fill="url(#bgGradient)"
+    />
+
+    <!-- Soft background glow -->
+    <circle
+      cx="390"
+      cy="120"
+      r="130"
+      fill="#38bdf8"
+      opacity="0.10"
+    />
+
+    <circle
+      cx="110"
+      cy="430"
+      r="160"
+      fill="#0f2d78"
+      opacity="0.18"
+    />
+
+    <!-- Digital orbit -->
+    <path
+      d="M105 303
+         C78 246 105 170 170 126
+         C234 82 327 89 386 135"
+      stroke="#38bdf8"
+      stroke-width="12"
+      stroke-linecap="round"
+      opacity="0.9"
+    />
+
+    <path
+      d="M393 157
+         C438 214 438 298 399 354"
+      stroke="#38bdf8"
+      stroke-width="12"
+      stroke-linecap="round"
+      opacity="0.55"
+    />
+
+    <!-- Digital nodes -->
+    <circle cx="105" cy="303" r="8" fill="#38bdf8"/>
+    <circle cx="170" cy="126" r="8" fill="#38bdf8"/>
+    <circle cx="386" cy="135" r="8" fill="#38bdf8"/>
+    <circle cx="399" cy="354" r="8" fill="#38bdf8"/>
+
+    <!-- Voting box -->
+    <g filter="url(#shadow)">
+
+      <!-- Main body -->
+      <path
+        d="M142 276
+           H370
+           V391
+           C370 414 352 432 329 432
+           H183
+           C160 432 142 414 142 391
+           Z"
+        fill="url(#paperGradient)"
+      />
+
+      <!-- Top surface -->
+      <path
+        d="M126 268
+           L156 239
+           H356
+           L386 268
+           C392 274 388 286 379 286
+           H133
+           C124 286 120 274 126 268Z"
+        fill="#ffffff"
+      />
+
+      <!-- Slot -->
+      <rect
+        x="181"
+        y="267"
+        width="150"
+        height="20"
+        rx="10"
+        fill="#1e3a8a"
+      />
+
+      <!-- Front subtle highlight -->
+      <path
+        d="M152 349
+           C205 330 293 330 360 352
+           V392
+           C360 409 347 420 330 420
+           H182
+           C165 420 152 407 152 391Z"
+        fill="#ffffff"
+        opacity="0.35"
+      />
+
+    </g>
+
+    <!-- Ballot paper -->
+    <g filter="url(#shadow)"
+       transform="rotate(-10 264 220)">
+
+      <path
+        d="M197 133
+           H315
+           C323 133 329 139 329 147
+           V259
+           H183
+           V147
+           C183 139 189 133 197 133Z"
+        fill="url(#paperGradient)"
+      />
+
+      <!-- Paper corner -->
+      <path
+        d="M291 133
+           L329 171
+           H303
+           C296 171 291 166 291 159
+           Z"
+        fill="#dbeafe"
+      />
+
+      <!-- Checkmark circle -->
+      <circle
+        cx="256"
+        cy="205"
+        r="38"
+        fill="#38bdf8"
+        opacity="0.12"
+      />
+
+      <path
+        d="M235 204
+           L250 219
+           L281 181"
+        stroke="url(#blueGradient)"
+        stroke-width="15"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+
+      <!-- Digital lines -->
+      <rect
+        x="216"
+        y="235"
+        width="79"
+        height="7"
+        rx="3.5"
+        fill="#bfdbfe"
+      />
+
+      <rect
+        x="216"
+        y="248"
+        width="54"
+        height="7"
+        rx="3.5"
+        fill="#dbeafe"
+      />
+
+    </g>
+
+    <!-- Students / civic participation -->
+    <g>
+
+      <!-- Left person -->
+      <circle
+        cx="185"
+        cy="376"
+        r="25"
+        fill="#2563eb"
+      />
+
+      <path
+        d="M151 421
+           C151 397 166 386 185 386
+           C204 386 219 397 219 421
+           Z"
+        fill="#1e3a8a"
+      />
+
+      <!-- Center person -->
+      <circle
+        cx="256"
+        cy="360"
+        r="30"
+        fill="#38bdf8"
+      />
+
+      <path
+        d="M213 431
+           C213 400 232 383 256 383
+           C280 383 299 400 299 431
+           Z"
+        fill="#2563eb"
+      />
+
+      <!-- Right person -->
+      <circle
+        cx="327"
+        cy="376"
+        r="25"
+        fill="#2563eb"
+      />
+
+      <path
+        d="M293 421
+           C293 397 308 386 327 386
+           C346 386 361 397 361 421
+           Z"
+        fill="#1e3a8a"
+      />
+
+    </g>
+
+    <!-- Digital cursor -->
+    <g
+      transform="translate(352 300)"
+      filter="url(#shadow)"
+    >
+      <path
+        d="M0 0
+           L18 77
+           L39 58
+           L57 86
+           L70 77
+           L52 49
+           L79 39
+           Z"
+        fill="#ffffff"
+        stroke="#1e3a8a"
+        stroke-width="7"
+        stroke-linejoin="round"
+      />
+
+      <!-- Cursor digital accent -->
+      <circle
+        cx="51"
+        cy="34"
+        r="7"
+        fill="#38bdf8"
+        filter="url(#softGlow)"
+      />
+    </g>
+
+    <!-- Small security/check accent -->
+    <g transform="translate(93 352)">
+      <circle
+        cx="0"
+        cy="0"
+        r="24"
+        fill="#1e3a8a"
+        opacity="0.95"
+      />
+
+      <path
+        d="M-10 0 L-2 8 L12 -9"
+        stroke="#38bdf8"
+        stroke-width="7"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </g>
+
+    <!-- Top shine -->
+    <path
+      d="M105 103
+         C180 53 276 45 353 73"
+      stroke="#ffffff"
+      stroke-width="10"
+      stroke-linecap="round"
+      opacity="0.12"
+    />
+
+  </g>
+
+  <!-- Subtle outer border -->
+  <rect
+    x="24"
+    y="24"
+    width="464"
+    height="464"
+    rx="108"
+    stroke="#ffffff"
+    stroke-width="4"
+    opacity="0.12"
+  />
+</svg>
