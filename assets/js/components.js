@@ -676,29 +676,57 @@ const Loader = (() => {
 // ============================================================
 
 async function loadAppConfig() {
+  // ── Cache: gunakan data yang tersimpan jika masih segar ──
+  const CACHE_KEY = 'evoting_config';
+  const CACHE_TTL = 5 * 60 * 1000; // 5 menit
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const entry = JSON.parse(raw);
+      if (Date.now() < entry.expiresAt) {
+        _applyAppConfig(entry.data);
+        return entry.data;
+      }
+      sessionStorage.removeItem(CACHE_KEY);
+    }
+  } catch (_) { /* storage tidak tersedia — lanjut fetch normal */ }
+
+  // ── Fetch dari server ─────────────────────────────────────
   try {
     const res = await API.config.get();
     if (res.success && res.data) {
       const d = res.data;
-      // Set title halaman
-      if (d.APP_NAME) {
-        document.title = document.title.replace('eVoting OSIM', d.APP_NAME);
-      }
-      // Set meta/brand elements
-      document.querySelectorAll('[data-app-name]').forEach(el => {
-        el.textContent = d.APP_NAME || 'eVoting OSIM';
-      });
-      document.querySelectorAll('[data-school-name]').forEach(el => {
-        el.textContent = d.SCHOOL_NAME || '';
-      });
-      document.querySelectorAll('[data-app-subtitle]').forEach(el => {
-        el.textContent = d.APP_SUBTITLE || 'Pemilihan Ketua OSIM/S';
-      });
-      document.querySelectorAll('[data-school-logo]').forEach(el => {
-        if (d.SCHOOL_LOGO_URL) el.src = d.SCHOOL_LOGO_URL;
-      });
+      // Simpan ke cache
+      try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+          data: d,
+          expiresAt: Date.now() + CACHE_TTL,
+        }));
+      } catch (_) { /* storage penuh — abaikan */ }
+      _applyAppConfig(d);
       return d;
     }
   } catch (_) {}
   return {};
 }
+
+/** Terapkan data config ke seluruh elemen DOM yang relevan */
+function _applyAppConfig(d) {
+  if (!d) return;
+  if (d.APP_NAME) {
+    document.title = document.title.replace('eVoting OSIM', d.APP_NAME);
+  }
+  document.querySelectorAll('[data-app-name]').forEach(el => {
+    el.textContent = d.APP_NAME || 'eVoting OSIM';
+  });
+  document.querySelectorAll('[data-school-name]').forEach(el => {
+    el.textContent = d.SCHOOL_NAME || '';
+  });
+  document.querySelectorAll('[data-app-subtitle]').forEach(el => {
+    el.textContent = d.APP_SUBTITLE || 'Pemilihan Ketua OSIM/S';
+  });
+  document.querySelectorAll('[data-school-logo]').forEach(el => {
+    if (d.SCHOOL_LOGO_URL) el.src = d.SCHOOL_LOGO_URL;
+  });
+}
+
