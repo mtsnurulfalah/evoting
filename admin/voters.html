@@ -222,10 +222,11 @@ function renderTable(voters) {
   tbody.innerHTML = voters.map(v => {
     if (v.hasVoted) voted++; else notVoted++;
 
-    // Kolom PIN: tampilkan status set/belum; hanya superadmin yang bisa melihat indikator detail
-    const pinBadge = v.hasPinSet
-      ? `<span class="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5"><i class="fa-solid fa-circle-check fa-xs"></i>Aktif</span>`
-      : `<span class="inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5"><i class="fa-solid fa-circle-xmark fa-xs"></i>Belum</span>`;
+    // Kolom PIN: tampilkan nilai PIN plaintext dengan font monospace
+    // Jika kosong (data lama sebelum migrasi), tampilkan tanda '—'
+    const pinDisplay = v.pin
+      ? `<span class="font-mono text-sm font-medium text-gray-800 tracking-widest">${Utils.escapeHtml(v.pin)}</span>`
+      : `<span class="text-gray-400 text-xs italic">—</span>`;
 
     return `
       <tr>
@@ -237,7 +238,7 @@ function renderTable(voters) {
         </td>
         <td class="hidden md:table-cell text-sm">${Utils.escapeHtml(v.className||'-')}</td>
         <td class="hidden lg:table-cell text-sm">${Utils.formatDate(v.birthDate, {day:'2-digit',month:'2-digit',year:'numeric'})}</td>
-        <td class="hidden xl:table-cell">${pinBadge}</td>
+        <td class="hidden xl:table-cell">${pinDisplay}</td>
         <td>
           <span class="badge ${v.hasVoted ? 'badge-success' : 'badge-warning'}">
             <i class="fa-solid fa-${v.hasVoted ? 'check-circle' : 'clock'} fa-xs"></i>
