@@ -217,7 +217,6 @@ const CHART_COLORS = [
 // saat tab/browser ditutup.
 const ResultCache = {
   RESULT_TTL_MS: 30 * 1000,  // hasil pemilihan: stale setelah 30 detik
-  CONFIG_TTL_MS: 5 * 60 * 1000, // config app: stale setelah 5 menit
 
   _get(key) {
     try {
@@ -246,13 +245,6 @@ const ResultCache = {
   },
   setResult(electionId, data) {
     this._set('evoting_result_' + (electionId || '_latest'), data, this.RESULT_TTL_MS);
-  },
-
-  getConfig() {
-    return this._get('evoting_config');
-  },
-  setConfig(data) {
-    this._set('evoting_config', data, this.CONFIG_TTL_MS);
   },
 };
 
@@ -303,17 +295,25 @@ const ResultsPage = (() => {
 
   // ── Fetch & render (internal) ─────────────────────────
   async function _fetchAndRender(electionId, isRefresh) {
+    // Helper: cek apakah konten hasil sudah tampil di layar
+    function isContentVisible() {
+      const el = document.getElementById('content-state');
+      return el && !el.classList.contains('hidden');
+    }
+
     try {
       const res = await API.result.getPublic(electionId);
 
       if (!res.success) {
-        // Jika sedang background-refresh (ada data stale di layar),
-        // jangan timpa konten — biarkan data lama tetap tampil.
-        if (isRefresh && document.getElementById('content-state') &&
-            !document.getElementById('content-state').classList.contains('hidden')) {
+        // Jika background-refresh dan data lama masih tampil,
+        // jangan timpa konten — tampilkan toast peringatan saja.
+        if (isRefresh && isContentVisible()) {
+          if (typeof Toast !== 'undefined') {
+            Toast.warning('Gagal memperbarui data. Menampilkan data terakhir.');
+          }
           return;
         }
-        // FIX #4: Bedakan 'belum dipublikasikan' vs error lain
+        // Bedakan 'belum dipublikasikan' vs error jaringan/konfigurasi
         const isNetworkErr = res.errorCode === 'NETWORK_ERROR' || res.errorCode === 'CONFIG_ERROR';
         if (isNetworkErr) {
           document.getElementById('error-message').textContent = res.message ||
@@ -336,8 +336,17 @@ const ResultsPage = (() => {
       scheduleAutoRefresh();
 
     } catch (err) {
-      // FIX #4: Exception → tampilkan error state bukan unavailable
       console.error('[ResultsPage] loadData error:', err);
+
+      // Jika background refresh dan konten lama masih tampil,
+      // jangan hapus konten yang sudah ada — tampilkan toast peringatan saja.
+      if (isRefresh && isContentVisible()) {
+        if (typeof Toast !== 'undefined') {
+          Toast.warning('Gagal memperbarui data. Menampilkan data terakhir.');
+        }
+        return;
+      }
+
       document.getElementById('error-message').textContent =
         'Terjadi kesalahan tidak terduga. Silakan coba lagi.';
       showState('error');
