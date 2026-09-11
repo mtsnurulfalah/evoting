@@ -211,6 +211,50 @@ const CHART_COLORS = [
   '#0891b2', '#ea580c', '#db2777', '#65a30d', '#0d9488',
 ];
 
+// ── Cache helpers ──────────────────────────────────────────
+// Semua cache disimpan di sessionStorage agar otomatis bersih
+// saat tab/browser ditutup.
+const ResultCache = {
+  RESULT_TTL_MS: 30 * 1000,  // hasil pemilihan: stale setelah 30 detik
+  CONFIG_TTL_MS: 5 * 60 * 1000, // config app: stale setelah 5 menit
+
+  _get(key) {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (Date.now() > entry.expiresAt) {
+        sessionStorage.removeItem(key);
+        return null;
+      }
+      return entry.data;
+    } catch (_) { return null; }
+  },
+
+  _set(key, data, ttlMs) {
+    try {
+      sessionStorage.setItem(key, JSON.stringify({
+        data,
+        expiresAt: Date.now() + ttlMs,
+      }));
+    } catch (_) { /* storage penuh — abaikan */ }
+  },
+
+  getResult(electionId) {
+    return this._get('evoting_result_' + (electionId || '_latest'));
+  },
+  setResult(electionId, data) {
+    this._set('evoting_result_' + (electionId || '_latest'), data, this.RESULT_TTL_MS);
+  },
+
+  getConfig() {
+    return this._get('evoting_config');
+  },
+  setConfig(data) {
+    this._set('evoting_config', data, this.CONFIG_TTL_MS);
+  },
+};
+
 // State module
 const ResultsPage = (() => {
   let _refreshTimer = null;
@@ -218,19 +262,33 @@ const ResultsPage = (() => {
 
   // ── Init ──────────────────────────────────────────────
   async function init() {
-    // Muat config aplikasi (app name, dll.) — await agar title ter-update sebelum render
-    await loadAppConfig();
-
     // Tombol refresh & retry
     document.getElementById('btn-refresh').addEventListener('click', () => loadData(true));
     document.getElementById('btn-retry').addEventListener('click', () => loadData(false));
 
-    await loadData(false);
+    // Paralelkan config + data — keduanya tidak saling bergantung.
+    // loadAppConfig menggunakan cache sessionStorage sehingga request
+    // kedua dan seterusnya tidak membuat HTTP call sama sekali.
+    await Promise.all([loadAppConfig(), loadData(false)]);
   }
 
   // ── Muat data ─────────────────────────────────────────
   async function loadData(isRefresh) {
+    const electionId = Utils.getQueryParam('electionId') || undefined;
+
     if (!isRefresh) {
+      // Tampilkan cache lama (stale) segera agar pengguna tidak melihat
+      // spinner kosong, lalu fetch di background untuk memperbaruinya.
+      const cached = ResultCache.getResult(electionId);
+      if (cached) {
+        renderResults(cached);
+        showState('content');
+        document.getElementById('btn-refresh').classList.remove('hidden');
+        // Tetap lanjut fetch untuk memperbarui data di background
+        _fetchAndRender(electionId, true /* silent */);
+        scheduleAutoRefresh();
+        return;
+      }
       showState('loading');
     } else {
       // Saat refresh: tampilkan spinner kecil di tombol
@@ -239,12 +297,21 @@ const ResultsPage = (() => {
       if (icon) icon.classList.add('animate-spin');
     }
 
+    await _fetchAndRender(electionId, isRefresh);
+  }
+
+  // ── Fetch & render (internal) ─────────────────────────
+  async function _fetchAndRender(electionId, isRefresh) {
     try {
-      // FIX #3: Baca electionId dari URL param jika ada
-      const electionId = Utils.getQueryParam('electionId') || undefined;
       const res = await API.result.getPublic(electionId);
 
       if (!res.success) {
+        // Jika sedang background-refresh (ada data stale di layar),
+        // jangan timpa konten — biarkan data lama tetap tampil.
+        if (isRefresh && document.getElementById('content-state') &&
+            !document.getElementById('content-state').classList.contains('hidden')) {
+          return;
+        }
         // FIX #4: Bedakan 'belum dipublikasikan' vs error lain
         const isNetworkErr = res.errorCode === 'NETWORK_ERROR' || res.errorCode === 'CONFIG_ERROR';
         if (isNetworkErr) {
@@ -256,6 +323,9 @@ const ResultsPage = (() => {
         }
         return;
       }
+
+      // Simpan ke cache agar kunjungan/refresh berikutnya instan
+      ResultCache.setResult(electionId, res.data || {});
 
       renderResults(res.data || {});
       showState('content');
