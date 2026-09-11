@@ -185,6 +185,14 @@ const API = (() => {
     getRecent: (limit = 100) => request('logs.getRecent', { limit }),
   };
 
+  // ── Admin Profile ─────────────────────────────────────────
+
+  const adminProfile = {
+    changePassword: (data) => request('admin.changePassword', data),
+    updateProfile:  (data) => request('admin.updateProfile', data),
+    uploadPhoto:    (data) => request('admin.uploadProfilePhoto', data),
+  };
+
   // ── Utility ──────────────────────────────────────────────
 
   /** Cek apakah ada request yang sedang pending */
@@ -192,5 +200,5 @@ const API = (() => {
     return _pendingRequests > 0;
   }
 
-  return { auth, election, candidate, voter, vote, result, config, logs, isPending };
+  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, isPending };
 })();
