@@ -560,13 +560,16 @@
    ============================================================ */
 
 // ── State ────────────────────────────────────────────────────
-let _electionId   = '';
-let _currentPage  = 1;
-let _pageSize     = 25;
-let _lastMeta     = null;
-let _isLoading    = false;
-let _isSubmitting = false;
-let _parsedCSV    = [];
+let _electionId       = '';
+let _currentPage      = 1;
+let _pageSize         = 25;
+let _lastMeta         = null;
+let _isLoading        = false;
+let _isSubmitting     = false;
+let _parsedCSV        = [];
+// Sumber error terakhir: 'elections' | 'voters' | null
+// Digunakan oleh tombol "Coba Lagi" untuk memanggil fungsi yang tepat.
+let _lastErrorSource  = null;
 
 // FIX BUG 3: debounced function stabil, dibuat sekali di luar event handler
 const _debouncedSearch = Utils.debounce(() => { _currentPage = 1; loadVoters(); }, 400);
@@ -629,7 +632,17 @@ let   _accessTimerId  = null;
 
   document.getElementById('btn-export').addEventListener('click', exportVoters);
   document.getElementById('btn-reset-filter').addEventListener('click', resetFilter);
-  document.getElementById('btn-retry').addEventListener('click', () => loadVoters());
+  // Retry: panggil fungsi yang sesuai dengan sumber error terakhir.
+  // Jika error berasal dari loadElectionOptions (daftar pemilihan gagal dimuat),
+  // maka retry harus mengulang loadElectionOptions, bukan loadVoters yang akan
+  // langsung return karena _electionId masih kosong.
+  document.getElementById('btn-retry').addEventListener('click', () => {
+    if (_lastErrorSource === 'elections') {
+      loadElectionOptions();
+    } else {
+      loadVoters();
+    }
+  });
 
   // Election selector
   document.getElementById('election-select').addEventListener('change', e => {
@@ -690,7 +703,11 @@ async function loadElectionOptions() {
 
   if (!res.success) {
     sel.innerHTML = '<option value="">— Gagal memuat pemilihan —</option>';
-    showState('error', 'Gagal memuat daftar pemilihan. Muat ulang halaman.');
+    // Tandai sumber error sebagai 'elections' agar tombol retry
+    // memanggil loadElectionOptions(), bukan loadVoters() yang akan
+    // langsung return karena _electionId masih kosong.
+    _lastErrorSource = 'elections';
+    showState('error', res.message || 'Gagal memuat daftar pemilihan. Silakan coba lagi.');
     return;
   }
 
@@ -730,6 +747,11 @@ async function loadElectionOptions() {
 
 // ── Load voters ───────────────────────────────────────────────
 
+// Jumlah maksimum percobaan otomatis untuk error jaringan/timeout.
+// Percobaan ke-1 langsung; ke-2 setelah 2 detik; ke-3 setelah 4 detik.
+const _MAX_VOTER_RETRIES  = 3;
+const _VOTER_RETRY_DELAYS = [0, 2000, 4000]; // ms per percobaan
+
 async function loadVoters() {
   if (!_electionId) return;
   if (_isLoading) return;
@@ -741,30 +763,62 @@ async function loadVoters() {
   // Request stats terpisah (pageSize:9999) dihapus karena menyebabkan
   // timeout GAS untuk data besar, yang mengakibatkan seluruh load gagal.
   // Stats dihitung dari data yang sudah ada (total dari backend + items halaman ini).
+  const params = {
+    electionId: _electionId,
+    search:   document.getElementById('search-input').value.trim(),
+    hasVoted: getActiveVotedFilter(),
+    page:     _currentPage,
+    pageSize: _pageSize,
+  };
+
   let tableRes;
-  try {
-    tableRes = await API.voter.getAll({
-      electionId: _electionId,
-      search:   document.getElementById('search-input').value.trim(),
-      hasVoted: getActiveVotedFilter(),
-      page:     _currentPage,
-      pageSize: _pageSize,
-    });
-  } catch (err) {
-    _isLoading = false;
-    document.getElementById('error-msg').textContent = 'Gagal menghubungi server. Periksa koneksi internet.';
-    showState('error');
-    return;
+  let lastErr;
+
+  for (let attempt = 0; attempt < _MAX_VOTER_RETRIES; attempt++) {
+    // Tunda sebelum percobaan ke-2 dan seterusnya
+    if (attempt > 0) {
+      const delay = _VOTER_RETRY_DELAYS[attempt] || 4000;
+      document.getElementById('error-msg').textContent =
+        `Mencoba ulang (${attempt}/${_MAX_VOTER_RETRIES - 1})…`;
+      showState('error');
+      await new Promise(r => setTimeout(r, delay));
+      // Batalkan jika pengguna sudah pindah pemilihan saat menunggu
+      if (!_electionId) { _isLoading = false; return; }
+      showState('loading');
+    }
+
+    try {
+      tableRes = await API.voter.getAll(params);
+    } catch (err) {
+      // fetch throw — seharusnya tidak terjadi karena api.js sudah menangkap,
+      // tapi jaga-jaga tetap di-handle.
+      lastErr = err;
+      tableRes = null;
+      continue;
+    }
+
+    // Berhasil atau error non-jaringan (mis. auth) — hentikan loop
+    if (tableRes.success || (tableRes.errorCode !== 'NETWORK_ERROR' && tableRes.errorCode !== 'TIMEOUT_ERROR')) {
+      break;
+    }
+
+    // Error jaringan/timeout — simpan dan coba lagi
+    lastErr = tableRes;
   }
 
   _isLoading = false;
 
-  if (!tableRes.success) {
+  // Gagal setelah semua percobaan
+  if (!tableRes || !tableRes.success) {
+    _lastErrorSource = 'voters';
     document.getElementById('error-msg').textContent =
-      tableRes.message || 'Gagal memuat data pemilih.';
+      (tableRes && tableRes.message) || (lastErr && lastErr.message) || 'Gagal memuat data pemilih.';
     showState('error');
     return;
   }
+
+  // Sukses — reset sumber error
+  _lastErrorSource = null;
 
   const data  = tableRes.data || {};
   _lastMeta   = data;
