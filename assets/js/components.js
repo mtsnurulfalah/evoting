@@ -483,23 +483,8 @@ const Sidebar = (() => {
     const schoolName = document.getElementById('sidebar-school-name');
     if (schoolName) schoolName.textContent = d.SCHOOL_NAME || '';
 
-    // Render logo ke semua kontainer [data-school-logo] di halaman ini
-    // (termasuk kontainer ikon sidebar yang sudah diberi atribut tersebut).
-    document.querySelectorAll('[data-school-logo]').forEach(el => {
-      if (!el.dataset.schoolLogoFallback) {
-        el.dataset.schoolLogoFallback = el.innerHTML;
-      }
-      const fallback = el.dataset.schoolLogoFallback;
-      if (d.SCHOOL_LOGO_URL) {
-        el.innerHTML =
-          `<img src="${d.SCHOOL_LOGO_URL}"
-                alt="${(d.SCHOOL_NAME || 'Logo Sekolah').replace(/"/g, '&quot;')}"
-                class="w-full h-full object-contain"
-                onerror="this.parentElement.innerHTML=this.parentElement.dataset.schoolLogoFallback">`;
-      } else {
-        el.innerHTML = fallback;
-      }
-    });
+    // Delegasikan ke fungsi shared global — tidak ada duplikasi logika logo.
+    _renderSchoolLogo(d.SCHOOL_LOGO_URL, d.SCHOOL_NAME);
   }
 
   return { init };
@@ -758,7 +743,6 @@ async function loadAppConfig() {
   } catch (_) {}
   return {};
 }
-
 /** Terapkan data config ke seluruh elemen DOM yang relevan */
 function _applyAppConfig(d) {
   if (!d) return;
@@ -774,24 +758,38 @@ function _applyAppConfig(d) {
   document.querySelectorAll('[data-app-subtitle]').forEach(el => {
     el.textContent = d.APP_SUBTITLE || 'Pemilihan Ketua OSIM/S';
   });
-  // [data-school-logo] adalah kontainer <div> yang menampung ikon fallback.
-  // Jika SCHOOL_LOGO_URL tersedia, ganti isi kontainer dengan <img>.
-  // Jika URL kosong atau gambar gagal dimuat, kembalikan ke ikon fallback.
+  _renderSchoolLogo(d.SCHOOL_LOGO_URL, d.SCHOOL_NAME);
+}
+
+/**
+ * Render logo sekolah ke semua kontainer [data-school-logo].
+ *
+ * Kontainer adalah <div> yang berisi ikon fallback. Fungsi ini:
+ *  1. Menyimpan innerHTML ikon asli sebagai fallback SEBELUM diubah (hanya sekali).
+ *  2. Jika logoUrl ada: ganti isi dengan <img> (onerror kembalikan ke ikon).
+ *  3. Jika logoUrl kosong: restore ke ikon fallback.
+ *
+ * Aman dipanggil berkali-kali: fallback hanya disimpan sebelum elemen pertama
+ * kali dimodifikasi, sehingga <img> tidak pernah tersimpan sebagai fallback.
+ */
+function _renderSchoolLogo(logoUrl, schoolName) {
   document.querySelectorAll('[data-school-logo]').forEach(el => {
-    const fallbackHtml = el.dataset.schoolLogoFallback || el.innerHTML;
-    // Simpan fallback asli sekali saja
+    // Simpan fallback asli SEBELUM innerHTML pertama kali diubah.
     if (!el.dataset.schoolLogoFallback) {
       el.dataset.schoolLogoFallback = el.innerHTML;
     }
-    if (d.SCHOOL_LOGO_URL) {
+    const fallback = el.dataset.schoolLogoFallback;
+
+    if (logoUrl) {
+      const safeAlt = (schoolName || 'Logo Sekolah').replace(/"/g, '&quot;');
       el.innerHTML =
-        `<img src="${d.SCHOOL_LOGO_URL}"
-              alt="${(d.SCHOOL_NAME || 'Logo Sekolah').replace(/"/g, '&quot;')}"
-              class="w-full h-full object-contain"
-              onerror="this.parentElement.innerHTML=this.parentElement.dataset.schoolLogoFallback">`;
+        '<img src="' + logoUrl + '"' +
+        ' alt="' + safeAlt + '"' +
+        ' class="w-full h-full object-contain"' +
+        ' onerror="this.parentElement.innerHTML=this.parentElement.dataset.schoolLogoFallback">';
     } else {
-      el.innerHTML = fallbackHtml;
+      // URL kosong atau dihapus: kembalikan ke ikon
+      el.innerHTML = fallback;
     }
   });
 }
-
