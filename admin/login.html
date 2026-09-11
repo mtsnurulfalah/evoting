@@ -4,75 +4,209 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Login Admin — eVoting OSIM</title>
+  <!-- FIX #19: noindex agar halaman login tidak diindeks search engine -->
+  <meta name="robots" content="noindex,nofollow"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+  <style>
+    body { overflow-x: hidden; }
+
+    /* FIX #3: Class sukses terpisah agar tidak konflik dengan btn-primary Tailwind */
+    .btn-success-state {
+      background-color: #16a34a !important;
+      border-color: #16a34a !important;
+      cursor: default;
+      pointer-events: none;
+    }
+    .btn-success-state:hover {
+      background-color: #15803d !important;
+    }
+
+    /* Animasi masuk card */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .card-entrance {
+      animation: slideUp 0.4s ease-out both;
+    }
+
+    /* Animasi error box */
+    @keyframes shakeIn {
+      0%   { opacity: 0; transform: translateX(-6px); }
+      50%  { transform: translateX(4px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+    .error-animate {
+      animation: shakeIn 0.3s ease-out both;
+    }
+
+    /* FIX #16: Touch target yang memadai untuk toggle password */
+    #toggle-password {
+      min-width: 2.5rem;
+      min-height: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+  <!-- FIX #14: noscript di head untuk stylesheet fallback -->
+  <noscript>
+    <style>
+      .card-entrance { animation: none; opacity: 1; }
+    </style>
+  </noscript>
 </head>
-<body class="h-full min-h-screen bg-gray-100 flex items-center justify-center p-4">
+<body class="min-h-screen bg-gradient-to-br from-gray-900 via-primary-800 to-primary-700
+             flex flex-col items-center justify-center p-4 sm:p-6">
 
 <div id="toast-container"></div>
 
-<div class="w-full max-w-sm">
-  <!-- Brand -->
+<!-- FIX #14: noscript banner -->
+<noscript>
+  <div style="position:fixed;top:0;left:0;right:0;background:#fef3c7;border-bottom:1px solid #d97706;
+              padding:0.6rem 1rem;text-align:center;font-size:0.8rem;color:#92400e;z-index:9999;">
+    JavaScript diperlukan untuk menggunakan halaman ini.
+  </div>
+</noscript>
+
+<!-- ── Container utama ───────────────────────────────────────── -->
+<div class="w-full max-w-sm card-entrance">
+
+  <!-- ── Brand / Header ─────────────────────────────────────── -->
   <div class="text-center mb-6">
-    <div class="inline-flex items-center justify-center w-14 h-14 bg-primary-600 rounded-2xl shadow-lg mb-3">
-      <i class="fa-solid fa-shield-halved text-white text-2xl"></i>
+    <div class="inline-flex items-center justify-center w-14 h-14
+                bg-white/10 backdrop-blur border border-white/20
+                rounded-2xl shadow-lg mb-3">
+      <i class="fa-solid fa-shield-halved text-white text-2xl"
+         aria-hidden="true"></i>
     </div>
-    <h1 class="text-xl font-bold text-gray-800" data-app-name>eVoting OSIM</h1>
-    <p class="text-gray-500 text-sm mt-0.5">Panel Administrasi</p>
+    <!-- FIX #10: data-app-name + data-school-name agar ter-update via loadAppConfig() -->
+    <h1 class="text-lg font-bold text-white" data-app-name>eVoting OSIM</h1>
+    <p class="text-white/60 text-xs mt-0.5" data-school-name></p>
+    <p class="text-white/50 text-xs mt-1">Panel Administrasi</p>
   </div>
 
-  <!-- Form card -->
-  <div class="card shadow-xl">
-    <div class="card-body py-7 px-7">
-      <h2 class="text-base font-semibold text-gray-800 mb-5 text-center">Masuk sebagai Administrator</h2>
+  <!-- ── Form Card ───────────────────────────────────────────── -->
+  <div class="card shadow-2xl border-0 ring-1 ring-white/10">
+    <!-- FIX #15: padding responsif px-5 sm:px-7 -->
+    <div class="card-body py-7 px-5 sm:px-7">
 
-      <form id="login-form" novalidate>
+      <h2 class="text-base font-semibold text-gray-800 mb-5 text-center">
+        Masuk sebagai Administrator
+      </h2>
+
+      <!-- FIX #13: Notifikasi session expired dari URL param -->
+      <div id="session-notice" class="hidden alert alert-warning mb-4 text-sm">
+        <i class="fa-solid fa-clock-rotate-left flex-shrink-0 mt-0.5"
+           aria-hidden="true"></i>
+        <span>Sesi Anda telah berakhir. Silakan masuk kembali.</span>
+      </div>
+
+      <!-- FIX #8: autocomplete="off" di form -->
+      <form id="login-form" novalidate autocomplete="off">
+
         <!-- Username -->
         <div class="form-group">
-          <label class="form-label" for="username">Username</label>
+          <label class="form-label" for="username">
+            Username
+            <span class="text-red-500 ml-0.5" aria-hidden="true">*</span>
+          </label>
           <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-user fa-sm"></i></span>
-            <input type="text" id="username" name="username"
-              class="form-input pl-9" placeholder="Username admin" autocomplete="username"/>
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  aria-hidden="true">
+              <i class="fa-solid fa-user fa-sm"></i>
+            </span>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              class="form-input pl-9"
+              placeholder="Username admin"
+              autocomplete="username"
+              aria-required="true"
+              aria-describedby="username-error"
+            />
           </div>
+          <!-- FIX #7: field error untuk username -->
+          <p class="form-error hidden" id="username-error" role="alert"></p>
         </div>
 
         <!-- Password -->
         <div class="form-group">
-          <label class="form-label" for="password">Password</label>
+          <label class="form-label" for="password">
+            Password
+            <span class="text-red-500 ml-0.5" aria-hidden="true">*</span>
+          </label>
           <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-lock fa-sm"></i></span>
-            <input type="password" id="password" name="password"
-              class="form-input pl-9 pr-10" placeholder="Password" autocomplete="current-password"/>
-            <button type="button" id="toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Tampilkan password">
-              <i class="fa-solid fa-eye fa-sm"></i>
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  aria-hidden="true">
+              <i class="fa-solid fa-lock fa-sm"></i>
+            </span>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-input pl-9 pr-12"
+              placeholder="Password"
+              autocomplete="current-password"
+              aria-required="true"
+              aria-describedby="password-error"
+            />
+            <!-- FIX #6/#16: aria-label + aria-pressed + touch target memadai -->
+            <button
+              type="button"
+              id="toggle-password"
+              class="absolute right-0 top-1/2 -translate-y-1/2
+                     text-gray-400 hover:text-primary-600 focus:text-primary-600
+                     transition-colors focus:outline-none rounded-r-lg"
+              aria-label="Tampilkan password"
+              aria-pressed="false"
+            >
+              <i class="fa-solid fa-eye fa-sm" id="toggle-password-icon"
+                 aria-hidden="true"></i>
             </button>
           </div>
+          <p class="form-error hidden" id="password-error" role="alert"></p>
         </div>
 
-        <!-- Error -->
-        <div id="login-error" class="alert alert-error hidden mb-4 text-sm">
-          <i class="fa-solid fa-circle-xmark flex-shrink-0"></i>
+        <!-- FIX #18: role="alert" + aria-live="assertive" pada error global -->
+        <div
+          id="login-error"
+          class="alert alert-error hidden mb-4 text-sm"
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+        >
+          <!-- FIX #17: aria-hidden pada ikon dekoratif -->
+          <i class="fa-solid fa-circle-xmark flex-shrink-0 mt-0.5"
+             aria-hidden="true"></i>
           <span id="login-error-text"></span>
         </div>
 
-        <button type="submit" id="login-btn" class="btn btn-primary w-full btn-lg mt-1">
-          <i class="fa-solid fa-right-to-bracket"></i>
+        <button type="submit" id="login-btn" class="btn btn-primary btn-lg w-full mt-1 gap-2">
+          <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
           Masuk
         </button>
-      </form>
-    </div>
-  </div>
 
-  <p class="text-center text-xs text-gray-400 mt-5">
-    <a href="/index.html" class="hover:text-gray-600 transition-colors">
-      <i class="fa-solid fa-arrow-left mr-1"></i> Kembali ke halaman pemilihan
+      </form>
+
+    </div>
+  </div><!-- /card -->
+
+  <!-- Footer link -->
+  <p class="text-center text-xs text-white/40 mt-5">
+    <a href="/index.html"
+       class="hover:text-white/70 transition-colors inline-flex items-center gap-1.5">
+      <i class="fa-solid fa-arrow-left fa-xs" aria-hidden="true"></i>
+      Kembali ke halaman pemilihan
     </a>
   </p>
-</div>
+
+</div><!-- /container -->
 
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
@@ -80,65 +214,181 @@
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/components.js"></script>
 <script>
+/* ============================================================
+   admin/login.html — Login Administrator
+   ============================================================ */
+
 (async () => {
-  if (Auth.isAdmin()) { window.location.replace('./dashboard.html'); return; }
 
-  loadAppConfig();
+  // ── Guard: redirect jika sudah login sebagai admin ──────
+  if (Auth.isAdmin()) {
+    window.location.replace('./dashboard.html');
+    return;
+  }
 
-  // Toggle password
-  const toggleBtn = document.getElementById('toggle-password');
-  const pwInput   = document.getElementById('password');
+  // FIX #1: await loadAppConfig() agar data-app-name ter-update sebelum interaksi
+  await loadAppConfig();
+
+  // FIX #13: Deteksi URL param ?reason=expired untuk tampilkan session notice
+  const reason = Utils.getQueryParam('reason');
+  if (reason === 'expired' || reason === 'unauthorized') {
+    document.getElementById('session-notice').classList.remove('hidden');
+  }
+
+  // ── Referensi elemen ─────────────────────────────────────
+  const loginForm    = document.getElementById('login-form');
+  const loginBtn     = document.getElementById('login-btn');
+  const errBox       = document.getElementById('login-error');
+  const errText      = document.getElementById('login-error-text');
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  const toggleBtn    = document.getElementById('toggle-password');
+  const toggleIcon   = document.getElementById('toggle-password-icon');
+
+  // ── FIX #6: Toggle password dengan aria update ───────────
   toggleBtn.addEventListener('click', () => {
-    const show = pwInput.type === 'password';
-    pwInput.type = show ? 'text' : 'password';
-    toggleBtn.querySelector('i').className = `fa-solid fa-${show ? 'eye-slash' : 'eye'} fa-sm`;
+    const isHidden = passwordInput.type === 'password';
+    passwordInput.type = isHidden ? 'text' : 'password';
+    toggleIcon.className = `fa-solid fa-${isHidden ? 'eye-slash' : 'eye'} fa-sm`;
+    toggleBtn.setAttribute('aria-label',   isHidden ? 'Sembunyikan password' : 'Tampilkan password');
+    toggleBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
   });
 
-  // Enter key on username → focus password
-  document.getElementById('username').addEventListener('keydown', e => {
-    if (e.key === 'Enter') document.getElementById('password').focus();
+  // ── Enter di username → fokus ke password ───────────────
+  usernameInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') passwordInput.focus();
   });
 
-  // Clear error on input
-  ['username','password'].forEach(id => {
-    document.getElementById(id).addEventListener('input', () => {
-      document.getElementById('login-error').classList.add('hidden');
-    });
-  });
-
-  document.getElementById('login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn      = document.getElementById('login-btn');
-    const errBox   = document.getElementById('login-error');
-    const errText  = document.getElementById('login-error-text');
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
-
-    if (!username || !password) {
-      errText.textContent = 'Username dan password harus diisi.';
-      errBox.classList.remove('hidden');
-      return;
-    }
-
-    Utils.setLoading(btn, true, 'Memverifikasi...');
+  // ── Clear error saat user mengetik ulang ─────────────────
+  const clearErrors = () => {
     errBox.classList.add('hidden');
+    errBox.classList.remove('error-animate');
+    // Clear field errors
+    ['username', 'password'].forEach(id => {
+      const input = document.getElementById(id);
+      const errEl = document.getElementById(id + '-error');
+      if (input) input.classList.remove('form-input-error');
+      if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+    });
+  };
 
+  usernameInput.addEventListener('input', clearErrors);
+  passwordInput.addEventListener('input', clearErrors);
+
+  // ── Form submit ───────────────────────────────────────────
+  loginForm.addEventListener('submit', handleLogin);
+
+  // ── Auto-focus username ───────────────────────────────────
+  usernameInput.focus();
+
+})();
+
+/* ============================================================
+   HANDLER LOGIN
+   ============================================================ */
+
+async function handleLogin(e) {
+  e.preventDefault();
+
+  const btn           = document.getElementById('login-btn');
+  const errBox        = document.getElementById('login-error');
+  const errText       = document.getElementById('login-error-text');
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value; // jangan trim password
+
+  // ── FIX #7: Validasi frontend yang eksplisit ─────────────
+  let hasError = false;
+
+  if (!username) {
+    showFieldError('username', 'Username tidak boleh kosong.');
+    hasError = true;
+  }
+  if (!password) {
+    showFieldError('password', 'Password tidak boleh kosong.');
+    hasError = true;
+  }
+  if (hasError) return;
+
+  // Sembunyikan error global sebelum request baru
+  errBox.classList.add('hidden');
+  errBox.classList.remove('error-animate');
+
+  Utils.setLoading(btn, true, 'Memverifikasi...');
+
+  try {
     const res = await API.auth.adminLogin({ username, password });
 
     if (res.success) {
       Auth.setAdminSession(res.data);
-      btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Berhasil!';
-      btn.classList.add('bg-green-600');
-      setTimeout(() => window.location.href = './dashboard.html', 600);
+
+      // FIX #2/#3: Reset loading state dulu, lalu terapkan state sukses
+      Utils.setLoading(btn, false);
+      btn.disabled = true;
+      btn.classList.add('btn-success-state');
+      btn.innerHTML =
+        '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> Berhasil! Mengarahkan...';
+
+      setTimeout(() => {
+        window.location.href = './dashboard.html';
+      }, 700);
+
     } else {
       Utils.setLoading(btn, false);
-      errText.textContent = res.message || 'Username atau password salah.';
-      errBox.classList.remove('hidden');
-      document.getElementById('password').value = '';
-      document.getElementById('password').focus();
+
+      // FIX #4: Bedakan error network vs error autentikasi
+      let msg;
+      if (res.errorCode === 'NETWORK_ERROR' || res.errorCode === 'CONFIG_ERROR') {
+        msg = 'Gagal menghubungi server. Periksa koneksi internet Anda.';
+      } else if (res.errorCode === 'ACCOUNT_INACTIVE') {
+        msg = 'Akun Anda tidak aktif. Hubungi administrator sistem.';
+      } else {
+        msg = res.message || 'Username atau password tidak sesuai.';
+      }
+
+      showGlobalError(msg);
+
+      // Bersihkan field password dan fokus kembali
+      passwordInput.value = '';
+      passwordInput.focus();
     }
-  });
-})();
+
+  } catch (err) {
+    // FIX #4: Network exception yang tidak tertangkap api.js
+    Utils.setLoading(btn, false);
+    showGlobalError('Gagal menghubungi server. Periksa koneksi internet Anda.');
+    console.error('[AdminLogin] handleLogin error:', err);
+  }
+}
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+
+/** Tampilkan error global dengan animasi */
+function showGlobalError(msg) {
+  const errBox  = document.getElementById('login-error');
+  const errText = document.getElementById('login-error-text');
+  errText.textContent = msg;
+  errBox.classList.remove('hidden');
+  // FIX #11: trigger re-animation setiap kali error baru
+  errBox.classList.remove('error-animate');
+  void errBox.offsetWidth; // force reflow
+  errBox.classList.add('error-animate');
+}
+
+/** Tampilkan error pada field individual */
+function showFieldError(fieldId, msg) {
+  const input = document.getElementById(fieldId);
+  const errEl = document.getElementById(fieldId + '-error');
+  if (input) input.classList.add('form-input-error');
+  if (errEl) {
+    errEl.textContent = msg;
+    errEl.classList.remove('hidden');
+  }
+}
 </script>
 </body>
 </html>
