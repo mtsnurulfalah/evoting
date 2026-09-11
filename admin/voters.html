@@ -117,6 +117,57 @@
   </main>
 </div>
 
+<!-- ── Modal PIN Akses Panitia ─────────────────────────────── -->
+<!-- Overlay penuh — tidak bisa ditutup tanpa PIN yang benar -->
+<div id="pin-gate-overlay" class="hidden fixed inset-0 z-50 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+    <div class="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i class="fa-solid fa-shield-keyhole text-amber-500 text-2xl"></i>
+    </div>
+    <h2 class="text-lg font-bold text-gray-800 mb-1">Verifikasi PIN Akses</h2>
+    <p class="text-sm text-gray-500 mb-5">
+      Masukkan PIN akses yang diberikan oleh Admin atau Ketua Panitia untuk membuka halaman ini.
+    </p>
+    <!-- Input PIN -->
+    <div class="mb-4">
+      <input
+        type="text"
+        id="pin-gate-input"
+        class="form-input text-center font-mono text-2xl tracking-[0.4em] w-full"
+        placeholder="······"
+        maxlength="6"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+      />
+      <p id="pin-gate-error" class="hidden text-xs text-red-500 mt-2 font-medium"></p>
+    </div>
+    <button id="pin-gate-submit" class="btn btn-primary w-full">
+      <i class="fa-solid fa-unlock"></i> Buka Akses
+    </button>
+    <button id="pin-gate-cancel" class="btn btn-secondary w-full mt-2">
+      <i class="fa-solid fa-arrow-left"></i> Kembali
+    </button>
+    <p class="text-xs text-gray-400 mt-4">
+      <i class="fa-solid fa-circle-info fa-xs"></i>
+      PIN berubah otomatis setiap 5 menit
+    </p>
+  </div>
+</div>
+
+<!-- ── Timer bar akses 2 menit (muncul setelah PIN benar) ─── -->
+<div id="access-timer-bar" class="hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-amber-300 shadow-lg px-4 py-2 flex items-center gap-3">
+  <i class="fa-solid fa-hourglass-half text-amber-500 flex-shrink-0"></i>
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center justify-between text-xs mb-1">
+      <span class="text-gray-600 font-medium">Sesi akses panitia berakhir dalam</span>
+      <span id="access-countdown" class="font-mono font-bold text-amber-700">2:00</span>
+    </div>
+    <div class="progress-bar h-1.5 bg-amber-100">
+      <div id="access-progress" class="progress-fill bg-amber-400 transition-all duration-1000" style="width:100%"></div>
+    </div>
+  </div>
+</div>
+
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script src="../assets/js/api.js"></script>
@@ -128,9 +179,21 @@ let _currentPage = 1;
 let _pageSize = 25;
 let _lastMeta = null;
 
+// Kunci sessionStorage untuk sesi akses panitia
+const _PIN_ACCESS_KEY      = 'ev_panitia_voter_access';  // JSON {expiresAt}
+const _PIN_ACCESS_SEC      = 120;                        // durasi akses: 2 menit
+let   _accessTimerId       = null;
+
 (async () => {
   if (!Auth.requireAdminPage()) return;
   Sidebar.init(); Topbar.init();
+
+  // ── Gate: role panitia wajib verifikasi PIN akses ─────────
+  if (Auth.isPanitia()) {
+    const granted = await checkOrRequestPinAccess();
+    if (!granted) return; // Jika batal/gagal, sudah diarahkan ke results.html
+    startAccessTimer();
+  }
 
   // Kontrol UI berdasarkan hak akses
   const _isReadonly = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
@@ -156,6 +219,166 @@ let _lastMeta = null;
 
   await loadElectionOptions();
 })();
+
+// ── PIN Access Gate ────────────────────────────────────────
+
+/**
+ * Cek apakah sesi akses panitia masih valid di sessionStorage.
+ * Jika valid → langsung return true.
+ * Jika tidak → tampilkan modal PIN dan tunggu hasilnya.
+ * @returns {Promise<boolean>} true jika akses diberikan
+ */
+async function checkOrRequestPinAccess() {
+  // Cek sesi yang masih aktif
+  try {
+    const stored = sessionStorage.getItem(_PIN_ACCESS_KEY);
+    if (stored) {
+      const { expiresAt } = JSON.parse(stored);
+      if (expiresAt && Date.now() < new Date(expiresAt).getTime()) {
+        return true; // Sesi masih aktif
+      }
+    }
+  } catch (_) {}
+
+  // Tidak ada sesi aktif — tampilkan modal PIN
+  return showPinGateModal();
+}
+
+/**
+ * Tampilkan modal PIN dan kembalikan Promise yang resolve
+ * true (akses diberikan) atau false (batal/kembali).
+ * @returns {Promise<boolean>}
+ */
+function showPinGateModal() {
+  return new Promise(resolve => {
+    const overlay  = document.getElementById('pin-gate-overlay');
+    const input    = document.getElementById('pin-gate-input');
+    const errorEl  = document.getElementById('pin-gate-error');
+    const submitBtn = document.getElementById('pin-gate-submit');
+    const cancelBtn = document.getElementById('pin-gate-cancel');
+
+    overlay.classList.remove('hidden');
+    input.value = '';
+    input.focus();
+    errorEl.classList.add('hidden');
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.classList.remove('hidden');
+      input.classList.add('border-red-400');
+      input.focus();
+    }
+    function clearError() {
+      errorEl.classList.add('hidden');
+      input.classList.remove('border-red-400');
+    }
+
+    async function handleSubmit() {
+      const pin = input.value.trim();
+      if (!pin) { showError('PIN tidak boleh kosong.'); return; }
+
+      clearError();
+      Utils.setLoading(submitBtn, true, 'Memverifikasi...');
+
+      const res = await API.accessPin.verify(pin);
+
+      Utils.setLoading(submitBtn, false);
+      submitBtn.innerHTML = '<i class="fa-solid fa-unlock"></i> Buka Akses';
+
+      if (res.success && res.data && res.data.accessGranted) {
+        // Simpan expiresAt ke sessionStorage
+        sessionStorage.setItem(_PIN_ACCESS_KEY, JSON.stringify({
+          expiresAt: res.data.expiresAt,
+        }));
+        overlay.classList.add('hidden');
+        cleanup();
+        resolve(true);
+      } else {
+        const code = res.errorCode || '';
+        if (code === 'PIN_EXPIRED') {
+          showError('PIN sudah kedaluwarsa. Minta PIN baru ke admin.');
+        } else {
+          showError(res.message || 'PIN tidak sesuai. Coba lagi.');
+        }
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    function handleCancel() {
+      overlay.classList.add('hidden');
+      cleanup();
+      resolve(false);
+      // Panitia yang batal dikembalikan ke halaman hasil
+      window.location.replace('./results.html');
+    }
+
+    function handleKeydown(e) {
+      if (e.key === 'Enter') handleSubmit();
+    }
+
+    submitBtn.addEventListener('click', handleSubmit);
+    cancelBtn.addEventListener('click', handleCancel);
+    input.addEventListener('keydown', handleKeydown);
+    input.addEventListener('input', clearError);
+
+    function cleanup() {
+      submitBtn.removeEventListener('click', handleSubmit);
+      cancelBtn.removeEventListener('click', handleCancel);
+      input.removeEventListener('keydown', handleKeydown);
+      input.removeEventListener('input', clearError);
+    }
+  });
+}
+
+// ── Access Timer (2 menit) ─────────────────────────────────
+
+/**
+ * Mulai countdown 2 menit. Ambil expiresAt dari sessionStorage
+ * agar konsisten dengan waktu yang dikembalikan backend.
+ * Saat habis → redirect ke results.html.
+ */
+function startAccessTimer() {
+  let expiresAt;
+  try {
+    const stored = sessionStorage.getItem(_PIN_ACCESS_KEY);
+    if (stored) {
+      expiresAt = new Date(JSON.parse(stored).expiresAt).getTime();
+    }
+  } catch (_) {}
+
+  if (!expiresAt) {
+    // Fallback: hitung dari sekarang
+    expiresAt = Date.now() + _PIN_ACCESS_SEC * 1000;
+  }
+
+  const timerBar      = document.getElementById('access-timer-bar');
+  const countdownEl   = document.getElementById('access-countdown');
+  const progressEl    = document.getElementById('access-progress');
+  timerBar.classList.remove('hidden');
+
+  function tick() {
+    const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+    const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+    const ss = String(remaining % 60).padStart(2, '0');
+    countdownEl.textContent = mm + ':' + ss;
+
+    const pct = Math.min(100, Math.round((remaining / _PIN_ACCESS_SEC) * 100));
+    progressEl.style.width = pct + '%';
+    progressEl.className = 'progress-fill transition-all duration-1000 ' +
+      (remaining <= 30 ? 'bg-red-500' : remaining <= 60 ? 'bg-orange-400' : 'bg-amber-400');
+
+    if (remaining <= 0) {
+      clearInterval(_accessTimerId);
+      sessionStorage.removeItem(_PIN_ACCESS_KEY);
+      Toast.warning('Sesi akses panitia telah berakhir.');
+      setTimeout(() => { window.location.replace('./results.html'); }, 1200);
+    }
+  }
+
+  tick();
+  _accessTimerId = setInterval(tick, 1000);
+}
 
 async function loadElectionOptions() {
   const res = await API.election.getAll();
