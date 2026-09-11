@@ -10,307 +10,608 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="/assets/css/tailwind.css"/>
-</head>
-<body class="h-full bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 min-h-screen">
+  <style>
+    /*
+     * Inline styles hanya untuk hal yang tidak dapat ditangani murni Tailwind
+     * (custom opacity value, scroll isolation, safe-area padding).
+     */
 
+    /* Fix: bg-white/3 tidak compile di Tailwind v3 — gunakan rgba manual */
+    .deco-circle-center {
+      background: rgba(255,255,255,0.03);
+    }
+
+    /* Pastikan halaman bisa scroll di mobile tanpa horizontal overflow */
+    body {
+      overflow-x: hidden;
+    }
+
+    /* Animasi masuk kartu login */
+    @keyframes cardEntrance {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .card-entrance {
+      animation: cardEntrance 0.4s ease-out both;
+    }
+
+    /* Skeleton shimmer untuk banner election info */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, rgba(255,255,255,0.08) 25%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.08) 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 1rem;
+    }
+
+    /* Warna banner status pemilihan */
+    .banner-active   { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); }
+    .banner-upcoming { background: rgba(253,224,71,0.18);  border: 1px solid rgba(253,224,71,0.30); }
+    .banner-none     { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); }
+
+    /* Tombol toggle PIN — area sentuh yang lebih besar di mobile */
+    #toggle-pin {
+      min-width: 2.5rem;
+      min-height: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Input date: icon kalender tidak tertutup teks */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      opacity: 0.5;
+      cursor: pointer;
+    }
+
+    /* Override btn-primary untuk state sukses tanpa konflik spesifisitas */
+    .btn-login-success {
+      background-color: #16a34a !important;
+      border-color: #16a34a !important;
+      cursor: default;
+    }
+    .btn-login-success:hover {
+      background-color: #15803d !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700">
+
+<!-- Toast container -->
 <div id="toast-container"></div>
 
-<!-- Background decoration -->
+<!-- Aria-live region untuk error login (aksesibilitas screen reader) -->
+<div
+  id="sr-announcer"
+  role="status"
+  aria-live="polite"
+  aria-atomic="true"
+  class="sr-only"
+></div>
+
+<!-- ── Background Decoration ─────────────────────────────────── -->
 <div class="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-  <div class="absolute -top-40 -right-40 w-96 h-96 bg-white/5 rounded-full"></div>
-  <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-white/5 rounded-full"></div>
-  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/3 rounded-full"></div>
+  <div class="absolute -top-40 -right-40 w-80 h-80 sm:w-96 sm:h-96 bg-white/5 rounded-full"></div>
+  <div class="absolute -bottom-40 -left-40 w-80 h-80 sm:w-96 sm:h-96 bg-white/5 rounded-full"></div>
+  <!-- Fix #16: bg-white/3 tidak didukung Tailwind v3 → class inline -->
+  <div class="deco-circle-center absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] lg:w-[700px] lg:h-[700px] rounded-full"></div>
 </div>
 
-<!-- Main layout -->
-<div class="relative min-h-screen flex flex-col lg:flex-row">
+<!-- ── Main Layout ────────────────────────────────────────────── -->
+<!-- Fix #10: tambah overflow-y-auto agar mobile dapat scroll vertical tanpa terpotong -->
+<div class="relative min-h-screen flex flex-col lg:flex-row overflow-y-auto">
 
-  <!-- Left panel — branding -->
-  <div class="lg:flex-1 flex flex-col items-center justify-center px-8 py-10 text-white text-center lg:text-left lg:items-start">
-    <!-- Logo -->
-    <div class="mb-6 flex items-center justify-center lg:justify-start gap-3">
-      <div class="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
-        <i class="fa-solid fa-box-ballot text-2xl text-white"></i>
+  <!-- ── LEFT PANEL — Branding ──────────────────────────────── -->
+  <!-- Fix #18: di mobile, batasi tinggi panel branding & beri padding yang proporsional -->
+  <div class="lg:flex-1 flex flex-col items-center justify-center px-6 sm:px-10 pt-8 pb-6 lg:py-12
+              text-white text-center lg:text-left lg:items-start">
+
+    <!-- Logo & App Name -->
+    <div class="mb-5 flex items-center justify-center lg:justify-start gap-3">
+      <div class="w-12 h-12 sm:w-14 sm:h-14 bg-white/20 backdrop-blur rounded-2xl
+                  flex items-center justify-center flex-shrink-0 shadow-lg">
+        <i class="fa-solid fa-box-ballot text-xl sm:text-2xl text-white"></i>
       </div>
       <div class="text-left">
-        <p class="text-white/70 text-xs uppercase tracking-widest font-medium" data-school-name>Sekolah/Madrasah</p>
-        <h1 class="text-xl font-bold" data-app-name>eVoting OSIM</h1>
+        <!-- Fix #9: tampilkan teks default lebih informatif, akan di-replace loadAppConfig() -->
+        <p class="text-white/70 text-xs uppercase tracking-widest font-medium leading-tight"
+           data-school-name><!-- diisi loadAppConfig --></p>
+        <h1 class="text-lg sm:text-xl font-bold leading-tight" data-app-name>eVoting OSIM</h1>
       </div>
     </div>
 
-    <h2 class="text-3xl lg:text-4xl font-extrabold leading-tight mb-3 text-balance" data-app-subtitle>
+    <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold leading-tight mb-3 text-balance"
+        data-app-subtitle>
       Pemilihan Ketua OSIM/S
     </h2>
-    <p class="text-white/70 text-base mb-8 max-w-md">
-      Gunakan NISN, tempat &amp; tanggal lahir, serta PIN yang diberikan panitia untuk masuk ke sistem pemilihan.
+
+    <p class="text-white/70 text-sm sm:text-base mb-6 max-w-md leading-relaxed">
+      Gunakan NISN, tempat &amp; tanggal lahir, serta PIN yang diberikan panitia
+      untuk masuk ke sistem pemilihan.
     </p>
 
-    <!-- Election info banner -->
-    <div id="election-info" class="hidden w-full max-w-md bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-4 text-sm">
-      <div class="flex items-start gap-3">
-        <i class="fa-solid fa-calendar-check text-white/80 mt-0.5 flex-shrink-0"></i>
-        <div>
-          <p class="font-semibold" id="election-title">Pemilihan berlangsung</p>
-          <p class="text-white/70 text-xs mt-0.5" id="election-period"></p>
+    <!-- Election Status Banner Area -->
+    <!-- Fix #7: skeleton loading saat fetch election info berlangsung -->
+    <div id="election-banner-area" class="w-full max-w-md">
+
+      <!-- Skeleton: tampil dulu, disembunyikan setelah data datang -->
+      <div id="election-skeleton" class="skeleton-shimmer h-14 w-full"></div>
+
+      <!-- Banner: Pemilihan Aktif -->
+      <div id="election-info"
+           class="hidden banner-active backdrop-blur rounded-2xl p-4 text-sm">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+            <i class="fa-solid fa-calendar-check text-white text-sm"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="font-semibold text-white truncate" id="election-title">Pemilihan berlangsung</p>
+            <p class="text-white/70 text-xs mt-0.5 leading-relaxed" id="election-period"></p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Upcoming banner -->
-    <div id="upcoming-info" class="hidden w-full max-w-md bg-yellow-400/20 backdrop-blur border border-yellow-300/30 rounded-2xl p-4 text-sm text-yellow-100">
-      <div class="flex items-start gap-3">
-        <i class="fa-solid fa-clock mt-0.5 flex-shrink-0"></i>
-        <div>
-          <p class="font-semibold">Pemilihan Akan Segera Dimulai</p>
-          <p class="text-yellow-100/80 text-xs mt-0.5" id="upcoming-text"></p>
+      <!-- Banner: Pemilihan Akan Datang -->
+      <div id="upcoming-info"
+           class="hidden banner-upcoming backdrop-blur rounded-2xl p-4 text-sm text-yellow-50">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 bg-yellow-300/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+            <i class="fa-solid fa-clock text-yellow-200 text-sm"></i>
+          </div>
+          <div class="min-w-0">
+            <p class="font-semibold">Pemilihan Akan Segera Dimulai</p>
+            <p class="text-yellow-100/80 text-xs mt-0.5 leading-relaxed" id="upcoming-text"></p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- No election banner -->
-    <div id="no-election-info" class="hidden w-full max-w-md bg-white/10 border border-white/20 rounded-2xl p-4 text-sm text-white/80">
-      <div class="flex items-center gap-3">
-        <i class="fa-solid fa-info-circle flex-shrink-0"></i>
-        <p>Belum ada pemilihan yang aktif saat ini.</p>
+      <!-- Banner: Tidak Ada Pemilihan -->
+      <div id="no-election-info"
+           class="hidden banner-none backdrop-blur rounded-2xl p-4 text-sm text-white/70">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-circle-info text-white/60 text-sm"></i>
+          </div>
+          <p>Belum ada pemilihan yang aktif saat ini.</p>
+        </div>
       </div>
-    </div>
-  </div>
 
-  <!-- Right panel — login form -->
-  <div class="lg:w-[460px] flex items-center justify-center p-4 lg:p-8">
-    <div class="w-full max-w-md">
-      <div class="card shadow-2xl">
-        <div class="card-body py-8 px-6 lg:px-8">
+    </div><!-- /#election-banner-area -->
+  </div><!-- /LEFT PANEL -->
+
+  <!-- ── RIGHT PANEL — Login Form ──────────────────────────── -->
+  <!-- Fix #10: di mobile pastikan form tidak terbuang ke bawah viewport -->
+  <div class="lg:w-[480px] flex items-center justify-center p-4 sm:p-6 lg:p-8 pb-10 lg:pb-8">
+    <div class="w-full max-w-md card-entrance">
+
+      <!-- Card -->
+      <div class="card shadow-2xl border-0 ring-1 ring-white/10">
+        <div class="card-body py-8 px-6 sm:px-8">
+
+          <!-- Form Header -->
           <div class="text-center mb-7">
-            <div class="inline-flex items-center justify-center w-12 h-12 bg-primary-100 rounded-xl mb-3">
+            <div class="inline-flex items-center justify-center w-12 h-12
+                        bg-primary-50 rounded-xl mb-4 shadow-sm">
               <i class="fa-solid fa-right-to-bracket text-primary-600 text-xl"></i>
             </div>
             <h3 class="text-xl font-bold text-gray-800">Masuk sebagai Pemilih</h3>
             <p class="text-gray-500 text-sm mt-1">Isikan data diri Anda untuk melanjutkan</p>
           </div>
 
-          <form id="login-form" novalidate>
+          <!-- Login Form -->
+          <!-- Fix #6: tambah autocomplete="off" di level form juga -->
+          <form id="login-form" novalidate autocomplete="off">
+
             <!-- NISN -->
             <div class="form-group">
-              <label class="form-label" for="nisn">NISN <span class="text-red-500">*</span></label>
+              <label class="form-label" for="nisn">
+                NISN <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
               <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-id-card fa-sm"></i></span>
-                <input type="text" id="nisn" name="nisn" inputmode="numeric" pattern="\d{10}"
-                  class="form-input pl-9" placeholder="Masukkan 10 digit NISN" maxlength="10" autocomplete="off"/>
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      aria-hidden="true">
+                  <i class="fa-solid fa-id-card fa-sm"></i>
+                </span>
+                <input
+                  type="text"
+                  id="nisn"
+                  name="nisn"
+                  inputmode="numeric"
+                  pattern="\d{10}"
+                  class="form-input pl-9"
+                  placeholder="10 digit NISN"
+                  maxlength="10"
+                  autocomplete="off"
+                  aria-required="true"
+                  aria-describedby="nisn-error"
+                />
               </div>
-              <p class="form-error hidden" id="nisn-error"></p>
+              <p class="form-error hidden" id="nisn-error" role="alert"></p>
             </div>
 
             <!-- Tempat Lahir -->
             <div class="form-group">
-              <label class="form-label" for="birthPlace">Tempat Lahir <span class="text-red-500">*</span></label>
+              <label class="form-label" for="birthPlace">
+                Tempat Lahir <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
               <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-location-dot fa-sm"></i></span>
-                <input type="text" id="birthPlace" name="birthPlace"
-                  class="form-input pl-9" placeholder="Contoh: Jakarta" autocomplete="off"/>
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      aria-hidden="true">
+                  <i class="fa-solid fa-location-dot fa-sm"></i>
+                </span>
+                <input
+                  type="text"
+                  id="birthPlace"
+                  name="birthPlace"
+                  class="form-input pl-9"
+                  placeholder="Contoh: Jakarta"
+                  autocomplete="off"
+                  aria-required="true"
+                  aria-describedby="birthPlace-error"
+                />
               </div>
-              <p class="form-error hidden" id="birthPlace-error"></p>
+              <p class="form-error hidden" id="birthPlace-error" role="alert"></p>
             </div>
 
             <!-- Tanggal Lahir -->
             <div class="form-group">
-              <label class="form-label" for="birthDate">Tanggal Lahir <span class="text-red-500">*</span></label>
+              <label class="form-label" for="birthDate">
+                Tanggal Lahir <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
               <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><i class="fa-solid fa-calendar fa-sm"></i></span>
-                <input type="date" id="birthDate" name="birthDate"
-                  class="form-input pl-9" autocomplete="off"/>
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      aria-hidden="true">
+                  <i class="fa-solid fa-calendar fa-sm"></i>
+                </span>
+                <input
+                  type="date"
+                  id="birthDate"
+                  name="birthDate"
+                  class="form-input pl-9"
+                  autocomplete="off"
+                  aria-required="true"
+                  aria-describedby="birthDate-error"
+                />
               </div>
-              <p class="form-error hidden" id="birthDate-error"></p>
+              <p class="form-error hidden" id="birthDate-error" role="alert"></p>
             </div>
 
             <!-- PIN -->
-            <div class="form-group">
-              <label class="form-label" for="pin">PIN Pemilih <span class="text-red-500">*</span></label>
+            <div class="form-group mb-2">
+              <label class="form-label" for="pin">
+                PIN Pemilih <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
               <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><i class="fa-solid fa-lock fa-sm"></i></span>
-                <input type="password" id="pin" name="pin" inputmode="numeric" pattern="\d{5}"
-                  class="form-input pl-9 pr-10" placeholder="5 digit PIN" maxlength="5" autocomplete="off"/>
-                <button type="button" id="toggle-pin" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Tampilkan PIN">
-                  <i class="fa-solid fa-eye fa-sm"></i>
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      aria-hidden="true">
+                  <i class="fa-solid fa-lock fa-sm"></i>
+                </span>
+                <!--
+                  Fix #3: inputmode="numeric" + type="password" kombinasi ini aman,
+                  sudah didukung mayoritas browser mobile modern.
+                  Tidak perlu type="tel" karena "tel" memunculkan keyboard berbeda
+                  dan tidak menyembunyikan karakter.
+                -->
+                <input
+                  type="password"
+                  id="pin"
+                  name="pin"
+                  inputmode="numeric"
+                  pattern="\d{5}"
+                  class="form-input pl-9 pr-12"
+                  placeholder="5 digit PIN"
+                  maxlength="5"
+                  autocomplete="off"
+                  aria-required="true"
+                  aria-describedby="pin-error pin-hint"
+                />
+                <!-- Fix #14: aria-label diupdate via JS saat state berubah -->
+                <button
+                  type="button"
+                  id="toggle-pin"
+                  class="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400
+                         hover:text-primary-600 focus:text-primary-600
+                         transition-colors focus:outline-none rounded-r-lg"
+                  aria-label="Tampilkan PIN"
+                  aria-pressed="false"
+                >
+                  <i class="fa-solid fa-eye fa-sm" id="toggle-pin-icon"></i>
                 </button>
               </div>
-              <p class="form-error hidden" id="pin-error"></p>
-              <p class="form-hint">PIN 5 digit diberikan oleh panitia pemilihan.</p>
+              <p class="form-error hidden" id="pin-error" role="alert"></p>
+              <p class="form-hint" id="pin-hint">PIN 5 digit diberikan oleh panitia pemilihan.</p>
             </div>
 
-            <!-- Error global -->
-            <div id="login-error" class="alert alert-error hidden mb-4">
-              <i class="fa-solid fa-circle-xmark flex-shrink-0"></i>
+            <!-- Global Error Alert -->
+            <!-- Fix #2: role="alert" + aria-live="assertive" agar screen reader announce otomatis -->
+            <div
+              id="login-error"
+              class="alert alert-error hidden mt-4 mb-1"
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+            >
+              <i class="fa-solid fa-circle-xmark flex-shrink-0 mt-0.5" aria-hidden="true"></i>
               <span id="login-error-text"></span>
             </div>
 
-            <button type="submit" id="login-btn" class="btn btn-primary btn-lg w-full mt-2">
-              <i class="fa-solid fa-right-to-bracket"></i>
+            <!-- Submit Button -->
+            <button
+              type="submit"
+              id="login-btn"
+              class="btn btn-primary btn-lg w-full mt-5"
+            >
+              <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
               Masuk &amp; Mulai Memilih
             </button>
-          </form>
 
+          </form><!-- /#login-form -->
+
+          <!-- Footer Info -->
           <div class="mt-6 pt-5 border-t border-gray-100 text-center">
-            <p class="text-xs text-gray-400">
-              Lupa PIN atau ada masalah? <br/>
-              Hubungi panitia pemilihan di sekolah Anda.
-            </p>
+            <div class="flex items-start justify-center gap-2 text-xs text-gray-400">
+              <i class="fa-solid fa-circle-question mt-0.5 flex-shrink-0 text-gray-300"></i>
+              <p>
+                Lupa PIN atau ada kendala? Hubungi panitia pemilihan di sekolah Anda.
+              </p>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Admin link -->
+        </div><!-- /card-body -->
+      </div><!-- /card -->
+
+      <!-- Admin Link -->
       <p class="text-center text-white/50 text-xs mt-4">
-        Panitia/Admin?
-        <a href="/admin/login.html" class="text-white/80 hover:text-white underline transition-colors">Masuk ke panel admin</a>
+        Panitia / Admin?
+        <a href="/admin/login.html"
+           class="text-white/80 hover:text-white underline underline-offset-2 transition-colors">
+          Masuk ke panel admin
+        </a>
       </p>
-    </div>
-  </div>
-</div>
 
+    </div><!-- /max-w-md wrapper -->
+  </div><!-- /RIGHT PANEL -->
+
+</div><!-- /Main Layout -->
+
+<!-- ── Scripts ────────────────────────────────────────────────── -->
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/utils.js"></script>
 <script src="/assets/js/api.js"></script>
 <script src="/assets/js/auth.js"></script>
 <script src="/assets/js/components.js"></script>
 <script>
+/* =============================================================
+   Halaman Login Voter — index.html
+   Logic utama: guard, init event, election info, login handler
+   ============================================================= */
+
 (async () => {
-  // Redirect jika sudah login
+
+  // ── 1. Guard: redirect jika sudah login ─────────────────
   if (Auth.redirectIfLoggedIn()) return;
 
-  // Muat config aplikasi
+  // ── 2. Muat config & info election secara paralel ───────
+  //    Keduanya non-blocking; halaman tetap interaktif saat fetch berlangsung.
   loadAppConfig();
-
-  // Muat info election aktif
   loadElectionInfo();
 
-  // Toggle PIN visibility
-  const togglePin = document.getElementById('toggle-pin');
-  const pinInput  = document.getElementById('pin');
-  togglePin.addEventListener('click', () => {
-    const show = pinInput.type === 'password';
-    pinInput.type = show ? 'text' : 'password';
-    togglePin.querySelector('i').className = `fa-solid fa-${show ? 'eye-slash' : 'eye'} fa-sm`;
+  // ── 3. Toggle visibilitas PIN ────────────────────────────
+  // Fix #14: aria-label + aria-pressed ikut berubah saat toggle
+  const togglePinBtn  = document.getElementById('toggle-pin');
+  const togglePinIcon = document.getElementById('toggle-pin-icon');
+  const pinInput      = document.getElementById('pin');
+
+  togglePinBtn.addEventListener('click', () => {
+    const isPassword = pinInput.type === 'password';
+    pinInput.type = isPassword ? 'text' : 'password';
+    togglePinIcon.className = `fa-solid fa-${isPassword ? 'eye-slash' : 'eye'} fa-sm`;
+    togglePinBtn.setAttribute('aria-label',   isPassword ? 'Sembunyikan PIN' : 'Tampilkan PIN');
+    togglePinBtn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
   });
 
-  // Clear error on input change
-  ['nisn','birthPlace','birthDate','pin'].forEach(id => {
-    const el = document.getElementById(id);
+  // ── 4. Clear error on input change ──────────────────────
+  ['nisn', 'birthPlace', 'birthDate', 'pin'].forEach(fieldId => {
+    const el = document.getElementById(fieldId);
     if (!el) return;
-    el.addEventListener('input', () => {
-      el.classList.remove('form-input-error');
-      const errEl = document.getElementById(id + '-error');
-      if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
-      document.getElementById('login-error').classList.add('hidden');
-    });
+    el.addEventListener('input', () => clearFieldError(fieldId));
   });
 
-  // Form submit
+  // ── 5. Form submit ───────────────────────────────────────
   document.getElementById('login-form').addEventListener('submit', handleLogin);
+
 })();
 
+
+/* =============================================================
+   ELECTION INFO LOADER
+   ============================================================= */
+
 async function loadElectionInfo() {
+  const skeleton     = document.getElementById('election-skeleton');
+  const elBanner     = document.getElementById('election-info');
+  const upBanner     = document.getElementById('upcoming-info');
+  const noBanner     = document.getElementById('no-election-info');
+
+  function hideSkeleton() {
+    if (skeleton) skeleton.style.display = 'none';
+  }
+
   try {
     const res = await API.election.getActive();
+
+    hideSkeleton();
+
     if (res.success && res.data) {
       const d = res.data;
+
       if (d.active && d.election) {
-        const elBanner = document.getElementById('election-info');
-        const title    = document.getElementById('election-title');
-        const period   = document.getElementById('election-period');
-        title.textContent  = d.election.title;
+        // Pemilihan sedang berlangsung
+        document.getElementById('election-title').textContent =
+          d.election.title || 'Pemilihan sedang berlangsung';
         const start = Utils.formatDateTime(d.election.startDate);
         const end   = Utils.formatDateTime(d.election.endDate);
-        period.textContent = start + ' s/d ' + end;
+        document.getElementById('election-period').textContent =
+          start + ' s/d ' + end;
         elBanner.classList.remove('hidden');
+
       } else if (d.upcoming && d.election) {
-        const upBanner = document.getElementById('upcoming-info');
-        const txt      = document.getElementById('upcoming-text');
-        txt.textContent = 'Dimulai pada ' + Utils.formatDateTime(d.election.startDate);
+        // Pemilihan akan datang
+        document.getElementById('upcoming-text').textContent =
+          'Dimulai pada ' + Utils.formatDateTime(d.election.startDate);
         upBanner.classList.remove('hidden');
+
       } else {
-        // success: true tapi tidak ada election aktif/upcoming
-        document.getElementById('no-election-info').classList.remove('hidden');
+        // Tidak ada pemilihan aktif/upcoming
+        noBanner.classList.remove('hidden');
       }
-    } else if (res.errorCode === 'NETWORK_ERROR') {
-      // Jangan tampilkan "belum ada pemilihan" jika hanya network error
-      // Cukup diam — tidak ada state yang di-tampilkan
-      console.warn('[Election Info] Network error, tidak dapat memuat status pemilihan.');
+
+    } else if (res.errorCode === 'NETWORK_ERROR' || res.errorCode === 'CONFIG_ERROR') {
+      // Jaringan bermasalah / GAS URL belum dikonfigurasi —
+      // Jangan tampilkan "belum ada pemilihan", biarkan kosong (silent fail).
+      hideSkeleton();
+
     } else {
-      // Election benar-benar tidak ada atau tidak aktif
-      document.getElementById('no-election-info').classList.remove('hidden');
+      // Respons sukses:false tapi bukan network error → anggap tidak ada election
+      noBanner.classList.remove('hidden');
     }
+
   } catch (_) {
     // Silent fail — jangan crash halaman login karena gagal load info election
+    hideSkeleton();
   }
 }
 
+
+/* =============================================================
+   LOGIN HANDLER
+   ============================================================= */
+
 async function handleLogin(e) {
   e.preventDefault();
-  const form    = e.target;
-  const btn     = document.getElementById('login-btn');
-  const errBox  = document.getElementById('login-error');
-  const errText = document.getElementById('login-error-text');
 
-  // Ambil nilai
+  const btn      = document.getElementById('login-btn');
+  const errBox   = document.getElementById('login-error');
+  const errText  = document.getElementById('login-error-text');
+  const srAnn    = document.getElementById('sr-announcer');
+
+  // ── Ambil & bersihkan nilai input ──────────────────────
   const nisn       = document.getElementById('nisn').value.trim();
+  // Fix #4: trim birthPlace sebelum validasi — cegah spasi-only lolos
   const birthPlace = document.getElementById('birthPlace').value.trim();
   const birthDate  = document.getElementById('birthDate').value.trim();
   const pin        = document.getElementById('pin').value.trim();
 
-  // Validasi frontend (defense-in-depth, validasi utama tetap di backend)
+  // ── Sembunyikan error global sebelum validasi baru ─────
+  errBox.classList.add('hidden');
+
+  // ── Validasi frontend ───────────────────────────────────
   let hasError = false;
 
   if (!/^\d{10}$/.test(nisn)) {
-    showError('nisn', 'NISN harus 10 digit angka.'); hasError = true;
+    showFieldError('nisn', 'NISN harus 10 digit angka.');
+    hasError = true;
   }
+  // Fix #4: cek birthPlace setelah trim
   if (!birthPlace) {
-    showError('birthPlace', 'Tempat lahir tidak boleh kosong.'); hasError = true;
+    showFieldError('birthPlace', 'Tempat lahir tidak boleh kosong.');
+    hasError = true;
   }
   if (!birthDate) {
-    showError('birthDate', 'Tanggal lahir tidak boleh kosong.'); hasError = true;
+    showFieldError('birthDate', 'Tanggal lahir tidak boleh kosong.');
+    hasError = true;
   }
   if (!/^\d{5}$/.test(pin)) {
-    showError('pin', 'PIN harus 5 digit angka.'); hasError = true;
+    showFieldError('pin', 'PIN harus 5 digit angka.');
+    hasError = true;
   }
+
   if (hasError) return;
 
+  // ── Loading state ───────────────────────────────────────
   Utils.setLoading(btn, true, 'Memverifikasi...');
-  errBox.classList.add('hidden');
 
   try {
     const res = await API.auth.voterLogin({ nisn, birthPlace, birthDate, pin });
 
     if (res.success) {
+
       Auth.setVoterSession(res.data);
+
+      // Fix #12: disable tombol dulu sebelum ubah innerHTML
+      //          agar tidak ada window double-click
+      btn.disabled = true;
+
+      // Fix #5: gunakan class CSS khusus, bukan class Tailwind arbitrary
+      //         yang konflik dengan btn-primary via spesifisitas
       Utils.setLoading(btn, false);
-      btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Berhasil! Mengarahkan...';
-      btn.classList.add('bg-green-600', 'hover:bg-green-700');
+      btn.disabled = true; // tetap disabled, kita yang kontrol
+      btn.classList.add('btn-login-success');
+      btn.innerHTML =
+        '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> Berhasil! Mengarahkan...';
+
+      // Umumkan ke screen reader
+      if (srAnn) srAnn.textContent = 'Login berhasil. Anda akan diarahkan.';
 
       setTimeout(() => {
-        if (res.data.voter && res.data.voter.hasVoted) {
+        if (res.data && res.data.voter && res.data.voter.hasVoted) {
           window.location.href = '/success.html';
         } else {
           window.location.href = '/voting.html';
         }
       }, 800);
+
     } else {
+      // Login gagal
       Utils.setLoading(btn, false);
-      errText.textContent = res.message || 'Login gagal. Periksa kembali data Anda.';
+      const msg = res.message || 'Login gagal. Periksa kembali data Anda.';
+      errText.textContent = msg;
       errBox.classList.remove('hidden');
+
+      // Fix #2: umumkan pesan error ke screen reader via aria-live
+      if (srAnn) srAnn.textContent = msg;
     }
+
   } catch (err) {
     Utils.setLoading(btn, false);
-    errText.textContent = 'Gagal menghubungi server. Silakan coba lagi.';
+    const msg = 'Gagal menghubungi server. Periksa koneksi Anda dan coba lagi.';
+    errText.textContent = msg;
     errBox.classList.remove('hidden');
+    if (srAnn) srAnn.textContent = msg;
   }
 }
 
-function showError(id, msg) {
-  const input = document.getElementById(id);
-  const errEl = document.getElementById(id + '-error');
+
+/* =============================================================
+   FIELD ERROR HELPERS
+   ============================================================= */
+
+/** Tampilkan error pada satu field */
+function showFieldError(fieldId, msg) {
+  const input = document.getElementById(fieldId);
+  const errEl = document.getElementById(fieldId + '-error');
   if (input) input.classList.add('form-input-error');
-  if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+  if (errEl) {
+    errEl.textContent = msg;
+    errEl.classList.remove('hidden');
+  }
+}
+
+/** Hapus error pada satu field */
+function clearFieldError(fieldId) {
+  const input = document.getElementById(fieldId);
+  const errEl = document.getElementById(fieldId + '-error');
+  if (input) input.classList.remove('form-input-error');
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.classList.add('hidden');
+  }
+  // Sembunyikan juga error global ketika user mulai mengetik ulang
+  const errBox = document.getElementById('login-error');
+  if (errBox) errBox.classList.add('hidden');
 }
 </script>
 </body>
