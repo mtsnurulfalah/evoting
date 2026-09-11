@@ -10,10 +10,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
   <style>
-    /* FIX #26: cegah horizontal overflow */
-    body { overflow-x: hidden; }
+    /* ── Prevent horizontal overflow ─────────────────── */
+    html, body { overflow-x: hidden; }
 
-    /* FIX #24: info field read-only — tampilan berbeda dari input agar tidak membingungkan */
+    /* ── Info field (read-only, bukan input) ─────────── */
     .info-field {
       display: flex;
       align-items: center;
@@ -23,35 +23,123 @@
       border: 1px solid #e5e7eb;
       border-radius: 0.5rem;
       font-size: 0.875rem;
-      color: #6b7280;
-      min-height: 2.5rem;
+      color: #374151;
+      min-height: 2.625rem;
+      line-height: 1.4;
+    }
+    .info-field .info-value {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    /* FIX #18: dirty state indicator */
-    .profile-name-wrap.is-dirty #name-dirty-dot {
-      display: inline-block;
-    }
-    #name-dirty-dot {
-      display: none;
-    }
+    /* ── Dirty state dot ─────────────────────────────── */
+    #name-dirty-dot { display: none; }
+    .profile-name-wrap.is-dirty #name-dirty-dot { display: inline-block; }
 
-    /* Avatar upload overlay */
-    #avatar-upload-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.45);
+    /* ── Avatar container ────────────────────────────── */
+    #avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+      width: 7rem;   /* 112px */
+      height: 7rem;
+    }
+    #profile-avatar-large {
+      width: 100%;
+      height: 100%;
+      border-radius: 9999px;
+      overflow: hidden;
+      background: #e0e7ff;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 9999px;
+      border: 4px solid #fff;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      outline: 3px solid #e0e7ff;
     }
+
+    /* ── Avatar upload overlay ───────────────────────── */
+    #avatar-upload-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.48);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9999px;
+      z-index: 2;
+    }
+    #avatar-upload-overlay.active {
+      display: flex;
+    }
+
+    /* ── Password section divider ────────────────────── */
+    .pw-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0.25rem 0;
+    }
+    .pw-divider::before,
+    .pw-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #f3f4f6;
+    }
+    .pw-divider span {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      white-space: nowrap;
+    }
+
+    /* ── Card overrides — responsive padding ─────────── */
+    @media (max-width: 480px) {
+      .card-body  { padding-left: 1rem; padding-right: 1rem; }
+      .card-header { padding-left: 1rem; padding-right: 1rem; }
+    }
+
+    /* ── Strength bars ───────────────────────────────── */
+    .strength-bar {
+      height: 4px;
+      flex: 1;
+      border-radius: 9999px;
+      background: #e5e7eb;
+      transition: background-color 0.3s ease;
+    }
+
+    /* ── Confirm match indicator ─────────────────────── */
+    #confirm-match-icon { transition: opacity 0.2s; }
+
+    /* ── Section badge ───────────────────────────────── */
+    .section-icon-wrap {
+      width: 1.875rem;
+      height: 1.875rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ── Smooth scroll snap for sections ─────────────── */
+    .profile-section { scroll-margin-top: 4.5rem; }
   </style>
 </head>
 <body class="h-full bg-gray-50 flex">
-<div id="toast-container"></div>
-<div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden" aria-hidden="true"></div>
 
-<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+<div id="sidebar-overlay"
+     class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"
+     aria-hidden="true"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════════════════════ -->
 <aside id="sidebar"
        class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col
               transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto"
@@ -67,15 +155,18 @@
       </div>
     </div>
   </div>
+
   <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto" aria-label="Menu utama"></nav>
+
   <div class="p-3 border-t border-gray-100">
     <div class="flex items-center gap-3 px-2 py-2 rounded-lg">
       <div id="topbar-user-avatar"
-           class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary-100 flex items-center justify-center"
+           class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary-100
+                  flex items-center justify-center"
            aria-hidden="true"></div>
       <div class="flex-1 min-w-0">
         <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
-        <p class="text-xs text-gray-500" id="topbar-user-role"></p>
+        <p class="text-xs text-gray-500 truncate" id="topbar-user-role"></p>
       </div>
       <button id="topbar-logout-btn"
               class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
@@ -86,233 +177,326 @@
   </div>
 </aside>
 
-<!-- ── Main ─────────────────────────────────────────────────── -->
+<!-- ══════════════════════════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════════════════════════ -->
 <div class="flex-1 flex flex-col min-w-0">
 
   <!-- Topbar -->
-  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-4 sticky top-0 z-20">
+  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-3 sticky top-0 z-20 flex-shrink-0">
     <button id="sidebar-toggle"
-            class="lg:hidden text-gray-500 hover:text-gray-700 p-1 rounded"
+            class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg
+                   hover:bg-gray-100 transition-colors"
             aria-label="Buka sidebar">
-      <i class="fa-solid fa-bars text-lg" aria-hidden="true"></i>
+      <i class="fa-solid fa-bars text-base" aria-hidden="true"></i>
     </button>
-    <h1 class="text-base font-semibold text-gray-800 flex-1">Profil Saya</h1>
+    <div class="flex-1 min-w-0">
+      <h1 class="text-base font-semibold text-gray-800 truncate">Profil Saya</h1>
+    </div>
+    <!-- Hint Ctrl+S -->
+    <span class="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 select-none"
+          aria-label="Tekan Ctrl+S untuk menyimpan cepat">
+      <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-500 font-mono text-[10px]">Ctrl</kbd>
+      <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-gray-500 font-mono text-[10px]">S</kbd>
+      <span>Simpan cepat</span>
+    </span>
   </header>
 
-  <main class="flex-1 p-4 md:p-6 overflow-auto">
+  <!-- Page body -->
+  <main class="flex-1 p-4 md:p-6 overflow-auto" id="main-content">
     <div class="max-w-2xl mx-auto space-y-5">
 
-      <!-- ── Foto Profil ─────────────────────────────────────── -->
-      <div class="card">
+      <!-- ──────────────────────────────────────────────────
+           SECTION 1 — Foto Profil
+      ─────────────────────────────────────────────────── -->
+      <section class="card profile-section" id="section-photo" aria-labelledby="section-photo-title">
         <div class="card-header">
-          <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-            <span class="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
+          <h2 id="section-photo-title"
+              class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+            <span class="section-icon-wrap bg-primary-50">
               <i class="fa-solid fa-image-portrait text-primary-500 text-xs" aria-hidden="true"></i>
             </span>
             Foto Profil
-          </h3>
+          </h2>
         </div>
-        <div class="card-body">
-          <div class="flex flex-col sm:flex-row items-center gap-5">
 
-            <!-- Avatar besar (FIX #1: diisi via DOM API, bukan innerHTML dengan onerror) -->
-            <div class="relative flex-shrink-0">
-              <div id="profile-avatar-large"
-                   class="w-24 h-24 rounded-full overflow-hidden bg-primary-100 flex items-center justify-center
-                          border-4 border-white shadow-md ring-2 ring-primary-100">
-                <!-- Diisi oleh JS via renderLargeAvatar() -->
+        <div class="card-body">
+          <div class="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+
+            <!-- Avatar -->
+            <div id="avatar-wrap" aria-label="Foto profil saat ini">
+              <div id="profile-avatar-large">
+                <!-- diisi JS via renderLargeAvatar() -->
               </div>
-              <!-- FIX #25: overlay upload hanya di avatar, bukan progress bar terpisah -->
-              <div id="avatar-upload-overlay" class="hidden rounded-full" aria-hidden="true">
+              <!-- Loading overlay saat upload -->
+              <div id="avatar-upload-overlay" role="status" aria-label="Mengupload foto...">
                 <div class="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               </div>
             </div>
 
-            <div class="flex-1 space-y-3 w-full">
+            <!-- Controls -->
+            <div class="flex-1 space-y-3 w-full min-w-0">
               <div>
-                <p class="text-sm text-gray-700 font-medium mb-1">Ganti Foto Profil</p>
-                <p class="text-xs text-gray-500">Format: JPEG, PNG, WebP. Maks. 5 MB.</p>
+                <p class="text-sm font-medium text-gray-800">Ganti Foto Profil</p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                  Format JPEG, PNG, atau WebP · Maks. 5 MB
+                </p>
               </div>
+
               <div class="flex flex-wrap gap-2">
-                <!-- FIX #19: label-as-button dengan styling yang konsisten -->
+                <!-- Label-as-button: keyboard Enter/Space ditangani JS -->
                 <label id="btn-pick-photo"
                        class="btn btn-outline btn-sm cursor-pointer gap-1.5"
                        tabindex="0"
                        role="button"
-                       aria-label="Pilih foto profil">
-                  <i class="fa-solid fa-upload text-xs" aria-hidden="true"></i>
+                       aria-label="Pilih foto profil dari perangkat">
+                  <i class="fa-solid fa-arrow-up-from-bracket text-xs" aria-hidden="true"></i>
                   Pilih Foto
-                  <input type="file" id="photo-input"
+                  <input type="file"
+                         id="photo-input"
                          accept="image/jpeg,image/jpg,image/png,image/webp"
-                         class="hidden" aria-hidden="true"/>
+                         class="hidden"
+                         aria-hidden="true"/>
                 </label>
+
                 <button id="btn-remove-photo"
-                        class="btn btn-sm btn-outline text-red-500 border-red-200 hover:bg-red-50 gap-1.5 hidden"
-                        type="button">
+                        class="btn btn-sm btn-outline gap-1.5 text-red-500 border-red-200
+                               hover:bg-red-50 hover:border-red-300 focus:ring-red-400 hidden"
+                        type="button"
+                        aria-label="Hapus foto profil">
                   <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
                   Hapus Foto
                 </button>
               </div>
-              <p id="photo-error" class="form-error hidden text-xs" role="alert"></p>
+
+              <!-- Photo error -->
+              <p id="photo-error"
+                 class="hidden text-xs text-red-600 flex items-center gap-1"
+                 role="alert">
+                <i class="fa-solid fa-circle-exclamation flex-shrink-0" aria-hidden="true"></i>
+                <span id="photo-error-text"></span>
+              </p>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- ── Informasi Akun ──────────────────────────────────── -->
-      <div class="card">
+      <!-- ──────────────────────────────────────────────────
+           SECTION 2 — Informasi Akun
+      ─────────────────────────────────────────────────── -->
+      <section class="card profile-section" id="section-info" aria-labelledby="section-info-title">
         <div class="card-header">
-          <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-            <span class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <h2 id="section-info-title"
+              class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+            <span class="section-icon-wrap bg-blue-50">
               <i class="fa-solid fa-id-badge text-blue-500 text-xs" aria-hidden="true"></i>
             </span>
             Informasi Akun
-          </h3>
+          </h2>
         </div>
+
         <div class="card-body space-y-4">
 
-          <!-- FIX #15 + #18: inline error + dirty dot -->
+          <!-- Nama Tampilan -->
           <div class="form-group mb-0 profile-name-wrap" id="profile-name-wrap">
-            <label class="form-label text-xs" for="f-display-name">
-              Nama Tampilan <span class="text-red-500" aria-hidden="true">*</span>
-              <!-- FIX #18: dirty indicator -->
+            <label class="form-label text-xs flex items-center gap-1.5" for="f-display-name">
+              Nama Tampilan
+              <span class="text-red-500" aria-hidden="true">*</span>
+              <!-- Dirty indicator -->
               <span id="name-dirty-dot"
-                    class="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-amber-400 align-middle"
+                    class="inline-block w-1.5 h-1.5 rounded-full bg-amber-400"
                     title="Ada perubahan yang belum disimpan"
-                    aria-label="Ada perubahan belum disimpan"></span>
+                    aria-label="Ada perubahan yang belum disimpan"></span>
             </label>
-            <input type="text" id="f-display-name" class="form-input"
+            <input type="text"
+                   id="f-display-name"
+                   class="form-input"
                    placeholder="Nama lengkap Anda"
                    maxlength="100"
-                   autocomplete="name"/>
-            <p class="form-error hidden text-xs" id="f-display-name-error" role="alert"></p>
-            <p class="form-hint">Nama yang ditampilkan di sidebar dan halaman admin.</p>
+                   autocomplete="name"
+                   aria-describedby="f-display-name-error f-display-name-hint"/>
+            <p id="f-display-name-error"
+               class="form-error hidden"
+               role="alert"></p>
+            <p id="f-display-name-hint"
+               class="form-hint">
+              Nama yang ditampilkan di sidebar dan seluruh halaman admin.
+            </p>
           </div>
 
-          <!-- FIX #24: gunakan info-field (bukan form-input) agar tidak terlihat editable -->
+          <!-- Username & Role (read-only) -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <p class="form-label text-xs mb-1">
+              <p class="form-label text-xs mb-1.5">
                 Username
-                <span class="text-gray-400 font-normal">(tidak dapat diubah)</span>
+                <span class="text-gray-400 font-normal ml-1">(tidak dapat diubah)</span>
               </p>
               <div class="info-field">
                 <i class="fa-solid fa-at text-gray-400 text-xs flex-shrink-0" aria-hidden="true"></i>
-                <span id="info-username" class="font-mono truncate">—</span>
+                <span id="info-username" class="info-value font-mono">—</span>
               </div>
             </div>
             <div>
-              <p class="form-label text-xs mb-1">
+              <p class="form-label text-xs mb-1.5">
                 Role
-                <span class="text-gray-400 font-normal">(tidak dapat diubah)</span>
+                <span class="text-gray-400 font-normal ml-1">(tidak dapat diubah)</span>
               </p>
               <div class="info-field">
                 <i class="fa-solid fa-shield-halved text-gray-400 text-xs flex-shrink-0" aria-hidden="true"></i>
-                <span id="info-role" class="truncate">—</span>
+                <span id="info-role" class="info-value">—</span>
               </div>
             </div>
           </div>
 
-          <div class="pt-1">
-            <button id="btn-save-profile" type="button" class="btn btn-primary gap-2">
+          <!-- Save button -->
+          <div class="pt-2 flex items-center gap-3 flex-wrap">
+            <button id="btn-save-profile"
+                    type="button"
+                    class="btn btn-primary gap-2">
               <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
               Simpan Perubahan
             </button>
+            <p class="text-xs text-gray-400 hidden sm:block" aria-hidden="true">
+              atau tekan <kbd class="px-1 py-0.5 bg-gray-100 border border-gray-200 rounded font-mono text-[10px]">Ctrl</kbd>+<kbd class="px-1 py-0.5 bg-gray-100 border border-gray-200 rounded font-mono text-[10px]">S</kbd>
+            </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- ── Ganti Password ──────────────────────────────────── -->
-      <div class="card">
+      <!-- ──────────────────────────────────────────────────
+           SECTION 3 — Ganti Password
+      ─────────────────────────────────────────────────── -->
+      <section class="card profile-section" id="section-password" aria-labelledby="section-password-title">
         <div class="card-header">
-          <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-            <span class="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+          <h2 id="section-password-title"
+              class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+            <span class="section-icon-wrap bg-orange-50">
               <i class="fa-solid fa-lock text-orange-500 text-xs" aria-hidden="true"></i>
             </span>
             Ganti Password
-          </h3>
+          </h2>
         </div>
+
         <div class="card-body space-y-4">
 
-          <!-- FIX #14: inline error di setiap field -->
+          <!-- Password saat ini -->
           <div class="form-group mb-0">
             <label class="form-label text-xs" for="f-old-password">
-              Password Saat Ini <span class="text-red-500" aria-hidden="true">*</span>
+              Password Saat Ini
+              <span class="text-red-500" aria-hidden="true">*</span>
             </label>
             <div class="relative">
-              <input type="password" id="f-old-password" class="form-input pr-10"
-                     placeholder="Password Anda saat ini"
-                     autocomplete="current-password"/>
-              <button type="button" class="pw-toggle absolute right-3 top-1/2 -translate-y-1/2
-                                           text-gray-400 hover:text-gray-600 transition-colors p-1"
+              <input type="password"
+                     id="f-old-password"
+                     class="form-input pr-10"
+                     placeholder="Masukkan password Anda saat ini"
+                     autocomplete="current-password"
+                     aria-describedby="f-old-password-error"/>
+              <button type="button"
+                      class="pw-toggle absolute right-3 top-1/2 -translate-y-1/2
+                             text-gray-400 hover:text-gray-600 transition-colors p-1 rounded"
                       data-target="f-old-password"
-                      aria-label="Tampilkan/sembunyikan password saat ini">
+                      aria-label="Tampilkan password saat ini">
                 <i class="fa-solid fa-eye fa-sm" aria-hidden="true"></i>
               </button>
             </div>
-            <p class="form-error hidden text-xs" id="f-old-password-error" role="alert"></p>
+            <p id="f-old-password-error" class="form-error hidden" role="alert"></p>
           </div>
 
+          <!-- Divider visual -->
+          <div class="pw-divider">
+            <span>Password Baru</span>
+          </div>
+
+          <!-- Password baru -->
           <div class="form-group mb-0">
             <label class="form-label text-xs" for="f-new-password">
-              Password Baru <span class="text-red-500" aria-hidden="true">*</span>
+              Password Baru
+              <span class="text-red-500" aria-hidden="true">*</span>
             </label>
             <div class="relative">
-              <input type="password" id="f-new-password" class="form-input pr-10"
+              <input type="password"
+                     id="f-new-password"
+                     class="form-input pr-10"
                      placeholder="Minimal 6 karakter"
-                     autocomplete="new-password"/>
-              <button type="button" class="pw-toggle absolute right-3 top-1/2 -translate-y-1/2
-                                           text-gray-400 hover:text-gray-600 transition-colors p-1"
+                     autocomplete="new-password"
+                     aria-describedby="f-new-password-error pw-strength-wrap"/>
+              <button type="button"
+                      class="pw-toggle absolute right-3 top-1/2 -translate-y-1/2
+                             text-gray-400 hover:text-gray-600 transition-colors p-1 rounded"
                       data-target="f-new-password"
-                      aria-label="Tampilkan/sembunyikan password baru">
+                      aria-label="Tampilkan password baru">
                 <i class="fa-solid fa-eye fa-sm" aria-hidden="true"></i>
               </button>
             </div>
-            <p class="form-error hidden text-xs" id="f-new-password-error" role="alert"></p>
+            <p id="f-new-password-error" class="form-error hidden" role="alert"></p>
 
             <!-- Strength indicator -->
-            <div id="pw-strength-wrap" class="hidden mt-2 space-y-1" aria-live="polite">
-              <div class="flex gap-1" role="presentation">
-                <div class="h-1.5 flex-1 rounded-full bg-gray-200 transition-colors duration-300" id="ps-bar-1"></div>
-                <div class="h-1.5 flex-1 rounded-full bg-gray-200 transition-colors duration-300" id="ps-bar-2"></div>
-                <div class="h-1.5 flex-1 rounded-full bg-gray-200 transition-colors duration-300" id="ps-bar-3"></div>
-                <div class="h-1.5 flex-1 rounded-full bg-gray-200 transition-colors duration-300" id="ps-bar-4"></div>
+            <div id="pw-strength-wrap" class="hidden mt-2 space-y-1.5" aria-live="polite">
+              <div class="flex gap-1" role="presentation" aria-hidden="true">
+                <div class="strength-bar" id="ps-bar-1"></div>
+                <div class="strength-bar" id="ps-bar-2"></div>
+                <div class="strength-bar" id="ps-bar-3"></div>
+                <div class="strength-bar" id="ps-bar-4"></div>
               </div>
               <p class="text-xs text-gray-500" id="ps-label"></p>
             </div>
           </div>
 
+          <!-- Konfirmasi password baru -->
           <div class="form-group mb-0">
             <label class="form-label text-xs" for="f-confirm-password">
-              Konfirmasi Password Baru <span class="text-red-500" aria-hidden="true">*</span>
+              Konfirmasi Password Baru
+              <span class="text-red-500" aria-hidden="true">*</span>
             </label>
             <div class="relative">
-              <input type="password" id="f-confirm-password" class="form-input pr-10"
-                     placeholder="Ulangi password baru"
-                     autocomplete="new-password"/>
-              <button type="button" class="pw-toggle absolute right-3 top-1/2 -translate-y-1/2
-                                           text-gray-400 hover:text-gray-600 transition-colors p-1"
+              <input type="password"
+                     id="f-confirm-password"
+                     class="form-input pr-10"
+                     placeholder="Ulangi password baru Anda"
+                     autocomplete="new-password"
+                     aria-describedby="f-confirm-password-error"/>
+              <button type="button"
+                      class="pw-toggle absolute right-3 top-1/2 -translate-y-1/2
+                             text-gray-400 hover:text-gray-600 transition-colors p-1 rounded"
                       data-target="f-confirm-password"
-                      aria-label="Tampilkan/sembunyikan konfirmasi password">
+                      aria-label="Tampilkan konfirmasi password">
                 <i class="fa-solid fa-eye fa-sm" aria-hidden="true"></i>
               </button>
+              <!-- Real-time match indicator -->
+              <span id="confirm-match-icon"
+                    class="absolute right-9 top-1/2 -translate-y-1/2 hidden"
+                    aria-hidden="true"></span>
             </div>
-            <p class="form-error hidden text-xs" id="f-confirm-password-error" role="alert"></p>
+            <p id="f-confirm-password-error" class="form-error hidden" role="alert"></p>
           </div>
 
-          <div class="pt-1">
-            <button id="btn-change-password" type="button" class="btn btn-primary gap-2">
+          <!-- Save button -->
+          <div class="pt-2">
+            <button id="btn-change-password"
+                    type="button"
+                    class="btn btn-primary gap-2">
               <i class="fa-solid fa-key" aria-hidden="true"></i>
               Ganti Password
             </button>
           </div>
+
+          <!-- Tips keamanan -->
+          <div class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 flex gap-3 text-xs text-blue-700">
+            <i class="fa-solid fa-circle-info text-blue-400 flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+            <p>Gunakan kombinasi huruf besar, huruf kecil, angka, dan simbol untuk password yang kuat. Minimal 6 karakter.</p>
+          </div>
+
         </div>
-      </div>
+      </section>
 
     </div><!-- /max-w-2xl -->
   </main>
-</div>
+</div><!-- /flex-1 -->
 
+<!-- ══════════════════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════════════════ -->
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script src="../assets/js/api.js"></script>
@@ -320,13 +504,12 @@
 <script src="../assets/js/components.js"></script>
 <script>
 /* =============================================================
-   PROFIL SAYA — eVoting OSIM/S
-   FIX #10 + #11 + #12: semua logika dalam IIFE agar tidak
-   mencemari global scope dan menghindari konflik nama fungsi.
+   PROFIL SAYA — eVoting OSIM
+   Seluruh logika dalam IIFE agar tidak mencemari global scope.
    ============================================================= */
 (() => {
 
-  // ── Guard ──────────────────────────────────────────────────
+  // ── Auth guard ─────────────────────────────────────────────
   if (!Auth.requireAdminPage()) return;
   Sidebar.init();
   Topbar.init();
@@ -351,6 +534,7 @@
   // ── Load & render profil ────────────────────────────────────
   function loadProfile() {
     const data = Auth.getUserData();
+
     const nameInput = document.getElementById('f-display-name');
     if (nameInput) nameInput.value = data.name || '';
 
@@ -361,17 +545,21 @@
 
     renderLargeAvatar(data);
     toggleRemoveBtn(!!data.photoUrl);
+    // Pastikan dirty dot bersih saat pertama load
+    setNameDirty(false);
   }
 
-  // ── renderLargeAvatar (FIX #1: DOM API, bukan innerHTML+onerror) ──
+  // ── renderLargeAvatar — pakai DOM API, bukan innerHTML+onerror ──
   function renderLargeAvatar(data) {
-    const el         = document.getElementById('profile-avatar-large');
+    const el = document.getElementById('profile-avatar-large');
     if (!el) return;
+
     const photoUrl   = data.photoUrl ? Utils.buildDriveImgUrl(data.photoUrl) : null;
     const name       = data.name || data.username || '?';
     const initial    = name.charAt(0).toUpperCase();
     const colorClass = ROLE_AVATAR_CLASS[data.role] || 'bg-gray-400 text-white';
 
+    // Bersihkan konten lama
     el.innerHTML = '';
 
     if (photoUrl) {
@@ -379,71 +567,102 @@
       img.src       = photoUrl;
       img.className = 'w-full h-full object-cover object-top';
       img.alt       = name;
-      // FIX #1: addEventListener bukan onerror di atribut
+      // Fallback ke inisial jika gambar gagal load
       img.addEventListener('error', () => {
         el.innerHTML = '';
-        const span       = document.createElement('span');
-        span.className   = `text-2xl font-bold w-full h-full flex items-center justify-center ${colorClass}`;
-        span.textContent = initial;
-        el.appendChild(span);
+        el.appendChild(_buildInitialSpan(initial, colorClass, true));
       });
       el.appendChild(img);
     } else {
-      const span       = document.createElement('span');
-      span.className   = `text-2xl font-bold w-full h-full flex items-center justify-center ${colorClass}`;
-      span.textContent = initial;
-      el.appendChild(span);
+      el.appendChild(_buildInitialSpan(initial, colorClass, true));
     }
   }
 
-  function toggleRemoveBtn(show) {
-    document.getElementById('btn-remove-photo')?.classList.toggle('hidden', !show);
+  function _buildInitialSpan(initial, colorClass, large) {
+    const span       = document.createElement('span');
+    span.className   = `${large ? 'text-3xl' : 'text-sm'} font-bold w-full h-full
+                        flex items-center justify-center ${colorClass}`;
+    span.textContent = initial;
+    return span;
   }
 
-  // ── Field error helpers (FIX #14 + #15) ───────────────────
+  function toggleRemoveBtn(show) {
+    const btn = document.getElementById('btn-remove-photo');
+    if (btn) btn.classList.toggle('hidden', !show);
+  }
+
+  // ── Field error helpers ─────────────────────────────────────
   function showFieldError(fieldId, message) {
     const errEl = document.getElementById(fieldId + '-error');
     const inEl  = document.getElementById(fieldId);
-    if (errEl) { errEl.textContent = message; errEl.classList.remove('hidden'); }
-    if (inEl)  { inEl.classList.add('form-input-error'); inEl.focus(); }
+    if (errEl) {
+      errEl.textContent = message;
+      errEl.classList.remove('hidden');
+    }
+    if (inEl) {
+      inEl.classList.add('form-input-error');
+      // Scroll ke field jika di luar viewport
+      inEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      inEl.focus();
+    }
   }
 
   function clearFieldError(fieldId) {
     const errEl = document.getElementById(fieldId + '-error');
     const inEl  = document.getElementById(fieldId);
-    if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
-    if (inEl)  inEl.classList.remove('form-input-error');
+    if (errEl) {
+      errEl.textContent = '';
+      errEl.classList.add('hidden');
+    }
+    if (inEl) inEl.classList.remove('form-input-error');
   }
 
   function clearAllPasswordErrors() {
     ['f-old-password', 'f-new-password', 'f-confirm-password'].forEach(clearFieldError);
   }
 
-  // ── Dirty state (FIX #18) ──────────────────────────────────
-  function setNameDirty(dirty) {
-    const wrap = document.getElementById('profile-name-wrap');
-    if (dirty) {
-      wrap?.classList.add('is-dirty');
-    } else {
-      wrap?.classList.remove('is-dirty');
-    }
+  // ── Photo error helper ──────────────────────────────────────
+  function showPhotoError(message) {
+    const wrap    = document.getElementById('photo-error');
+    const textEl  = document.getElementById('photo-error-text');
+    if (textEl)  textEl.textContent  = message;
+    if (wrap)    wrap.classList.remove('hidden');
   }
 
-  // ── Avatar upload overlay (FIX #25) ───────────────────────
+  function clearPhotoError() {
+    const wrap   = document.getElementById('photo-error');
+    const textEl = document.getElementById('photo-error-text');
+    if (textEl)  textEl.textContent = '';
+    if (wrap)    wrap.classList.add('hidden');
+  }
+
+  // ── Dirty state ─────────────────────────────────────────────
+  function setNameDirty(dirty) {
+    document.getElementById('profile-name-wrap')
+      ?.classList.toggle('is-dirty', dirty);
+  }
+
+  // ── Avatar upload overlay ───────────────────────────────────
   function setAvatarUploading(loading) {
-    const overlay = document.getElementById('avatar-upload-overlay');
-    if (!overlay) return;
-    overlay.classList.toggle('hidden', !loading);
-    // Disabilkan tombol pilih foto & hapus selama upload
-    const pickBtn   = document.getElementById('btn-pick-photo');
-    const removeBtn = document.getElementById('btn-remove-photo');
+    const overlay    = document.getElementById('avatar-upload-overlay');
+    const pickBtn    = document.getElementById('btn-pick-photo');
+    const removeBtn  = document.getElementById('btn-remove-photo');
     const photoInput = document.getElementById('photo-input');
-    if (pickBtn)   pickBtn.style.pointerEvents   = loading ? 'none' : '';
-    if (removeBtn) removeBtn.disabled            = loading;
+
+    if (overlay) overlay.classList.toggle('active', loading);
+    if (pickBtn)    pickBtn.style.pointerEvents  = loading ? 'none' : '';
+    if (removeBtn)  removeBtn.disabled           = loading;
     if (photoInput) photoInput.disabled          = loading;
   }
 
-  // ── Password strength (FIX #8: reset bars saat form dibersihkan) ──
+  // ── Password strength ───────────────────────────────────────
+  const STRENGTH_LEVELS = [
+    { label: 'Sangat Lemah', color: '#ef4444' },  // red-500
+    { label: 'Lemah',        color: '#f97316' },  // orange-500
+    { label: 'Cukup',        color: '#eab308' },  // yellow-500
+    { label: 'Kuat',         color: '#22c55e' },  // green-500
+  ];
+
   function updateStrength(pw) {
     const wrap = document.getElementById('pw-strength-wrap');
     if (!pw) {
@@ -453,66 +672,109 @@
     wrap?.classList.remove('hidden');
 
     let score = 0;
-    if (pw.length >= 6)                                    score++;
-    if (pw.length >= 10)                                   score++;
-    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw))             score++;
-    if (/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw))      score++;
+    if (pw.length >= 6)                                score++;
+    if (pw.length >= 10)                               score++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw))         score++;
+    if (/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw))  score++;
 
-    const levels = [
-      { label: 'Sangat Lemah', color: 'bg-red-500' },
-      { label: 'Lemah',        color: 'bg-orange-400' },
-      { label: 'Cukup',        color: 'bg-yellow-400' },
-      { label: 'Kuat',         color: 'bg-green-500' },
-    ];
-    const level = levels[Math.max(0, score - 1)] || levels[0];
+    const level = STRENGTH_LEVELS[Math.max(0, score - 1)];
 
     for (let i = 1; i <= 4; i++) {
       const bar = document.getElementById(`ps-bar-${i}`);
-      if (bar) bar.className = `h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= score ? level.color : 'bg-gray-200'}`;
+      if (bar) bar.style.background = i <= score ? level.color : '#e5e7eb';
     }
+
     const lbl = document.getElementById('ps-label');
     if (lbl) lbl.textContent = `Kekuatan password: ${level.label}`;
   }
 
-  // FIX #8: reset strength sepenuhnya (label + bars)
   function resetStrength() {
     for (let i = 1; i <= 4; i++) {
       const bar = document.getElementById(`ps-bar-${i}`);
-      if (bar) bar.className = 'h-1.5 flex-1 rounded-full bg-gray-200 transition-colors duration-300';
+      if (bar) bar.style.background = '#e5e7eb';
     }
     const lbl = document.getElementById('ps-label');
     if (lbl) lbl.textContent = '';
     document.getElementById('pw-strength-wrap')?.classList.add('hidden');
   }
 
-  // ── Photo upload (FIX #2 + #5 + #7 + #25) ────────────────
+  // ── Confirm match indicator ─────────────────────────────────
+  function updateConfirmMatch() {
+    const newPw  = document.getElementById('f-new-password')?.value  || '';
+    const confPw = document.getElementById('f-confirm-password')?.value || '';
+    const icon   = document.getElementById('confirm-match-icon');
+    if (!icon) return;
+
+    if (!confPw || !newPw) {
+      icon.className = 'absolute right-9 top-1/2 -translate-y-1/2 hidden';
+      icon.innerHTML = '';
+      return;
+    }
+
+    if (newPw === confPw) {
+      icon.className  = 'absolute right-9 top-1/2 -translate-y-1/2 text-green-500 text-xs';
+      icon.innerHTML  = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i>';
+      icon.title      = 'Password cocok';
+    } else {
+      icon.className  = 'absolute right-9 top-1/2 -translate-y-1/2 text-red-400 text-xs';
+      icon.innerHTML  = '<i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>';
+      icon.title      = 'Password tidak cocok';
+    }
+  }
+
+  // ── Reset password fields (termasuk toggle state) ───────────
+  function resetPasswordFields() {
+    const ids = ['f-old-password', 'f-new-password', 'f-confirm-password'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.value = '';
+      // FIX: kembalikan type ke password & sinkronkan ikon toggle
+      if (el.type === 'text') {
+        el.type = 'password';
+        const toggle = document.querySelector(`.pw-toggle[data-target="${id}"]`);
+        if (toggle) {
+          const icon = toggle.querySelector('i');
+          if (icon) icon.className = 'fa-solid fa-eye fa-sm';
+          toggle.setAttribute('aria-label',
+            id === 'f-old-password' ? 'Tampilkan password saat ini'
+            : id === 'f-new-password' ? 'Tampilkan password baru'
+            : 'Tampilkan konfirmasi password');
+        }
+      }
+    });
+    resetStrength();
+    updateConfirmMatch();
+    clearAllPasswordErrors();
+  }
+
+  // ── Photo upload ────────────────────────────────────────────
   async function handlePhotoUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset error
-    const errEl = document.getElementById('photo-error');
-    if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+    clearPhotoError();
 
     const validation = Utils.validateImageFile(file);
     if (!validation.valid) {
-      if (errEl) { errEl.textContent = validation.error; errEl.classList.remove('hidden'); }
+      showPhotoError(validation.error);
       e.target.value = '';
       return;
     }
 
     setAvatarUploading(true);
 
-    // FIX #7: simpan objectURL untuk di-revoke nanti
+    // Tampilkan preview lokal langsung
     const localUrl = URL.createObjectURL(file);
     const avatarEl = document.getElementById('profile-avatar-large');
-    // Tampilkan preview sementara
-    avatarEl.innerHTML = '';
-    const previewImg     = document.createElement('img');
-    previewImg.src       = localUrl;
-    previewImg.className = 'w-full h-full object-cover object-top';
-    previewImg.alt       = 'Preview';
-    avatarEl.appendChild(previewImg);
+    if (avatarEl) {
+      avatarEl.innerHTML = '';
+      const previewImg     = document.createElement('img');
+      previewImg.src       = localUrl;
+      previewImg.className = 'w-full h-full object-cover object-top';
+      previewImg.alt       = 'Preview foto';
+      avatarEl.appendChild(previewImg);
+    }
 
     try {
       const oldUrl = Auth.getUserData().photoUrl || '';
@@ -533,32 +795,34 @@
       } else {
         // Rollback ke avatar sebelumnya
         renderLargeAvatar(Auth.getUserData());
-        if (errEl) { errEl.textContent = res.message || 'Gagal mengupload foto.'; errEl.classList.remove('hidden'); }
+        showPhotoError(res.message || 'Gagal mengupload foto. Coba lagi.');
       }
     } catch (err) {
-      console.error('[Profile] handlePhotoUpload exception:', err);
+      console.error('[Profile] handlePhotoUpload:', err);
       renderLargeAvatar(Auth.getUserData());
-      if (errEl) { errEl.textContent = 'Terjadi kesalahan saat upload foto.'; errEl.classList.remove('hidden'); }
+      showPhotoError('Terjadi kesalahan saat mengupload foto.');
     } finally {
-      // FIX #7: revoke objectURL agar tidak memory leak
+      // Revoke objectURL agar tidak memory leak
       URL.revokeObjectURL(localUrl);
       setAvatarUploading(false);
       e.target.value = '';
     }
   }
 
-  // ── Remove photo (FIX #2 + #5) ────────────────────────────
+  // ── Remove photo ────────────────────────────────────────────
   async function removePhoto() {
-    const ok = await Utils.confirm('Hapus foto profil Anda? Foto akan dihapus permanen.', 'Hapus Foto Profil', true);
+    const ok = await Utils.confirm(
+      'Foto profil Anda akan dihapus secara permanen. Yakin ingin melanjutkan?',
+      'Hapus Foto Profil',
+      true
+    );
     if (!ok) return;
 
     const btn = document.getElementById('btn-remove-photo');
-    // FIX #5: double-submit guard
-    if (btn.disabled) return;
+    if (!btn || btn.disabled) return;
     Utils.setLoading(btn, true, 'Menghapus...');
 
     try {
-      // FIX #2: try-catch dengan finally agar btn selalu di-reset
       const res = await API.adminProfile.updateProfile({ photoUrl: '' });
 
       if (res.success) {
@@ -566,26 +830,25 @@
         renderLargeAvatar(Auth.getUserData());
         Topbar.refreshAvatar();
         toggleRemoveBtn(false);
+        clearPhotoError();
         Toast.success('Foto profil berhasil dihapus.');
       } else {
         Toast.error(res.message || 'Gagal menghapus foto.');
       }
     } catch (err) {
-      console.error('[Profile] removePhoto exception:', err);
+      console.error('[Profile] removePhoto:', err);
       Toast.error('Gagal menghubungi server. Coba lagi.');
     } finally {
       Utils.setLoading(btn, false);
     }
   }
 
-  // ── Save profile info (FIX #3 + #5 + #6 + #15) ────────────
+  // ── Save profile info ───────────────────────────────────────
   async function saveProfile() {
-    // Clear error
     clearFieldError('f-display-name');
 
-    const name = document.getElementById('f-display-name')?.value.trim() || '';
+    const name = (document.getElementById('f-display-name')?.value || '').trim();
 
-    // FIX #6 + #15: validasi panjang + inline error
     if (!name) {
       showFieldError('f-display-name', 'Nama tampilan tidak boleh kosong.');
       return;
@@ -594,163 +857,199 @@
       showFieldError('f-display-name', 'Nama tampilan minimal 2 karakter.');
       return;
     }
+    if (name.length > 100) {
+      showFieldError('f-display-name', 'Nama tampilan maksimal 100 karakter.');
+      return;
+    }
 
     const btn = document.getElementById('btn-save-profile');
-    // FIX #5: double-submit guard
-    if (btn.disabled) return;
+    if (!btn || btn.disabled) return;
     Utils.setLoading(btn, true, 'Menyimpan...');
 
     try {
-      // FIX #3: try-catch dengan finally
       const res = await API.adminProfile.updateProfile({ name });
 
       if (res.success) {
         const savedName = res.data?.name || name;
         Auth.updateProfileName(savedName);
-        // Refresh nama di sidebar
-        const nameEl = document.getElementById('topbar-user-name');
-        if (nameEl) nameEl.textContent = savedName;
+
+        // Sinkronkan semua elemen nama di halaman (sidebar + topbar)
+        ['topbar-user-name'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = savedName;
+        });
+        // Update input field dengan nama yang disimpan server
+        const nameInput = document.getElementById('f-display-name');
+        if (nameInput) nameInput.value = savedName;
+
         // Refresh inisial avatar jika nama berubah
         renderLargeAvatar(Auth.getUserData());
         Topbar.refreshAvatar();
-        // FIX #18: hilangkan dirty indicator setelah save
+
+        // Hilangkan dirty indicator
         setNameDirty(false);
+
         Toast.success('Profil berhasil disimpan.');
       } else {
         Toast.error(res.message || 'Gagal menyimpan profil.');
       }
     } catch (err) {
-      console.error('[Profile] saveProfile exception:', err);
+      console.error('[Profile] saveProfile:', err);
       Toast.error('Gagal menghubungi server. Coba lagi.');
     } finally {
       Utils.setLoading(btn, false);
     }
   }
 
-  // ── Change password (FIX #4 + #5 + #14) ──────────────────
+  // ── Change password ─────────────────────────────────────────
   async function changePassword() {
-    // Clear semua error dulu
     clearAllPasswordErrors();
 
     const oldPw  = document.getElementById('f-old-password')?.value  || '';
     const newPw  = document.getElementById('f-new-password')?.value  || '';
     const confPw = document.getElementById('f-confirm-password')?.value || '';
 
-    // FIX #14: inline error untuk setiap field
-    let valid = true;
+    // Validasi berurutan — stop pada error pertama agar UX lebih bersih
+    let firstErrorField = null;
+
     if (!oldPw) {
       showFieldError('f-old-password', 'Password saat ini wajib diisi.');
-      valid = false;
+      firstErrorField = firstErrorField || 'f-old-password';
     }
     if (!newPw) {
       showFieldError('f-new-password', 'Password baru wajib diisi.');
-      valid = false;
+      firstErrorField = firstErrorField || 'f-new-password';
     } else if (newPw.length < 6) {
       showFieldError('f-new-password', 'Password baru minimal 6 karakter.');
-      valid = false;
-    }
-    if (valid && newPw && !confPw) {
-      showFieldError('f-confirm-password', 'Konfirmasi password wajib diisi.');
-      valid = false;
-    }
-    if (valid && newPw && confPw && newPw !== confPw) {
-      showFieldError('f-confirm-password', 'Konfirmasi password tidak cocok.');
-      valid = false;
-    }
-    if (valid && oldPw && newPw && oldPw === newPw) {
+      firstErrorField = firstErrorField || 'f-new-password';
+    } else if (oldPw && oldPw === newPw) {
       showFieldError('f-new-password', 'Password baru tidak boleh sama dengan password lama.');
-      valid = false;
+      firstErrorField = firstErrorField || 'f-new-password';
     }
-    if (!valid) return;
+    if (!confPw) {
+      showFieldError('f-confirm-password', 'Konfirmasi password wajib diisi.');
+      firstErrorField = firstErrorField || 'f-confirm-password';
+    } else if (newPw && confPw !== newPw) {
+      showFieldError('f-confirm-password', 'Konfirmasi password tidak cocok.');
+      firstErrorField = firstErrorField || 'f-confirm-password';
+    }
+
+    if (firstErrorField) return;
 
     const btn = document.getElementById('btn-change-password');
-    // FIX #5: double-submit guard
-    if (btn.disabled) return;
+    if (!btn || btn.disabled) return;
     Utils.setLoading(btn, true, 'Menyimpan...');
 
     try {
-      // FIX #4: try-catch dengan finally
       const res = await API.adminProfile.changePassword({
         oldPassword: oldPw,
         newPassword: newPw,
       });
 
       if (res.success) {
-        // Bersihkan semua field password
-        document.getElementById('f-old-password').value     = '';
-        document.getElementById('f-new-password').value     = '';
-        document.getElementById('f-confirm-password').value = '';
-        // FIX #8: reset strength indicator sepenuhnya
-        resetStrength();
+        // Reset semua field password + sinkronkan toggle ikon
+        resetPasswordFields();
         Toast.success('Password berhasil diubah. Silakan login ulang pada sesi berikutnya.');
       } else {
-        // Backend menolak password lama → tunjukkan di field yang tepat
-        if (res.errorCode === 'INVALID_CREDENTIALS' || (res.message || '').includes('lama')) {
-          showFieldError('f-old-password', res.message || 'Password lama tidak sesuai.');
+        // Arahkan error ke field yang tepat
+        const msg = res.message || '';
+        if (
+          res.errorCode === 'INVALID_CREDENTIALS' ||
+          msg.toLowerCase().includes('lama') ||
+          msg.toLowerCase().includes('salah') ||
+          msg.toLowerCase().includes('incorrect')
+        ) {
+          showFieldError('f-old-password', msg || 'Password saat ini tidak sesuai.');
         } else {
-          Toast.error(res.message || 'Gagal mengganti password.');
+          Toast.error(msg || 'Gagal mengganti password.');
         }
       }
     } catch (err) {
-      console.error('[Profile] changePassword exception:', err);
+      console.error('[Profile] changePassword:', err);
       Toast.error('Gagal menghubungi server. Coba lagi.');
     } finally {
       Utils.setLoading(btn, false);
     }
   }
 
-  // ── Bind events ────────────────────────────────────────────
-  // Password visibility toggles
+  // ══════════════════════════════════════════════════════════
+  // BIND EVENTS
+  // ══════════════════════════════════════════════════════════
+
+  // ── Password visibility toggles ────────────────────────────
   document.querySelectorAll('.pw-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const input = document.getElementById(btn.dataset.target);
       if (!input) return;
-      const show = input.type === 'password';
-      input.type = show ? 'text' : 'password';
-      btn.querySelector('i').className = `fa-solid fa-${show ? 'eye-slash' : 'eye'} fa-sm`;
-      btn.setAttribute('aria-label',
-        show ? 'Sembunyikan password' : 'Tampilkan password');
+      const show  = input.type === 'password';
+      input.type  = show ? 'text' : 'password';
+      const icon  = btn.querySelector('i');
+      if (icon) icon.className = `fa-solid fa-${show ? 'eye-slash' : 'eye'} fa-sm`;
+      btn.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
     });
   });
 
-  // Password strength — real-time
+  // ── Strength — real-time ────────────────────────────────────
   document.getElementById('f-new-password')?.addEventListener('input', e => {
     updateStrength(e.target.value);
-    // Clear inline error saat user mulai mengetik
     clearFieldError('f-new-password');
+    updateConfirmMatch(); // re-check match jika user mengubah new password
   });
 
-  // Confirm password — clear error saat user mengetik ulang
+  // ── Confirm — real-time match check ────────────────────────
   document.getElementById('f-confirm-password')?.addEventListener('input', () => {
     clearFieldError('f-confirm-password');
+    updateConfirmMatch();
   });
 
-  // Old password — clear error saat user mengetik
+  // ── Old password — clear error saat typing ──────────────────
   document.getElementById('f-old-password')?.addEventListener('input', () => {
     clearFieldError('f-old-password');
   });
 
-  // FIX #18: dirty state saat nama berubah
+  // ── Dirty state saat nama berubah ───────────────────────────
   document.getElementById('f-display-name')?.addEventListener('input', () => {
     clearFieldError('f-display-name');
     const currentName = Auth.getUserData().name || '';
-    const inputName   = document.getElementById('f-display-name')?.value.trim() || '';
+    const inputName   = (document.getElementById('f-display-name')?.value || '').trim();
     setNameDirty(inputName !== currentName);
   });
 
-  // Photo upload
+  // ── Photo upload ────────────────────────────────────────────
   document.getElementById('photo-input')?.addEventListener('change', handlePhotoUpload);
 
-  // Remove photo
+  // FIX: keyboard accessibility untuk label[role=button] — Enter & Space
+  document.getElementById('btn-pick-photo')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      document.getElementById('photo-input')?.click();
+    }
+  });
+
+  // ── Remove photo ────────────────────────────────────────────
   document.getElementById('btn-remove-photo')?.addEventListener('click', removePhoto);
 
-  // Save profile
+  // ── Save profile ────────────────────────────────────────────
   document.getElementById('btn-save-profile')?.addEventListener('click', saveProfile);
 
-  // Change password
+  // ── Change password ─────────────────────────────────────────
   document.getElementById('btn-change-password')?.addEventListener('click', changePassword);
 
-  // ── Init ──────────────────────────────────────────────────
+  // ── Ctrl+S shortcut — save profile info ────────────────────
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      // Hanya trigger jika fokus ada di section Informasi Akun atau tidak ada fokus khusus
+      const active = document.activeElement;
+      const inPasswordSection = document.getElementById('section-password')
+        ?.contains(active);
+      if (!inPasswordSection) {
+        saveProfile();
+      }
+    }
+  });
+
+  // ── Init ────────────────────────────────────────────────────
   loadProfile();
 
 })();
