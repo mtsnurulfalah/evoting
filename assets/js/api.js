@@ -193,6 +193,17 @@ const API = (() => {
     uploadPhoto:    (data) => request('admin.uploadProfilePhoto', data),
   };
 
+  // ── Admin Users (User Management) ────────────────────────
+
+  const adminUsers = {
+    getAll:         (params) => request('adminUser.getAll', params || {}),
+    getById:        (id)     => request('adminUser.getById', { id }),
+    create:         (data)   => request('adminUser.create', data),
+    update:         (data)   => request('adminUser.update', data),
+    delete:         (id)     => request('adminUser.delete', { id }),
+    resetPassword:  (data)   => request('adminUser.resetPassword', data),
+  };
+
   // ── Utility ──────────────────────────────────────────────
 
   /** Cek apakah ada request yang sedang pending */
@@ -200,5 +211,5 @@ const API = (() => {
     return _pendingRequests > 0;
   }
 
-  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, isPending };
+  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, adminUsers, isPending };
 })();
