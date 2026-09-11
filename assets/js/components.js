@@ -10,54 +10,148 @@
 // ============================================================
 
 const Toast = (() => {
-  let _container = null;
+  // FIX #6: batas maksimum toast bersamaan
+  const MAX_TOASTS = 5;
 
+  // FIX #1: tidak cache container — selalu cari fresh dari DOM
   function getContainer() {
-    if (!_container) {
-      _container = document.getElementById('toast-container');
-      if (!_container) {
-        _container = document.createElement('div');
-        _container.id = 'toast-container';
-        document.body.appendChild(_container);
-      }
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      document.body.appendChild(container);
     }
-    return _container;
+    return container;
   }
 
-  const ICONS = {
-    success: '<i class="fa-solid fa-circle-check text-green-500 text-lg flex-shrink-0"></i>',
-    error:   '<i class="fa-solid fa-circle-xmark text-red-500 text-lg flex-shrink-0"></i>',
-    warning: '<i class="fa-solid fa-triangle-exclamation text-yellow-500 text-lg flex-shrink-0"></i>',
-    info:    '<i class="fa-solid fa-circle-info text-blue-500 text-lg flex-shrink-0"></i>',
+  // FIX #14: icon + ARIA role per tipe
+  const CONFIG = {
+    success: {
+      icon:     'fa-circle-check',
+      iconCls:  'text-green-500',
+      role:     'status',       // non-assertive, tidak interupsi screen reader
+      ariaLive: 'polite',
+    },
+    error: {
+      icon:     'fa-circle-xmark',
+      iconCls:  'text-red-500',
+      role:     'alert',        // assertive, segera dibaca screen reader
+      ariaLive: 'assertive',
+    },
+    warning: {
+      icon:     'fa-triangle-exclamation',
+      iconCls:  'text-yellow-500',
+      role:     'alert',
+      ariaLive: 'assertive',
+    },
+    info: {
+      icon:     'fa-circle-info',
+      iconCls:  'text-blue-500',
+      role:     'status',
+      ariaLive: 'polite',
+    },
   };
+
+  /**
+   * Dismiss toast dengan animasi exit.
+   * FIX #2 + #3 + #7 + #9: animasi exit yang benar, timer dibatalkan.
+   * @param {HTMLElement} toast
+   * @param {number|null} timerId - ID dari auto-remove timer
+   */
+  function dismiss(toast, timerId = null) {
+    if (!toast || !toast.isConnected) return;
+    // Batalkan auto-remove timer jika masih berjalan
+    if (timerId !== null) clearTimeout(timerId);
+    // Tambah class exit untuk trigger animasi CSS
+    toast.classList.add('toast-exit');
+    // Hapus dari DOM setelah animasi selesai (300ms)
+    setTimeout(() => {
+      if (toast.isConnected) toast.remove();
+    }, 300);
+  }
 
   /**
    * Tampilkan toast notification.
    * @param {string} message
    * @param {'success'|'error'|'warning'|'info'} type
    * @param {number} duration - ms (0 = permanen)
+   * @returns {HTMLElement} elemen toast
    */
   function show(message, type = 'info', duration = 4000) {
     const container = getContainer();
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-      ${ICONS[type] || ICONS.info}
-      <div class="flex-1 text-sm leading-snug">${Utils.escapeHtml(message)}</div>
-      <button onclick="this.closest('.toast').remove()" class="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
-        <i class="fa-solid fa-xmark"></i>
-      </button>`;
+    const cfg       = CONFIG[type] || CONFIG.info;
 
+    // FIX #6: hapus toast paling lama jika sudah di batas
+    const existing = container.querySelectorAll('.toast');
+    if (existing.length >= MAX_TOASTS) {
+      dismiss(existing[0]);
+    }
+
+    // Buat elemen toast
+    const toast = document.createElement('div');
+    // FIX #14: role + aria-live untuk aksesibilitas screen reader
+    toast.setAttribute('role', cfg.role);
+    toast.setAttribute('aria-live', cfg.ariaLive);
+    toast.setAttribute('aria-atomic', 'true');
+    toast.className = `toast toast-${type}`;
+
+    // Icon
+    const iconEl = document.createElement('i');
+    iconEl.className = `fa-solid ${cfg.icon} ${cfg.iconCls} flex-shrink-0`;
+    iconEl.setAttribute('aria-hidden', 'true');
+
+    // Message — FIX #15: break-words untuk teks panjang
+    const msgEl = document.createElement('div');
+    msgEl.className = 'flex-1 text-sm leading-snug break-words min-w-0';
+    // FIX #4: escapeHtml untuk keamanan XSS
+    msgEl.textContent = message;
+
+    // Tombol close — FIX #13: padding cukup untuk touch target
+    const closeBtn = document.createElement('button');
+    closeBtn.type      = 'button';
+    closeBtn.className = 'toast-close-btn flex-shrink-0';
+    closeBtn.setAttribute('aria-label', 'Tutup notifikasi');
+    closeBtn.innerHTML = '<i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>';
+
+    toast.appendChild(iconEl);
+    toast.appendChild(msgEl);
+    toast.appendChild(closeBtn);
     container.appendChild(toast);
 
-    // Auto remove
+    // FIX #5: pause on hover — hentikan timer saat mouse di atas toast
+    let timerId = null;
+    let remaining = duration;
+    let startTime = null;
+
+    function startTimer(ms) {
+      if (ms <= 0) return;
+      startTime = Date.now();
+      timerId = setTimeout(() => dismiss(toast, null), ms);
+    }
+
+    function pauseTimer() {
+      if (timerId === null) return;
+      clearTimeout(timerId);
+      timerId = null;
+      remaining -= Date.now() - startTime;
+    }
+
+    function resumeTimer() {
+      if (remaining > 0) startTimer(remaining);
+    }
+
+    // FIX #3 + #7: close button membatalkan timer dan menjalankan animasi exit
+    closeBtn.addEventListener('click', () => dismiss(toast, timerId));
+
     if (duration > 0) {
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
-        toast.style.transition = 'opacity 0.3s, transform 0.3s';
-        setTimeout(() => toast.remove(), 300);
-      }, duration);
+      // FIX #5: pause on hover
+      toast.addEventListener('mouseenter', pauseTimer);
+      toast.addEventListener('mouseleave', resumeTimer);
+      // FIX #5: pause saat touch (mobile)
+      toast.addEventListener('touchstart', pauseTimer, { passive: true });
+      toast.addEventListener('touchend',   resumeTimer, { passive: true });
+
+      startTimer(duration);
     }
 
     return toast;
@@ -65,10 +159,16 @@ const Toast = (() => {
 
   return {
     success: (msg, dur) => show(msg, 'success', dur),
-    error:   (msg, dur) => show(msg, 'error', dur),
+    error:   (msg, dur) => show(msg, 'error',   dur),
     warning: (msg, dur) => show(msg, 'warning', dur),
-    info:    (msg, dur) => show(msg, 'info', dur),
+    info:    (msg, dur) => show(msg, 'info',    dur),
     show,
+    /** Dismiss programmatic (misal saat navigasi) */
+    dismissAll: () => {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      container.querySelectorAll('.toast').forEach(t => dismiss(t));
+    },
   };
 })();
 
