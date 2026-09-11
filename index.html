@@ -558,9 +558,9 @@ async function handleLogin(e) {
 
       setTimeout(() => {
         if (res.data && res.data.voter && res.data.voter.hasVoted) {
-          window.location.href = '/success.html';
+          window.location.replace('/success.html');
         } else {
-          window.location.href = '/voting.html';
+          window.location.replace('/voting.html');
         }
       }, 800);
 
