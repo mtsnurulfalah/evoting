@@ -499,26 +499,44 @@ const Topbar = (() => {
   }
 
   /**
-   * Render avatar ke elemen container.
-   * Jika ada photoUrl → tampilkan <img>.
+   * Render avatar ke elemen container via DOM API.
+   * Jika ada photoUrl → tampilkan <img> dengan fallback ke inisial.
    * Fallback → inisial nama dengan background warna sesuai role.
+   *
+   * Menggunakan DOM API (bukan innerHTML + onerror inline) agar:
+   * 1. Tidak rusak akibat karakter kutip di nama/class → tidak ada masalah escaping.
+   * 2. Event listener terdaftar dengan benar dan tidak di-strip oleh browser.
    */
   function _renderAvatar(container, adminData) {
     const photoUrl = adminData.photoUrl
       ? Utils.buildDriveImgUrl(adminData.photoUrl)
       : null;
 
+    // Bersihkan konten lama
+    container.innerHTML = '';
+
     if (photoUrl) {
-      container.innerHTML = `
-        <img src="${Utils.escapeHtml(photoUrl)}"
-             class="w-full h-full object-cover object-top rounded-full"
-             onerror="this.parentElement.innerHTML='${_initialHtml(adminData)}'">`;
+      const img     = document.createElement('img');
+      img.src       = photoUrl;
+      img.alt       = adminData.name || adminData.username || 'Avatar';
+      img.className = 'w-full h-full object-cover object-top rounded-full';
+      // Fallback ke inisial jika gambar gagal dimuat (URL tidak valid / akses ditolak)
+      img.addEventListener('error', function onImgError() {
+        img.removeEventListener('error', onImgError);
+        container.innerHTML = '';
+        container.appendChild(_buildInitialEl(adminData));
+      });
+      container.appendChild(img);
     } else {
-      container.innerHTML = _initialHtml(adminData);
+      container.appendChild(_buildInitialEl(adminData));
     }
   }
 
-  function _initialHtml(adminData) {
+  /**
+   * Buat elemen <span> inisial nama sebagai fallback avatar.
+   * Menggunakan DOM API agar tidak ada risiko XSS atau escaping.
+   */
+  function _buildInitialEl(adminData) {
     const name    = adminData.name || adminData.username || '?';
     const initial = name.charAt(0).toUpperCase();
     const roleColors = {
@@ -529,7 +547,18 @@ const Topbar = (() => {
       viewer:        'bg-gray-400 text-white',
     };
     const colorClass = roleColors[adminData.role] || 'bg-gray-400 text-white';
-    return `<span class="text-xs font-bold ${colorClass} w-full h-full rounded-full flex items-center justify-center">${initial}</span>`;
+    const span       = document.createElement('span');
+    span.className   = `text-xs font-bold ${colorClass} w-full h-full rounded-full flex items-center justify-center`;
+    span.textContent = initial;
+    return span;
+  }
+
+  // Tetap tersedia untuk kompatibilitas jika ada kode lain yang memanggil _initialHtml
+  function _initialHtml(adminData) {
+    const el  = _buildInitialEl(adminData);
+    const div = document.createElement('div');
+    div.appendChild(el);
+    return div.innerHTML;
   }
 
   /**
