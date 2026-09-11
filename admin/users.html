@@ -15,10 +15,8 @@
 
     /* FIX #23: action dropdown */
     .action-menu {
-      position: absolute;
-      right: 0;
-      top: calc(100% + 4px);
-      z-index: 50;
+      position: fixed; /* fixed agar tidak pernah terpotong parent overflow */
+      z-index: 9999;
       min-width: 11rem;
       background: #fff;
       border: 1px solid #e5e7eb;
@@ -333,12 +331,57 @@
     }
   }
 
+  /**
+   * Posisikan dropdown menu menggunakan koordinat fixed terhadap viewport.
+   * Dropdown diletakkan di bawah trigger. Jika ruang di bawah tidak cukup,
+   * buka ke atas. Sisi kiri/kanan di-clamp agar tidak keluar viewport.
+   *
+   * @param {HTMLElement} menu    - elemen dropdown yang sudah di-append ke body
+   * @param {HTMLElement} trigger - tombol yang diklik
+   */
+  function positionMenu(menu, trigger) {
+    const GAP      = 4;   // jarak vertikal antara trigger dan menu (px)
+    const MARGIN   = 8;   // jarak minimum dari tepi viewport (px)
+
+    // Ukuran menu (perlu sudah ada di DOM agar bisa diukur)
+    const mW = menu.offsetWidth;
+    const mH = menu.offsetHeight;
+    const vW = window.innerWidth;
+    const vH = window.innerHeight;
+
+    const rect = trigger.getBoundingClientRect();
+
+    // ── Posisi vertikal: buka ke bawah, atau ke atas jika tidak muat ──
+    let top;
+    const spaceBelow = vH - rect.bottom - GAP;
+    const spaceAbove = rect.top - GAP;
+    if (spaceBelow >= mH || spaceBelow >= spaceAbove) {
+      top = rect.bottom + GAP;
+    } else {
+      top = rect.top - GAP - mH;
+    }
+
+    // ── Posisi horizontal: preferensi rata kanan trigger, clamp ke viewport ──
+    let left = rect.right - mW;  // rata kanan dengan tombol
+    left = Math.max(MARGIN, Math.min(left, vW - mW - MARGIN));
+
+    // Clamp vertikal juga
+    top = Math.max(MARGIN, Math.min(top, vH - mH - MARGIN));
+
+    menu.style.top  = top  + 'px';
+    menu.style.left = left + 'px';
+  }
+
   document.addEventListener('click', (e) => {
     if (_activeMenu && !_activeMenu.contains(e.target) &&
         !e.target.closest('.action-menu-trigger')) {
       closeActiveMenu();
     }
   });
+
+  // Tutup menu saat scroll atau resize agar posisi tidak salah
+  window.addEventListener('scroll', closeActiveMenu, { passive: true, capture: true });
+  window.addEventListener('resize', closeActiveMenu, { passive: true });
 
   // ── loadUsers ────────────────────────────────────────────────
   // FIX #1: try-catch penuh
@@ -548,13 +591,16 @@
 
       triggerBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (_activeMenu && menuWrap.contains(_activeMenu)) {
+        // Toggle: jika menu aktif milik trigger ini, tutup
+        if (_activeMenu && _activeMenu._trigger === triggerBtn) {
           closeActiveMenu();
           return;
         }
         closeActiveMenu();
         const menu = buildActionMenu(u);
-        menuWrap.appendChild(menu);
+        menu._trigger = triggerBtn; // tandai pemilik menu
+        document.body.appendChild(menu);
+        positionMenu(menu, triggerBtn);
         _activeMenu = menu;
       });
 
@@ -623,15 +669,16 @@
 
       triggerBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (_activeMenu && menuWrap.contains(_activeMenu)) {
+        // Toggle: jika menu aktif milik trigger ini, tutup
+        if (_activeMenu && _activeMenu._trigger === triggerBtn) {
           closeActiveMenu();
           return;
         }
         closeActiveMenu();
         const menu = buildActionMenu(u);
-        // Pada mobile, posisikan ke kiri agar tidak keluar viewport
-        menu.style.right = '0';
-        menuWrap.appendChild(menu);
+        menu._trigger = triggerBtn; // tandai pemilik menu
+        document.body.appendChild(menu);
+        positionMenu(menu, triggerBtn);
         _activeMenu = menu;
       });
 
