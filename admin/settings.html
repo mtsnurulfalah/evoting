@@ -9,181 +9,357 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+  <style>
+    /* FIX #18: cegah horizontal overflow di semua viewport */
+    body { overflow-x: hidden; }
+
+    /* FIX #17: toggle styling murni CSS — tidak pakai @apply (tidak didukung di inline <style>) */
+    .toggle-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      width: 2.75rem;   /* 44px */
+      height: 1.5rem;   /* 24px */
+      border-radius: 9999px;
+      transition: background-color 0.2s ease;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .toggle-btn:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+    .toggle-btn[aria-checked="false"] { background-color: #d1d5db; }
+    .toggle-btn[aria-checked="true"]  { background-color: #2563eb; }
+    .toggle-btn[disabled],
+    .toggle-btn[aria-disabled="true"] {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .toggle-thumb {
+      position: absolute;
+      width: 1.125rem;  /* 18px */
+      height: 1.125rem;
+      background: #fff;
+      border-radius: 9999px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: transform 0.2s ease;
+    }
+    .toggle-btn[aria-checked="false"] .toggle-thumb { transform: translateX(3px); }
+    .toggle-btn[aria-checked="true"]  .toggle-thumb { transform: translateX(21px); }
+
+    /* FIX #14: sticky save bar — selalu terlihat di mobile maupun desktop */
+    #save-bar {
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+    }
+
+    /* FIX #9: unsaved changes indicator pada card header */
+    .card-header.has-changes h3::after {
+      content: '•';
+      color: #f59e0b;
+      margin-left: 6px;
+      font-size: 1.2em;
+      line-height: 1;
+    }
+
+    /* Error state */
+    #error-state { display: none; }
+    #error-state.visible { display: flex; }
+  </style>
 </head>
 <body class="h-full bg-gray-50 flex">
-<div id="toast-container"></div>
-<div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
 
-<aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
+<div id="toast-container"></div>
+<div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden" aria-hidden="true"></div>
+
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<aside id="sidebar"
+       class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col
+              transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto"
+       aria-label="Sidebar navigasi">
   <div class="px-5 py-4 border-b border-gray-100">
     <div class="flex items-center gap-3">
-      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-box-ballot text-white"></i></div>
+      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-box-ballot text-white" aria-hidden="true"></i>
+      </div>
       <div class="min-w-0">
         <p class="text-sm font-bold text-gray-800 truncate" id="sidebar-app-name">eVoting OSIM</p>
         <p class="text-xs text-gray-500 truncate" id="sidebar-school-name"></p>
       </div>
     </div>
   </div>
-  <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto"></nav>
+  <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto" aria-label="Menu utama"></nav>
   <div class="p-3 border-t border-gray-100">
     <div class="flex items-center gap-3 px-2 py-2 rounded-lg">
-      <div id="topbar-user-avatar" class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary-100 flex items-center justify-center"></div>
+      <div id="topbar-user-avatar"
+           class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary-100 flex items-center justify-center"
+           aria-hidden="true"></div>
       <div class="flex-1 min-w-0">
         <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
         <p class="text-xs text-gray-500" id="topbar-user-role"></p>
       </div>
-      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1"><i class="fa-solid fa-right-from-bracket text-sm"></i></button>
+      <button id="topbar-logout-btn"
+              class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
+              title="Logout" aria-label="Logout">
+        <i class="fa-solid fa-right-from-bracket text-sm" aria-hidden="true"></i>
+      </button>
     </div>
   </div>
 </aside>
 
+<!-- ── Main ─────────────────────────────────────────────────── -->
 <div class="flex-1 flex flex-col min-w-0">
+
+  <!-- Topbar -->
   <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-4 sticky top-0 z-20">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1"><i class="fa-solid fa-bars text-lg"></i></button>
+    <button id="sidebar-toggle"
+            class="lg:hidden text-gray-500 hover:text-gray-700 p-1 rounded"
+            aria-label="Buka sidebar">
+      <i class="fa-solid fa-bars text-lg" aria-hidden="true"></i>
+    </button>
     <h1 class="text-base font-semibold text-gray-800 flex-1">Pengaturan Aplikasi</h1>
-    <div id="superadmin-badge" class="hidden badge badge-purple text-xs"><i class="fa-solid fa-shield-halved fa-xs"></i> Super Admin</div>
+    <!-- FIX #10: tombol save di topbar agar selalu accessible tanpa scroll (superadmin only) -->
+    <div id="topbar-save-section" class="hidden">
+      <button id="btn-save-topbar"
+              class="btn btn-primary btn-sm gap-1.5"
+              aria-label="Simpan pengaturan">
+        <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+        <span class="hidden sm:inline">Simpan</span>
+      </button>
+    </div>
+    <div id="superadmin-badge" class="hidden badge badge-purple text-xs">
+      <i class="fa-solid fa-shield-halved fa-xs" aria-hidden="true"></i> Super Admin
+    </div>
   </header>
 
-  <main class="flex-1 p-4 md:p-6 overflow-auto max-w-2xl mx-auto w-full">
+  <main class="flex-1 p-4 md:p-6 overflow-auto">
+    <div class="max-w-2xl mx-auto w-full space-y-5">
 
-    <!-- Non-superadmin notice -->
-    <div id="readonly-notice" class="hidden alert alert-warning mb-5">
-      <i class="fa-solid fa-triangle-exclamation flex-shrink-0"></i>
-      <span>Anda hanya dapat melihat pengaturan. Hanya Super Admin yang dapat mengubah konfigurasi.</span>
-    </div>
-
-    <!-- Loading -->
-    <div id="loading-state" class="text-center py-16">
-      <div class="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-3"></div>
-      <p class="text-gray-500 text-sm">Memuat pengaturan...</p>
-    </div>
-
-    <!-- Form -->
-    <div id="content-state" class="hidden space-y-5">
-
-      <!-- Identitas Aplikasi -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-            <i class="fa-solid fa-palette text-primary-500"></i> Identitas Aplikasi
-          </h3>
+      <!-- FIX #16: Error state (API gagal) -->
+      <div id="error-state"
+           class="flex-col items-center justify-center py-16 text-center hidden">
+        <div class="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-4">
+          <i class="fa-solid fa-triangle-exclamation text-red-500 text-2xl" aria-hidden="true"></i>
         </div>
-        <div class="card-body space-y-4">
-          <div class="form-group mb-0">
-            <label class="form-label text-xs">Nama Aplikasi</label>
-            <input type="text" id="s-app-name" class="form-input" placeholder="eVoting OSIM"/>
-            <p class="form-hint">Ditampilkan di seluruh halaman aplikasi.</p>
-          </div>
-          <div class="form-group mb-0">
-            <label class="form-label text-xs">Sub Judul / Tagline</label>
-            <input type="text" id="s-app-subtitle" class="form-input" placeholder="Pemilihan Ketua OSIM/S"/>
-          </div>
-          <div class="form-group mb-0">
-            <label class="form-label text-xs">Nama Sekolah/Madrasah</label>
-            <input type="text" id="s-school-name" class="form-input" placeholder="MAN 1 Contoh"/>
-          </div>
-          <div class="form-group mb-0">
-            <label class="form-label text-xs">URL Logo Sekolah</label>
-            <input type="url" id="s-school-logo" class="form-input" placeholder="https://..."/>
-            <p class="form-hint">URL gambar logo sekolah. Kosongkan jika tidak ada.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pengaturan Pemilihan -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-            <i class="fa-solid fa-sliders text-blue-500"></i> Pengaturan Pemilihan
-          </h3>
-        </div>
-        <div class="card-body space-y-4">
-          <div class="flex items-start justify-between gap-4 py-2 border-b border-gray-100">
-            <div>
-              <p class="text-sm font-medium text-gray-700">Publikasikan Hasil ke Publik</p>
-              <p class="text-xs text-gray-500 mt-0.5">Izinkan siapa saja melihat hasil di halaman publik (/results).</p>
-            </div>
-            <button id="toggle-public-result" class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors focus:outline-none flex-shrink-0"
-              role="switch" aria-checked="false" onclick="toggleSetting('ALLOW_PUBLIC_RESULT', this)">
-              <span class="toggle-thumb inline-block w-5 h-5 bg-white rounded-full shadow transform transition-transform translate-x-0.5"></span>
-            </button>
-          </div>
-
-          <div class="flex items-start justify-between gap-4 py-2">
-            <div>
-              <p class="text-sm font-medium text-gray-700">Mode Maintenance</p>
-              <p class="text-xs text-gray-500 mt-0.5">Saat aktif, semua request ke API akan ditolak dengan pesan maintenance.</p>
-            </div>
-            <button id="toggle-maintenance" class="relative inline-flex items-center h-6 w-11 rounded-full transition-colors focus:outline-none flex-shrink-0"
-              role="switch" aria-checked="false" onclick="toggleSetting('MAINTENANCE_MODE', this)">
-              <span class="toggle-thumb inline-block w-5 h-5 bg-white rounded-full shadow transform transition-transform translate-x-0.5"></span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Google Drive -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-            <i class="fa-brands fa-google-drive text-green-500"></i> Google Drive
-          </h3>
-        </div>
-        <div class="card-body">
-          <div class="form-group mb-0">
-            <label class="form-label text-xs">ID Folder Google Drive (Foto Kandidat)</label>
-            <input type="text" id="s-drive-folder" class="form-input font-mono text-sm" placeholder="ID Folder dari URL Google Drive"/>
-            <p class="form-hint">Dapatkan dari URL folder: drive.google.com/drive/folders/<strong>FOLDER_ID</strong></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Info (read-only) -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-            <i class="fa-solid fa-info-circle text-gray-500"></i> Informasi Sistem
-          </h3>
-        </div>
-        <div class="card-body space-y-2 text-sm text-gray-600">
-          <div class="flex justify-between py-1 border-b border-gray-100">
-            <span class="text-gray-500">Versi Aplikasi</span>
-            <span class="font-medium">1.0.0</span>
-          </div>
-          <div class="flex justify-between py-1 border-b border-gray-100">
-            <span class="text-gray-500">Backend</span>
-            <span class="font-medium">Google Apps Script</span>
-          </div>
-          <div class="flex justify-between py-1 border-b border-gray-100">
-            <span class="text-gray-500">Database</span>
-            <span class="font-medium">Google Spreadsheet</span>
-          </div>
-          <div class="flex justify-between py-1">
-            <span class="text-gray-500">Frontend</span>
-            <span class="font-medium">Vercel (Static)</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Save button (superadmin only) -->
-      <div id="save-section" class="hidden">
-        <button id="btn-save" class="btn btn-primary btn-lg w-full">
-          <i class="fa-solid fa-floppy-disk"></i>
-          Simpan Pengaturan
+        <p class="text-gray-700 font-semibold mb-1">Gagal Memuat Pengaturan</p>
+        <p class="text-gray-500 text-sm mb-5" id="error-message">Tidak dapat menghubungi server.</p>
+        <button id="btn-retry" class="btn btn-outline gap-2">
+          <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Coba Lagi
         </button>
       </div>
-    </div>
-  </main>
-</div>
 
-<style>
-.toggle-off { @apply bg-gray-200; }
-.toggle-on  { @apply bg-primary-500; }
-[role="switch"][aria-checked="true"] .toggle-thumb { transform: translateX(1.25rem); }
-[role="switch"][aria-checked="false"] .toggle-thumb { transform: translateX(0.125rem); }
-[role="switch"][aria-checked="true"]  { background-color: #2563eb; }
-[role="switch"][aria-checked="false"] { background-color: #d1d5db; }
-</style>
+      <!-- Loading state -->
+      <div id="loading-state" class="text-center py-16">
+        <div class="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-3"
+             role="status" aria-label="Memuat..."></div>
+        <p class="text-gray-500 text-sm">Memuat pengaturan...</p>
+      </div>
+
+      <!-- Content (tersembunyi sampai data dimuat) -->
+      <div id="content-state" class="hidden space-y-5">
+
+        <!-- FIX #8 + notice read-only untuk non-superadmin -->
+        <div id="readonly-notice" class="hidden alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation flex-shrink-0" aria-hidden="true"></i>
+          <span>Anda hanya dapat melihat pengaturan. Hanya <strong>Super Admin</strong> yang dapat mengubah konfigurasi.</span>
+        </div>
+
+        <!-- ── Identitas Aplikasi ──────────────────────────────── -->
+        <div class="card" id="card-identity">
+          <div class="card-header" id="card-identity-header">
+            <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-palette text-primary-500 text-xs" aria-hidden="true"></i>
+              </span>
+              Identitas Aplikasi
+            </h3>
+          </div>
+          <div class="card-body space-y-4">
+            <div class="form-group mb-0">
+              <label class="form-label text-xs" for="s-app-name">
+                Nama Aplikasi <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <input type="text" id="s-app-name" name="s-app-name"
+                     class="form-input" placeholder="eVoting OSIM"
+                     autocomplete="off" maxlength="100"/>
+              <!-- FIX #3: error placeholder untuk validasi -->
+              <p class="form-error hidden" id="s-app-name-error" role="alert"></p>
+              <p class="form-hint">Ditampilkan di seluruh halaman aplikasi.</p>
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label text-xs" for="s-app-subtitle">Sub Judul / Tagline</label>
+              <input type="text" id="s-app-subtitle" name="s-app-subtitle"
+                     class="form-input" placeholder="Pemilihan Ketua OSIM/S"
+                     autocomplete="off" maxlength="150"/>
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label text-xs" for="s-school-name">Nama Sekolah/Madrasah</label>
+              <input type="text" id="s-school-name" name="s-school-name"
+                     class="form-input" placeholder="MAN 1 Contoh"
+                     autocomplete="off" maxlength="100"/>
+            </div>
+            <!-- FIX #13: hilangkan <strong> di form-hint agar konsisten -->
+            <div class="form-group mb-0">
+              <label class="form-label text-xs" for="s-school-logo">URL Logo Sekolah</label>
+              <input type="url" id="s-school-logo" name="s-school-logo"
+                     class="form-input" placeholder="https://example.com/logo.png"
+                     autocomplete="off"/>
+              <p class="form-error hidden" id="s-school-logo-error" role="alert"></p>
+              <p class="form-hint">URL gambar logo sekolah. Kosongkan jika tidak ada.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Google Drive ───────────────────────────────────── -->
+        <div class="card" id="card-drive">
+          <div class="card-header" id="card-drive-header">
+            <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                <i class="fa-brands fa-google-drive text-green-500 text-xs" aria-hidden="true"></i>
+              </span>
+              Google Drive
+            </h3>
+          </div>
+          <div class="card-body">
+            <div class="form-group mb-0">
+              <label class="form-label text-xs" for="s-drive-folder">
+                ID Folder Google Drive (Foto Kandidat)
+              </label>
+              <input type="text" id="s-drive-folder" name="s-drive-folder"
+                     class="form-input font-mono text-sm" placeholder="1A2B3C4D5E6F…"
+                     autocomplete="off" spellcheck="false"/>
+              <p class="form-hint">
+                Dapatkan dari URL folder:
+                <code class="bg-gray-100 text-gray-600 px-1 rounded text-xs">
+                  drive.google.com/drive/folders/<em>FOLDER_ID</em>
+                </code>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Pengaturan Pemilihan ───────────────────────────── -->
+        <div class="card" id="card-voting">
+          <div class="card-header" id="card-voting-header">
+            <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-sliders text-blue-500 text-xs" aria-hidden="true"></i>
+              </span>
+              Pengaturan Pemilihan
+            </h3>
+          </div>
+          <div class="card-body space-y-0 divide-y divide-gray-100">
+
+            <!-- Toggle: Publikasi Hasil -->
+            <div class="flex items-start justify-between gap-4 py-3.5">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-700 leading-snug">Publikasikan Hasil ke Publik</p>
+                <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                  Izinkan siapa saja melihat hasil di halaman publik
+                  <code class="bg-gray-100 text-gray-600 px-1 rounded">/results</code>.
+                </p>
+              </div>
+              <!-- FIX #4 + #7: hapus inline onclick, gunakan event listener, tambah aria-label -->
+              <button id="toggle-public-result"
+                      class="toggle-btn flex-shrink-0"
+                      role="switch"
+                      aria-checked="false"
+                      aria-label="Publikasikan hasil ke publik">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <!-- Toggle: Maintenance Mode -->
+            <div class="flex items-start justify-between gap-4 py-3.5">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-medium text-gray-700 leading-snug">Mode Maintenance</p>
+                  <!-- FIX #12: tanda peringatan untuk toggle berbahaya -->
+                  <span class="badge badge-warning text-xs py-0.5">Berbahaya</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                  Saat aktif, semua request ke API akan ditolak dengan pesan maintenance.
+                </p>
+              </div>
+              <button id="toggle-maintenance"
+                      class="toggle-btn flex-shrink-0"
+                      role="switch"
+                      aria-checked="false"
+                      aria-label="Mode maintenance">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Informasi Sistem (read-only) ──────────────────── -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-circle-info text-gray-500 text-xs" aria-hidden="true"></i>
+              </span>
+              Informasi Sistem
+            </h3>
+          </div>
+          <div class="card-body space-y-0 divide-y divide-gray-100 text-sm text-gray-600">
+            <div class="flex items-center justify-between py-2.5">
+              <span class="text-gray-500 text-xs font-medium uppercase tracking-wide">Versi Aplikasi</span>
+              <span class="font-semibold text-gray-700">1.0.0</span>
+            </div>
+            <div class="flex items-center justify-between py-2.5">
+              <span class="text-gray-500 text-xs font-medium uppercase tracking-wide">Backend</span>
+              <span class="font-semibold text-gray-700 flex items-center gap-1.5">
+                <i class="fa-brands fa-google text-xs text-gray-400" aria-hidden="true"></i>
+                Google Apps Script
+              </span>
+            </div>
+            <div class="flex items-center justify-between py-2.5">
+              <span class="text-gray-500 text-xs font-medium uppercase tracking-wide">Database</span>
+              <span class="font-semibold text-gray-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-table text-xs text-gray-400" aria-hidden="true"></i>
+                Google Spreadsheet
+              </span>
+            </div>
+            <div class="flex items-center justify-between py-2.5">
+              <span class="text-gray-500 text-xs font-medium uppercase tracking-wide">Frontend</span>
+              <span class="font-semibold text-gray-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-triangle text-xs text-gray-400" aria-hidden="true"></i>
+                Vercel (Static)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- FIX #10 + #14: sticky save bar di bawah konten -->
+        <div id="save-bar" class="hidden bg-white border border-gray-200 rounded-xl shadow-md p-4">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <!-- FIX #9: unsaved changes indicator -->
+            <div class="flex items-center gap-2 flex-1 text-amber-600 text-sm">
+              <i class="fa-solid fa-circle-dot text-xs animate-pulse" aria-hidden="true"></i>
+              <span class="font-medium">Ada perubahan yang belum disimpan</span>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+              <button id="btn-discard" class="btn btn-secondary flex-1 sm:flex-none gap-2">
+                <i class="fa-solid fa-rotate-left text-xs" aria-hidden="true"></i>
+                Batalkan
+              </button>
+              <button id="btn-save" class="btn btn-primary flex-1 sm:flex-none gap-2">
+                <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+                Simpan Pengaturan
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /content-state -->
+    </div><!-- /max-w-2xl -->
+  </main>
+</div><!-- /main area -->
 
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
@@ -191,97 +367,346 @@
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/components.js"></script>
 <script>
-let _configData = {};
-const isSuperAdmin = () => Auth.isSuperAdmin();
-
+/* =============================================================
+   SETTINGS PAGE — eVoting OSIM/S
+   Semua logika diorganisir dalam IIFE agar tidak mencemari
+   global scope dan menghindari konflik nama fungsi (#7).
+   ============================================================= */
 (async () => {
-  // Hanya superadmin, admin, dan viewer yang boleh akses halaman ini
+
+  // ── Guard ───────────────────────────────────────────────────
   if (!Auth.requireAdminPage(['superadmin', 'admin', 'viewer'])) return;
-  Sidebar.init(); Topbar.init();
+  Sidebar.init();
+  Topbar.init();
 
-  if (isSuperAdmin()) {
-    document.getElementById('superadmin-badge').classList.remove('hidden');
-    document.getElementById('save-section').classList.remove('hidden');
+  const superAdmin = Auth.isSuperAdmin();
+
+  // ── Badge superadmin di topbar ───────────────────────────────
+  if (superAdmin) {
+    document.getElementById('superadmin-badge')?.classList.remove('hidden');
+    document.getElementById('topbar-save-section')?.classList.remove('hidden');
   } else {
-    document.getElementById('readonly-notice').classList.remove('hidden');
-    // disable all inputs
+    document.getElementById('readonly-notice')?.classList.remove('hidden');
   }
 
+  // ── State ─────────────────────────────────────────────────
+  let _configData   = {};   // data dari server
+  let _snapshot     = {};   // snapshot saat load (untuk "Batalkan")
+  let _isDirty      = false;
+
+  // ── DOM refs ──────────────────────────────────────────────
+  const elLoading    = document.getElementById('loading-state');
+  const elError      = document.getElementById('error-state');
+  const elContent    = document.getElementById('content-state');
+  const elSaveBar    = document.getElementById('save-bar');
+  const btnSave      = document.getElementById('btn-save');
+  const btnSaveTop   = document.getElementById('btn-save-topbar');
+  const btnDiscard   = document.getElementById('btn-discard');
+  const btnRetry     = document.getElementById('btn-retry');
+
+  // ── Helper: tampil/sembunyikan state UI ─────────────────
+  function showState(state) {
+    elLoading?.classList.add('hidden');
+    elError?.classList.remove('visible');
+    elError?.classList.add('hidden');
+    elContent?.classList.add('hidden');
+
+    if (state === 'loading') {
+      elLoading?.classList.remove('hidden');
+    } else if (state === 'error') {
+      elError?.classList.remove('hidden');
+      elError?.classList.add('visible');
+    } else if (state === 'content') {
+      elContent?.classList.remove('hidden');
+    }
+  }
+
+  // FIX #9 + #14: kelola dirty state & tampilkan save bar
+  function setDirty(dirty) {
+    _isDirty = dirty;
+    if (!superAdmin) return;
+    if (dirty) {
+      elSaveBar?.classList.remove('hidden');
+    } else {
+      elSaveBar?.classList.add('hidden');
+    }
+  }
+
+  // ── Toggle helper ────────────────────────────────────────
+  // FIX #1 + #4 + #7: tidak ada inline onclick; semua pakai addEventListener
+  function setToggle(id, on) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  }
+
+  function getToggle(id) {
+    const btn = document.getElementById(id);
+    if (!btn) return false;
+    return btn.getAttribute('aria-checked') === 'true';
+  }
+
+  // FIX #4: handle toggle click terpusat, tidak di HTML attribute
+  function bindToggle(id, configKey) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+      // FIX #4: cek disabled sebelum proses
+      if (!superAdmin || btn.getAttribute('aria-disabled') === 'true') return;
+
+      const current = btn.getAttribute('aria-checked') === 'true';
+      const next    = !current;
+
+      btn.setAttribute('aria-checked', next ? 'true' : 'false');
+      _configData[configKey] = next ? 'true' : 'false';
+      setDirty(true);
+    });
+
+    // Aksesibilitas: keyboard Space/Enter
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        btn.click();
+      }
+    });
+  }
+
+  // ── Validasi input ────────────────────────────────────────
+  // FIX #3: validasi sebelum save
+  function validateForm() {
+    let valid = true;
+
+    // Clear semua error dulu
+    ['s-app-name', 's-school-logo'].forEach(id => {
+      const errEl = document.getElementById(id + '-error');
+      const inEl  = document.getElementById(id);
+      if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+      if (inEl)  inEl.classList.remove('form-input-error');
+    });
+
+    // APP_NAME wajib diisi
+    const appName = document.getElementById('s-app-name')?.value.trim();
+    if (!appName) {
+      const errEl = document.getElementById('s-app-name-error');
+      const inEl  = document.getElementById('s-app-name');
+      if (errEl) { errEl.textContent = 'Nama aplikasi tidak boleh kosong.'; errEl.classList.remove('hidden'); }
+      if (inEl)  inEl.classList.add('form-input-error');
+      inEl?.focus();
+      valid = false;
+    }
+
+    // URL logo: jika diisi, harus valid URL
+    const logoUrl = document.getElementById('s-school-logo')?.value.trim();
+    if (logoUrl) {
+      try { new URL(logoUrl); }
+      catch {
+        const errEl = document.getElementById('s-school-logo-error');
+        const inEl  = document.getElementById('s-school-logo');
+        if (errEl) { errEl.textContent = 'URL logo tidak valid. Gunakan format https://...'; errEl.classList.remove('hidden'); }
+        if (inEl)  inEl.classList.add('form-input-error');
+        if (valid) inEl?.focus();
+        valid = false;
+      }
+    }
+
+    return valid;
+  }
+
+  // ── Dirty state tracking pada input fields ────────────────
+  // FIX #9: pantau perubahan pada semua input/textarea dalam content-state
+  function bindDirtyTrackers() {
+    elContent?.querySelectorAll('input, textarea, select').forEach(el => {
+      el.addEventListener('input', () => setDirty(true));
+      el.addEventListener('change', () => setDirty(true));
+    });
+  }
+
+  // ── Load settings ─────────────────────────────────────────
+  // FIX #5: tambah try-catch dan error state
+  async function loadSettings() {
+    showState('loading');
+
+    let res;
+    try {
+      res = await API.config.getAll();
+    } catch (err) {
+      console.error('[Settings] loadSettings exception:', err);
+      showState('error');
+      const errMsg = document.getElementById('error-message');
+      if (errMsg) errMsg.textContent = 'Tidak dapat menghubungi server. Periksa koneksi Anda.';
+      return;
+    }
+
+    if (!res.success) {
+      showState('error');
+      const errMsg = document.getElementById('error-message');
+      if (errMsg) errMsg.textContent = res.message || 'Gagal memuat data pengaturan.';
+      return;
+    }
+
+    // Bangun _configData dari array [{key, value}]
+    _configData = {};
+    (res.data || []).forEach(item => {
+      _configData[item.key] = item.value;
+    });
+
+    // Isi form
+    const setVal = (id, key) => {
+      const el = document.getElementById(id);
+      if (el) el.value = _configData[key] || '';
+    };
+    setVal('s-app-name',     'APP_NAME');
+    setVal('s-app-subtitle', 'APP_SUBTITLE');
+    setVal('s-school-name',  'SCHOOL_NAME');
+    setVal('s-school-logo',  'SCHOOL_LOGO_URL');
+    setVal('s-drive-folder', 'DRIVE_FOLDER_ID');
+
+    setToggle('toggle-public-result', _configData['ALLOW_PUBLIC_RESULT'] === 'true');
+    setToggle('toggle-maintenance',   _configData['MAINTENANCE_MODE']    === 'true');
+
+    // Simpan snapshot untuk fungsi "Batalkan"
+    _snapshot = { ..._configData };
+
+    // FIX #8: disable interaksi + opacity untuk non-superadmin
+    if (!superAdmin) {
+      elContent?.querySelectorAll('input, textarea, select').forEach(el => {
+        el.disabled = true;
+      });
+      ['toggle-public-result', 'toggle-maintenance'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+          btn.setAttribute('aria-disabled', 'true');
+          btn.setAttribute('tabindex', '-1');
+        }
+      });
+    }
+
+    showState('content');
+
+    // Bind dirty tracker setelah form terisi (agar tidak trigger dirty saat setValue)
+    if (superAdmin) {
+      bindDirtyTrackers();
+      setDirty(false); // reset dirty setelah load
+    }
+  }
+
+  // ── Discard changes ───────────────────────────────────────
+  function discardChanges() {
+    // Kembalikan ke snapshot
+    _configData = { ..._snapshot };
+
+    const setVal = (id, key) => {
+      const el = document.getElementById(id);
+      if (el) el.value = _configData[key] || '';
+    };
+    setVal('s-app-name',     'APP_NAME');
+    setVal('s-app-subtitle', 'APP_SUBTITLE');
+    setVal('s-school-name',  'SCHOOL_NAME');
+    setVal('s-school-logo',  'SCHOOL_LOGO_URL');
+    setVal('s-drive-folder', 'DRIVE_FOLDER_ID');
+
+    setToggle('toggle-public-result', _configData['ALLOW_PUBLIC_RESULT'] === 'true');
+    setToggle('toggle-maintenance',   _configData['MAINTENANCE_MODE']    === 'true');
+
+    // Hapus error state form
+    ['s-app-name', 's-school-logo'].forEach(id => {
+      const errEl = document.getElementById(id + '-error');
+      const inEl  = document.getElementById(id);
+      if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+      if (inEl)  inEl.classList.remove('form-input-error');
+    });
+
+    setDirty(false);
+    Toast.info('Perubahan dibatalkan.');
+  }
+
+  // ── Save settings ──────────────────────────────────────────
+  // FIX #3 + #6 + #12
+  async function saveSettings() {
+    if (!superAdmin) return;
+    if (!validateForm()) return;
+
+    // FIX #12: konfirmasi jika maintenance mode akan diaktifkan
+    const maintenanceOn    = _configData['MAINTENANCE_MODE'] === 'true';
+    const snapshotMaintenance = _snapshot['MAINTENANCE_MODE'] === 'true';
+    if (maintenanceOn && !snapshotMaintenance) {
+      const confirmed = await Utils.confirm(
+        'Mode Maintenance akan diaktifkan. Semua pengguna tidak dapat mengakses API hingga mode ini dinonaktifkan. Lanjutkan?',
+        'Aktifkan Mode Maintenance',
+        true
+      );
+      if (!confirmed) return;
+    }
+
+    // Set loading pada kedua tombol save
+    Utils.setLoading(btnSave,    true, 'Menyimpan...');
+    Utils.setLoading(btnSaveTop, true, 'Menyimpan...');
+
+    const updates = {
+      APP_NAME:            document.getElementById('s-app-name')?.value.trim()     || '',
+      APP_SUBTITLE:        document.getElementById('s-app-subtitle')?.value.trim() || '',
+      SCHOOL_NAME:         document.getElementById('s-school-name')?.value.trim()  || '',
+      SCHOOL_LOGO_URL:     document.getElementById('s-school-logo')?.value.trim()  || '',
+      DRIVE_FOLDER_ID:     document.getElementById('s-drive-folder')?.value.trim() || '',
+      ALLOW_PUBLIC_RESULT: _configData['ALLOW_PUBLIC_RESULT'] || 'false',
+      MAINTENANCE_MODE:    _configData['MAINTENANCE_MODE']    || 'false',
+    };
+
+    let res;
+    try {
+      res = await API.config.update(updates);
+    } catch (err) {
+      console.error('[Settings] saveSettings exception:', err);
+      res = { success: false, message: 'Gagal menghubungi server.' };
+    }
+
+    Utils.setLoading(btnSave,    false);
+    Utils.setLoading(btnSaveTop, false);
+
+    if (res.success) {
+      Toast.success('Pengaturan berhasil disimpan.');
+
+      // FIX #6: update sidebar app name, school name, dan document title
+      const newAppName    = updates.APP_NAME    || 'eVoting OSIM';
+      const newSchoolName = updates.SCHOOL_NAME || '';
+
+      const sidebarAppName    = document.getElementById('sidebar-app-name');
+      const sidebarSchoolName = document.getElementById('sidebar-school-name');
+      if (sidebarAppName)    sidebarAppName.textContent    = newAppName;
+      if (sidebarSchoolName) sidebarSchoolName.textContent = newSchoolName;
+
+      // Update document title
+      document.title = document.title.replace(
+        /^[^—]+—/,
+        'Pengaturan — '
+      );
+
+      // Perbarui snapshot setelah save sukses
+      _snapshot = { ...updates };
+      setDirty(false);
+
+    } else {
+      Toast.error(res.message || 'Gagal menyimpan pengaturan.');
+    }
+  }
+
+  // ── Event bindings ─────────────────────────────────────────
+  // FIX #4 + #7: event listener, bukan inline onclick
+  bindToggle('toggle-public-result', 'ALLOW_PUBLIC_RESULT');
+  bindToggle('toggle-maintenance',   'MAINTENANCE_MODE');
+
+  btnSave?.addEventListener('click', saveSettings);
+  btnSaveTop?.addEventListener('click', saveSettings);
+  btnDiscard?.addEventListener('click', discardChanges);
+
+  // FIX #16: tombol retry di error state
+  btnRetry?.addEventListener('click', loadSettings);
+
+  // ── Inisialisasi ───────────────────────────────────────────
   await loadSettings();
-  document.getElementById('btn-save')?.addEventListener('click', saveSettings);
+
 })();
-
-async function loadSettings() {
-  const res = await API.config.getAll();
-  if (!res.success) { Toast.error('Gagal memuat pengaturan.'); return; }
-
-  _configData = {};
-  (res.data || []).forEach(item => { _configData[item.key] = item.value; });
-
-  const setVal = (id, key) => {
-    const el = document.getElementById(id);
-    if (el) el.value = _configData[key] || '';
-  };
-
-  setVal('s-app-name',    'APP_NAME');
-  setVal('s-app-subtitle','APP_SUBTITLE');
-  setVal('s-school-name', 'SCHOOL_NAME');
-  setVal('s-school-logo', 'SCHOOL_LOGO_URL');
-  setVal('s-drive-folder','DRIVE_FOLDER_ID');
-
-  setToggle('toggle-public-result', _configData['ALLOW_PUBLIC_RESULT'] === 'true');
-  setToggle('toggle-maintenance',   _configData['MAINTENANCE_MODE']    === 'true');
-
-  // Disable jika bukan superadmin
-  if (!isSuperAdmin()) {
-    document.querySelectorAll('#content-state input, #content-state textarea, #content-state select, #content-state button[role="switch"]')
-      .forEach(el => el.disabled = true);
-  }
-
-  document.getElementById('loading-state').classList.add('hidden');
-  document.getElementById('content-state').classList.remove('hidden');
-}
-
-function setToggle(id, on) {
-  const btn = document.getElementById(id);
-  if (!btn) return;
-  btn.setAttribute('aria-checked', on ? 'true' : 'false');
-}
-
-function toggleSetting(key, btn) {
-  if (!isSuperAdmin()) return;
-  const current = btn.getAttribute('aria-checked') === 'true';
-  btn.setAttribute('aria-checked', !current ? 'true' : 'false');
-  _configData[key] = !current ? 'true' : 'false';
-}
-
-async function saveSettings() {
-  if (!isSuperAdmin()) return;
-  const btn = document.getElementById('btn-save');
-  Utils.setLoading(btn, true, 'Menyimpan...');
-
-  const updates = {
-    APP_NAME:         document.getElementById('s-app-name')?.value.trim()    || '',
-    APP_SUBTITLE:     document.getElementById('s-app-subtitle')?.value.trim() || '',
-    SCHOOL_NAME:      document.getElementById('s-school-name')?.value.trim()  || '',
-    SCHOOL_LOGO_URL:  document.getElementById('s-school-logo')?.value.trim()  || '',
-    DRIVE_FOLDER_ID:  document.getElementById('s-drive-folder')?.value.trim() || '',
-    ALLOW_PUBLIC_RESULT: _configData['ALLOW_PUBLIC_RESULT'] || 'false',
-    MAINTENANCE_MODE:    _configData['MAINTENANCE_MODE']    || 'false',
-  };
-
-  const res = await API.config.update(updates);
-  Utils.setLoading(btn, false);
-
-  if (res.success) {
-    Toast.success('Pengaturan berhasil disimpan.');
-    // Update sidebar app name
-    const appNameEl = document.getElementById('sidebar-app-name');
-    if (appNameEl && updates.APP_NAME) appNameEl.textContent = updates.APP_NAME;
-  } else {
-    Toast.error(res.message);
-  }
-}
 </script>
 </body>
 </html>
