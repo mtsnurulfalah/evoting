@@ -9,17 +9,255 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+  <style>
+    /* ── Status Stepper ── */
+    .workflow-stepper {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .workflow-stepper::-webkit-scrollbar { display: none; }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+      position: relative;
+    }
+    .step-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: all 0.18s ease;
+      width: 100%;
+      line-height: 1.2;
+    }
+    .step-btn:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+
+    /* States */
+    .step-btn-current {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+      cursor: default;
+      pointer-events: none;
+    }
+    .step-btn-done {
+      background: #f0fdf4;
+      color: #15803d;
+      border-color: #bbf7d0;
+    }
+    .step-btn-done:hover {
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+    .step-btn-available {
+      background: #fff;
+      color: #374151;
+      border-color: #d1d5db;
+    }
+    .step-btn-available:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+      color: #111827;
+    }
+    .step-btn-locked {
+      background: #f9fafb;
+      color: #9ca3af;
+      border-color: #e5e7eb;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    /* Connector line between steps */
+    .step-connector {
+      flex-shrink: 0;
+      width: 16px;
+      height: 1.5px;
+      background: #e5e7eb;
+      margin: 0 3px;
+    }
+    .step-connector-done { background: #86efac; }
+
+    /* ── Filter Bar ── */
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      color: #6b7280;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .filter-chip:hover { border-color: #9ca3af; color: #374151; }
+    .filter-chip.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+    }
+    .filter-chip.active:hover { background: #1d4ed8; border-color: #1d4ed8; }
+
+    /* ── Election Card ── */
+    .election-card {
+      background: #fff;
+      border-radius: 14px;
+      border: 1.5px solid #e5e7eb;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      transition: box-shadow 0.2s, border-color 0.2s;
+      overflow: hidden;
+    }
+    .election-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+      border-color: #d1d5db;
+    }
+    .election-card.card-active-election {
+      border-color: #86efac;
+      box-shadow: 0 0 0 3px rgba(22,163,74,0.08), 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .election-card.card-ended {
+      border-color: #e5e7eb;
+      opacity: 0.85;
+    }
+
+    /* ── Timeline bar inside card ── */
+    .timeline-bar {
+      height: 3px;
+      border-radius: 0;
+      background: #f3f4f6;
+      overflow: hidden;
+    }
+    .timeline-fill {
+      height: 100%;
+      border-radius: 0;
+      transition: width 0.5s ease;
+    }
+
+    /* ── Sort select ── */
+    .sort-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.5rem center;
+      background-size: 1.25em 1.25em;
+      background-repeat: no-repeat;
+      padding-right: 2rem;
+    }
+
+    /* ── Action button group ── */
+    .action-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .action-btn-group .btn { flex-shrink: 0; }
+
+    /* ── Skeleton loading ── */
+    .skeleton-card {
+      background: #fff;
+      border-radius: 14px;
+      border: 1.5px solid #e5e7eb;
+      overflow: hidden;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .sk-block { background: #e5e7eb; border-radius: 6px; }
+
+    /* ── Modal overrides for mobile ── */
+    @media (max-width: 640px) {
+      .modal-backdrop { align-items: flex-end; padding: 0; }
+      .modal-box {
+        border-radius: 20px 20px 0 0;
+        max-height: 92dvh;
+        max-height: 92vh; /* fallback */
+      }
+      .modal-box.modal-center {
+        border-radius: 14px;
+      }
+    }
+
+    /* ── Inline field error ── */
+    .field-error {
+      font-size: 11px;
+      color: #ef4444;
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .field-error:empty { display: none; }
+
+    /* ── Empty & Error state ── */
+    .state-illustration {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 28px;
+    }
+
+    /* ── Count badge on filter chip ── */
+    .chip-count {
+      background: rgba(0,0,0,0.1);
+      border-radius: 10px;
+      padding: 0 5px;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .filter-chip.active .chip-count { background: rgba(255,255,255,0.25); }
+
+    /* ── Scrollable filter bar ── */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+  </style>
 </head>
 <body class="h-full bg-gray-50 flex">
+
 <div id="toast-container"></div>
 <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
 
-<!-- Sidebar -->
+<!-- ═══════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════ -->
 <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
   <div class="px-5 py-4 border-b border-gray-100">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-        <i class="fa-solid fa-box-ballot text-white"></i>
+        <i class="fa-solid fa-box-ballot text-white text-sm"></i>
       </div>
       <div class="min-w-0">
         <p class="text-sm font-bold text-gray-800 truncate" id="sidebar-app-name">eVoting OSIM</p>
@@ -35,67 +273,193 @@
         <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
         <p class="text-xs text-gray-500" id="topbar-user-role"></p>
       </div>
-      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1" title="Logout">
+      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded" title="Logout">
         <i class="fa-solid fa-right-from-bracket text-sm"></i>
       </button>
     </div>
   </div>
 </aside>
 
-<!-- Main content -->
+<!-- ═══════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════ -->
 <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-  <!-- Header -->
+  <!-- ── Header ── -->
   <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-3 sticky top-0 z-20 flex-shrink-0">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1 flex-shrink-0">
-      <i class="fa-solid fa-bars text-lg"></i>
+    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors">
+      <i class="fa-solid fa-bars text-base"></i>
     </button>
-    <h1 class="text-base font-semibold text-gray-800 flex-1 truncate">Manajemen Pemilihan</h1>
-    <button id="btn-create" class="btn btn-primary btn-sm flex-shrink-0">
-      <i class="fa-solid fa-plus"></i>
-      <span class="hidden sm:inline ml-1">Buat Pemilihan</span>
+    <div class="flex-1 min-w-0">
+      <h1 class="text-sm font-bold text-gray-800 truncate">Manajemen Pemilihan</h1>
+    </div>
+    <button id="btn-create"
+      class="btn btn-primary btn-sm flex-shrink-0 gap-1.5"
+      title="Buat Pemilihan Baru">
+      <i class="fa-solid fa-plus text-xs"></i>
+      <span class="hidden xs:inline">Buat Pemilihan</span>
+      <span class="xs:hidden">Buat</span>
     </button>
   </header>
 
-  <!-- Main -->
-  <main class="flex-1 p-4 md:p-6 overflow-y-auto overflow-x-hidden">
+  <!-- ── Main ── -->
+  <main class="flex-1 overflow-y-auto overflow-x-hidden">
 
-    <!-- Loading state -->
-    <div id="loading-state" class="flex flex-col items-center justify-center py-20">
-      <div class="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
-      <p class="text-gray-500 text-sm">Memuat data pemilihan...</p>
-    </div>
-
-    <!-- Content state (list of election cards) -->
-    <div id="content-state" class="hidden space-y-4"></div>
-
-    <!-- Empty state -->
-    <div id="empty-state" class="hidden">
-      <div class="empty-state">
-        <i class="fa-solid fa-calendar-xmark text-4xl text-gray-300 mb-3"></i>
-        <h3 class="text-base font-semibold text-gray-600 mb-1">Belum ada pemilihan</h3>
-        <p class="text-sm text-gray-400">Buat pemilihan pertama untuk mulai mengelola proses e-voting.</p>
-        <button id="btn-create-empty" class="btn btn-primary mt-5">
-          <i class="fa-solid fa-plus mr-1"></i> Buat Pemilihan
-        </button>
+    <!-- ── Page hero / description ── -->
+    <div class="bg-white border-b border-gray-100 px-4 md:px-6 py-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 max-w-5xl mx-auto">
+        <div>
+          <p class="text-xs text-gray-500 leading-relaxed">
+            Kelola siklus pemilihan: buat, atur jadwal, ubah status, dan monitor progres seluruh pemilihan.
+          </p>
+        </div>
+        <!-- Summary counts -->
+        <div id="summary-counts" class="hidden flex items-center gap-3 flex-shrink-0">
+          <div class="flex items-center gap-1.5 text-xs text-gray-600">
+            <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+            <span id="count-active">0</span> aktif
+          </div>
+          <div class="flex items-center gap-1.5 text-xs text-gray-600">
+            <span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
+            <span id="count-upcoming">0</span> akan datang
+          </div>
+          <div class="flex items-center gap-1.5 text-xs text-gray-600">
+            <span class="w-2 h-2 rounded-full bg-gray-400 inline-block"></span>
+            <span id="count-total">0</span> total
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Error state -->
-    <div id="error-state" class="hidden">
-      <div class="empty-state">
-        <i class="fa-solid fa-triangle-exclamation text-4xl text-red-300 mb-3"></i>
-        <h3 class="text-base font-semibold text-gray-600 mb-1">Gagal memuat data</h3>
-        <p class="text-sm text-gray-400" id="error-msg">Terjadi kesalahan saat memuat data pemilihan.</p>
-        <button id="btn-retry" class="btn btn-secondary mt-5">
-          <i class="fa-solid fa-rotate-right mr-1"></i> Coba Lagi
+    <div class="px-4 md:px-6 py-5 max-w-5xl mx-auto space-y-4">
+
+      <!-- ── Filter & Sort bar ── -->
+      <div id="filter-bar-wrapper" class="hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <!-- Filter chips -->
+          <div class="filter-bar flex-1">
+            <button class="filter-chip active" data-filter="all">
+              Semua <span class="chip-count" id="fcount-all">0</span>
+            </button>
+            <button class="filter-chip" data-filter="active">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>
+              Berlangsung <span class="chip-count" id="fcount-active">0</span>
+            </button>
+            <button class="filter-chip" data-filter="upcoming">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"></span>
+              Akan Dimulai <span class="chip-count" id="fcount-upcoming">0</span>
+            </button>
+            <button class="filter-chip" data-filter="draft">
+              <span class="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block"></span>
+              Draft <span class="chip-count" id="fcount-draft">0</span>
+            </button>
+            <button class="filter-chip" data-filter="ended">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-400 inline-block"></span>
+              Selesai <span class="chip-count" id="fcount-ended">0</span>
+            </button>
+          </div>
+          <!-- Sort -->
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <label for="sort-select" class="text-xs text-gray-500 whitespace-nowrap hidden sm:block">Urutkan:</label>
+            <select id="sort-select"
+              class="sort-select text-xs border border-gray-200 rounded-lg py-1.5 pl-3 pr-7 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 cursor-pointer">
+              <option value="newest">Terbaru</option>
+              <option value="oldest">Terlama</option>
+              <option value="name-asc">Nama A–Z</option>
+              <option value="name-desc">Nama Z–A</option>
+              <option value="start-asc">Mulai ↑</option>
+              <option value="end-asc">Berakhir ↑</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Loading state (skeleton) ── -->
+      <div id="loading-state" class="space-y-4">
+        <div class="skeleton-card">
+          <div class="p-5 space-y-3">
+            <div class="flex items-start gap-3">
+              <div class="sk-block h-5 w-24"></div>
+              <div class="sk-block h-5 w-16"></div>
+            </div>
+            <div class="sk-block h-5 w-3/4"></div>
+            <div class="sk-block h-3 w-full"></div>
+            <div class="sk-block h-3 w-1/2"></div>
+          </div>
+          <div class="border-t border-gray-100 p-4">
+            <div class="flex gap-2">
+              <div class="sk-block h-7 w-16 rounded-md"></div>
+              <div class="sk-block h-7 w-20 rounded-md"></div>
+              <div class="sk-block h-7 w-20 rounded-md"></div>
+              <div class="sk-block h-7 w-20 rounded-md"></div>
+            </div>
+          </div>
+        </div>
+        <div class="skeleton-card" style="opacity:0.7">
+          <div class="p-5 space-y-3">
+            <div class="flex items-start gap-3">
+              <div class="sk-block h-5 w-20"></div>
+            </div>
+            <div class="sk-block h-5 w-1/2"></div>
+            <div class="sk-block h-3 w-2/3"></div>
+          </div>
+          <div class="border-t border-gray-100 p-4">
+            <div class="flex gap-2">
+              <div class="sk-block h-7 w-16 rounded-md"></div>
+              <div class="sk-block h-7 w-20 rounded-md"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Content state (list of election cards) ── -->
+      <div id="content-state" class="hidden space-y-3"></div>
+
+      <!-- ── No results after filter ── -->
+      <div id="filtered-empty-state" class="hidden py-12 text-center">
+        <div class="state-illustration bg-gray-100 text-gray-400 mx-auto">
+          <i class="fa-solid fa-filter"></i>
+        </div>
+        <p class="text-sm font-medium text-gray-600">Tidak ada pemilihan untuk filter ini</p>
+        <p class="text-xs text-gray-400 mt-1">Coba pilih filter lain atau tampilkan semua.</p>
+        <button class="btn btn-secondary btn-sm mt-4" id="btn-clear-filter">Tampilkan Semua</button>
+      </div>
+
+      <!-- ── Empty state (no data at all) ── -->
+      <div id="empty-state" class="hidden py-16 text-center">
+        <div class="state-illustration bg-primary-50 text-primary-400 mx-auto">
+          <i class="fa-solid fa-calendar-plus"></i>
+        </div>
+        <h3 class="text-base font-semibold text-gray-700 mb-1">Belum ada pemilihan</h3>
+        <p class="text-sm text-gray-400 max-w-xs mx-auto">
+          Buat pemilihan pertama untuk memulai pengelolaan e-voting.
+        </p>
+        <button id="btn-create-empty" class="btn btn-primary mt-5 gap-2">
+          <i class="fa-solid fa-plus text-xs"></i> Buat Pemilihan Baru
         </button>
       </div>
-    </div>
 
+      <!-- ── Error state ── -->
+      <div id="error-state" class="hidden py-16 text-center">
+        <div class="state-illustration bg-red-50 text-red-400 mx-auto">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3 class="text-base font-semibold text-gray-700 mb-1">Gagal memuat data</h3>
+        <p class="text-sm text-gray-400 max-w-xs mx-auto" id="error-msg">
+          Terjadi kesalahan saat memuat data pemilihan.
+        </p>
+        <button id="btn-retry" class="btn btn-secondary mt-5 gap-2">
+          <i class="fa-solid fa-rotate-right text-xs"></i> Coba Lagi
+        </button>
+      </div>
+
+    </div><!-- /inner wrapper -->
   </main>
 </div>
 
+<!-- ─────────────────────────────────────────────
+     SCRIPTS
+──────────────────────────────────────────────── -->
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script src="../assets/js/api.js"></script>
@@ -103,12 +467,18 @@
 <script src="../assets/js/components.js"></script>
 <script>
 /* ============================================================
-   election.js — Manajemen Pemilihan
+   election.js — Manajemen Pemilihan (refactored)
    ============================================================ */
 
 // ── State ────────────────────────────────────────────────────
-let _elections   = [];
-let _isSubmitting = false; // guard double-submit
+let _elections      = [];   // semua data dari server
+let _isSubmitting   = false; // guard double-submit
+let _isLoading      = false; // guard race-condition pada loadElections
+let _activeFilter   = 'all'; // filter chip aktif
+let _activeSort     = 'newest'; // sort aktif
+
+// Urutan status workflow (index = "level")
+const STATUS_ORDER = ['draft', 'upcoming', 'active', 'ended'];
 
 // ── Inisialisasi ─────────────────────────────────────────────
 (async () => {
@@ -119,41 +489,157 @@ let _isSubmitting = false; // guard double-submit
   document.getElementById('btn-create').addEventListener('click', openCreateModal);
   document.getElementById('btn-create-empty').addEventListener('click', openCreateModal);
   document.getElementById('btn-retry').addEventListener('click', loadElections);
+  document.getElementById('btn-clear-filter').addEventListener('click', () => setFilter('all'));
+
+  // Filter chips
+  document.querySelectorAll('.filter-chip[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => setFilter(btn.dataset.filter));
+  });
+
+  // Sort
+  const sortEl = document.getElementById('sort-select');
+  if (sortEl) {
+    sortEl.addEventListener('change', () => {
+      _activeSort = sortEl.value;
+      renderElections();
+    });
+  }
 
   await loadElections();
 })();
 
-// ── Load & Render ────────────────────────────────────────────
+// ── Load & Render ─────────────────────────────────────────────
 
 async function loadElections() {
+  // Guard: hindari parallel calls
+  if (_isLoading) return;
+  _isLoading = true;
+
   showState('loading');
+
   const res = await API.election.getAll();
+  _isLoading = false;
+
   if (!res.success) {
-    document.getElementById('error-msg').textContent = res.message || 'Gagal memuat data pemilihan.';
+    document.getElementById('error-msg').textContent =
+      res.message || 'Gagal memuat data pemilihan.';
     showState('error');
     return;
   }
+
   _elections = res.data || [];
+  updateFilterCounts();
+
   if (!_elections.length) {
     showState('empty');
+    Utils.hide(document.getElementById('filter-bar-wrapper'));
+    Utils.hide(document.getElementById('summary-counts'));
     return;
   }
-  renderElections();
-  showState('content');
-}
 
-function renderElections() {
-  const container = document.getElementById('content-state');
-  container.innerHTML = _elections.map(e => electionCardHtml(e)).join('');
-  bindCardEvents(container);
+  // Tampilkan filter bar & summary
+  Utils.show(document.getElementById('filter-bar-wrapper'));
+  updateSummaryCounts();
+  document.getElementById('summary-counts').classList.remove('hidden');
+  document.getElementById('summary-counts').classList.add('flex');
+
+  renderElections();
 }
 
 /**
- * Ikat semua event listener pada cards menggunakan event delegation.
- * Satu listener per container, bukan per-button, untuk efisiensi.
+ * Render ulang kartu berdasarkan filter & sort aktif.
+ * Dipanggil saat: data berubah, filter berubah, sort berubah.
  */
+function renderElections() {
+  const container = document.getElementById('content-state');
+
+  // Apply filter
+  let list = _elections.filter(e => {
+    if (_activeFilter === 'all') return true;
+    return e.status === _activeFilter;
+  });
+
+  // Apply sort
+  list = sortElections(list, _activeSort);
+
+  if (!list.length) {
+    Utils.hide(container);
+    container.innerHTML = '';
+    showState('content'); // hides loading, shows content area
+    Utils.show(document.getElementById('filtered-empty-state'));
+    return;
+  }
+
+  Utils.hide(document.getElementById('filtered-empty-state'));
+  container.innerHTML = list.map(e => electionCardHtml(e)).join('');
+  bindCardEvents(container);
+  showState('content');
+}
+
+function sortElections(list, mode) {
+  const sorted = [...list];
+  switch (mode) {
+    case 'oldest':
+      return sorted.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    case 'name-asc':
+      return sorted.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'id'));
+    case 'name-desc':
+      return sorted.sort((a, b) => (b.title || '').localeCompare(a.title || '', 'id'));
+    case 'start-asc':
+      return sorted.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    case 'end-asc':
+      return sorted.sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
+    case 'newest':
+    default:
+      // Urutkan berdasarkan status priority dulu, lalu tanggal terbaru
+      const priority = { active: 0, upcoming: 1, draft: 2, ended: 3 };
+      return sorted.sort((a, b) => {
+        const pa = priority[a.status] ?? 9;
+        const pb = priority[b.status] ?? 9;
+        if (pa !== pb) return pa - pb;
+        return new Date(b.startDate) - new Date(a.startDate);
+      });
+  }
+}
+
+// ── Filter helpers ────────────────────────────────────────────
+
+function setFilter(filter) {
+  _activeFilter = filter;
+
+  // Update chip visual
+  document.querySelectorAll('.filter-chip[data-filter]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+
+  renderElections();
+}
+
+function updateFilterCounts() {
+  const counts = { all: _elections.length, draft: 0, upcoming: 0, active: 0, ended: 0 };
+  _elections.forEach(e => { if (counts[e.status] !== undefined) counts[e.status]++; });
+
+  Object.keys(counts).forEach(k => {
+    const el = document.getElementById(`fcount-${k}`);
+    if (el) el.textContent = counts[k];
+  });
+}
+
+function updateSummaryCounts() {
+  const active   = _elections.filter(e => e.status === 'active').length;
+  const upcoming = _elections.filter(e => e.status === 'upcoming').length;
+
+  const elA = document.getElementById('count-active');
+  const elU = document.getElementById('count-upcoming');
+  const elT = document.getElementById('count-total');
+  if (elA) elA.textContent = active;
+  if (elU) elU.textContent = upcoming;
+  if (elT) elT.textContent = _elections.length;
+}
+
+// ── Event binding (event delegation per container) ────────────
+
 function bindCardEvents(container) {
-  // Aksi utama: edit, delete, toggle
   container.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -164,7 +650,6 @@ function bindCardEvents(container) {
     });
   });
 
-  // Tombol ubah status workflow
   container.querySelectorAll('.status-btn').forEach(btn => {
     btn.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -174,94 +659,182 @@ function bindCardEvents(container) {
   });
 }
 
-// ── Card HTML ────────────────────────────────────────────────
+// ── Card HTML ─────────────────────────────────────────────────
 
 function electionCardHtml(e) {
-  // FIX #18: sinkronkan logika role dengan backend —
-  // hanya superadmin & admin yang boleh edit/create/delete/setStatus
-  const role = Auth.getAdminRole();
-  const canEdit = (role === 'superadmin' || role === 'admin');
+  const role      = Auth.getAdminRole();
+  const canEdit   = (role === 'superadmin' || role === 'admin');
   const canDelete = (role === 'superadmin');
 
-  const hasStarted = e.status === 'active' || e.status === 'ended';
-  const activeLabel = e.isActive ? 'Nonaktifkan' : 'Aktifkan';
-  const activeIcon  = e.isActive ? 'toggle-on text-green-500' : 'toggle-off text-gray-400';
+  // Timeline progress calculation
+  const now       = new Date();
+  const start     = new Date(e.startDate);
+  const end       = new Date(e.endDate);
+  const total     = end - start;
+  const elapsed   = now - start;
+  const progress  = total > 0 ? Math.min(100, Math.max(0, (elapsed / total) * 100)) : 0;
+  const isOverdue = now > end && e.status !== 'ended';
+
+  // Timeline bar color
+  let barColor = '#d1d5db'; // gray (default/draft)
+  if (e.status === 'active')   barColor = '#16a34a';
+  else if (e.status === 'upcoming') barColor = '#3b82f6';
+  else if (e.status === 'ended')    barColor = '#6b7280';
+
+  // Card accent class
+  let cardClass = 'election-card';
+  if (e.status === 'active' && e.isActive) cardClass += ' card-active-election';
+  else if (e.status === 'ended') cardClass += ' card-ended';
 
   return `
-    <div class="card overflow-hidden" data-election-id="${e.id}">
+    <div class="${cardClass}" data-election-id="${Utils.escapeHtml(e.id)}">
 
-      <!-- Card header -->
+      <!-- Timeline accent bar (top) -->
+      <div class="timeline-bar">
+        <div class="timeline-fill" style="width:${progress}%;background:${barColor}"></div>
+      </div>
+
+      <!-- Card body -->
       <div class="p-4 sm:p-5">
-        <div class="flex flex-col sm:flex-row sm:items-start gap-3">
+        <div class="flex flex-col gap-3">
 
-          <!-- Info -->
-          <div class="flex-1 min-w-0">
-            <div class="flex flex-wrap items-center gap-2 mb-2">
+          <!-- Row 1: badges + action buttons -->
+          <div class="flex items-start justify-between gap-3">
+            <!-- Badges -->
+            <div class="flex flex-wrap items-center gap-1.5 min-w-0">
               ${Utils.statusBadgeHtml(e.status)}
               ${e.isActive
-                ? '<span class="badge badge-success"><i class="fa-solid fa-wifi fa-xs mr-1"></i>Aktif</span>'
-                : '<span class="badge badge-gray"><i class="fa-solid fa-wifi-slash fa-xs mr-1"></i>Nonaktif</span>'}
+                ? `<span class="badge badge-success"><i class="fa-solid fa-signal fa-xs mr-0.5"></i>Aktif</span>`
+                : `<span class="badge badge-gray"><i class="fa-solid fa-signal-slash fa-xs mr-0.5"></i>Nonaktif</span>`}
+              ${isOverdue
+                ? `<span class="badge badge-warning"><i class="fa-solid fa-clock fa-xs mr-0.5"></i>Terlambat</span>`
+                : ''}
             </div>
-            <h3 class="text-base font-bold text-gray-800 leading-snug">
+            <!-- Action buttons (top-right) -->
+            ${canEdit ? `
+            <div class="action-btn-group flex-shrink-0">
+              <button class="btn btn-sm btn-outline px-2.5 py-1.5"
+                data-action="toggle" data-id="${Utils.escapeHtml(e.id)}"
+                title="${e.isActive ? 'Nonaktifkan pemilihan' : 'Aktifkan pemilihan'}"
+                aria-label="${e.isActive ? 'Nonaktifkan' : 'Aktifkan'}">
+                ${e.isActive
+                  ? `<i class="fa-solid fa-toggle-on text-green-500 text-base leading-none"></i>`
+                  : `<i class="fa-solid fa-toggle-off text-gray-400 text-base leading-none"></i>`}
+                <span class="text-xs hidden sm:inline">${e.isActive ? 'Aktif' : 'Nonaktif'}</span>
+              </button>
+              <button class="btn btn-sm btn-outline px-2.5 py-1.5"
+                data-action="edit" data-id="${Utils.escapeHtml(e.id)}"
+                title="Edit pemilihan" aria-label="Edit">
+                <i class="fa-solid fa-pen-to-square text-xs"></i>
+                <span class="hidden sm:inline text-xs">Edit</span>
+              </button>
+              ${canDelete ? `
+              <button class="btn btn-sm btn-danger px-2.5 py-1.5"
+                data-action="delete" data-id="${Utils.escapeHtml(e.id)}"
+                title="Hapus pemilihan" aria-label="Hapus">
+                <i class="fa-solid fa-trash text-xs"></i>
+              </button>` : ''}
+            </div>` : ''}
+          </div>
+
+          <!-- Row 2: title & description -->
+          <div>
+            <h3 class="text-sm font-bold text-gray-800 leading-snug break-words">
               ${Utils.escapeHtml(e.title)}
             </h3>
             ${e.description
-              ? `<p class="text-sm text-gray-500 mt-1 line-clamp-2">${Utils.escapeHtml(e.description)}</p>`
+              ? `<p class="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">${Utils.escapeHtml(e.description)}</p>`
               : ''}
-            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-xs text-gray-500">
-              <span title="Tanggal Mulai">
-                <i class="fa-solid fa-calendar-plus text-primary-400 mr-1"></i>
-                ${Utils.formatDateTime(e.startDate)}
-              </span>
-              <span title="Tanggal Selesai">
-                <i class="fa-solid fa-calendar-check text-red-400 mr-1"></i>
-                ${Utils.formatDateTime(e.endDate)}
-              </span>
-            </div>
           </div>
 
-          <!-- Action buttons -->
-          ${canEdit ? `
-          <div class="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
-            <button class="btn btn-sm btn-outline gap-1.5 min-w-[80px] justify-center"
-              data-action="toggle" data-id="${e.id}"
-              title="${activeLabel}">
-              <i class="fa-solid fa-${activeIcon}"></i>
-              <span class="text-xs">${activeLabel}</span>
-            </button>
-            <button class="btn btn-sm btn-outline" data-action="edit" data-id="${e.id}" title="Edit">
-              <i class="fa-solid fa-pen-to-square"></i>
-            </button>
-            ${canDelete ? `
-            <button class="btn btn-sm btn-danger" data-action="delete" data-id="${e.id}" title="Hapus">
-              <i class="fa-solid fa-trash"></i>
-            </button>` : ''}
-          </div>` : ''}
+          <!-- Row 3: tanggal info -->
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+            <span class="flex items-center gap-1.5" title="Tanggal Mulai">
+              <i class="fa-regular fa-calendar text-primary-400 w-3 text-center"></i>
+              <span>${Utils.formatDateTime(e.startDate)}</span>
+            </span>
+            <span class="text-gray-300">—</span>
+            <span class="flex items-center gap-1.5" title="Tanggal Selesai">
+              <i class="fa-regular fa-calendar-check text-red-400 w-3 text-center"></i>
+              <span>${Utils.formatDateTime(e.endDate)}</span>
+            </span>
+          </div>
+
         </div>
       </div>
 
-      <!-- Status workflow -->
+      <!-- Status workflow footer -->
       ${canEdit ? `
-      <div class="border-t border-gray-100 bg-gray-50/60 px-4 sm:px-5 py-3">
-        <div class="flex flex-wrap items-center gap-2">
-          <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mr-1 flex-shrink-0">
-            Status:
-          </p>
-          ${['draft','upcoming','active','ended'].map(s => {
-            const isCurrent = e.status === s;
-            const isDestructive = (s === 'ended' && e.status === 'active')
-                               || (s === 'active' && e.status === 'draft');
-            return `<button
-              class="status-btn btn btn-sm ${isCurrent ? 'btn-primary' : 'btn-outline'} text-xs py-1.5 px-3"
-              data-election-id="${e.id}"
-              data-status="${s}"
-              ${isCurrent ? 'aria-current="true"' : ''}
-              title="${isCurrent ? 'Status saat ini' : 'Ubah ke: ' + statusLabel(s)}"
-            >${isCurrent ? `<i class="fa-solid fa-check fa-xs mr-1"></i>` : ''}${statusLabel(s)}</button>`;
-          }).join('')}
+      <div class="border-t border-gray-100 bg-gray-50/50 px-4 sm:px-5 py-3">
+        <div class="flex items-center gap-2 mb-2">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider flex-shrink-0">Alur Status</p>
+          <div class="flex-1 h-px bg-gray-200"></div>
+        </div>
+        <div class="workflow-stepper">
+          ${workflowStepperHtml(e)}
         </div>
       </div>` : ''}
+
     </div>`;
+}
+
+/**
+ * Render stepper HTML untuk workflow status.
+ * Menampilkan visual yang jelas: selesai → current → available → locked
+ */
+function workflowStepperHtml(e) {
+  const statuses = ['draft', 'upcoming', 'active', 'ended'];
+  const labels   = { draft: 'Draft', upcoming: 'Akan Dimulai', active: 'Berlangsung', ended: 'Selesai' };
+  const icons    = { draft: 'fa-file-pen', upcoming: 'fa-clock', active: 'fa-play', ended: 'fa-flag-checkered' };
+
+  const currentIdx = STATUS_ORDER.indexOf(e.status);
+  let html = '';
+
+  statuses.forEach((s, idx) => {
+    const isCurrent = (s === e.status);
+    const isPast    = (idx < currentIdx);
+    const label     = labels[s];
+    const icon      = icons[s];
+
+    // Accessibility title
+    let titleText;
+    if (isCurrent)  titleText = `Status saat ini: ${label}`;
+    else if (isPast) titleText = `Ubah ke: ${label} (mundur dari ${labels[e.status]})`;
+    else             titleText = `Ubah ke: ${label}`;
+
+    // CSS class
+    let btnClass = 'step-btn ';
+    if (isCurrent)      btnClass += 'step-btn-current';
+    else if (isPast)    btnClass += 'step-btn-done';
+    else                btnClass += 'step-btn-available';
+
+    // Connector
+    if (idx > 0) {
+      const connectorClass = idx <= currentIdx ? 'step-connector step-connector-done' : 'step-connector';
+      html += `<div class="${connectorClass}" aria-hidden="true"></div>`;
+    }
+
+    html += `
+      <div class="step-item" role="none">
+        <button
+          class="${btnClass} status-btn"
+          data-election-id="${Utils.escapeHtml(e.id)}"
+          data-status="${s}"
+          title="${Utils.escapeHtml(titleText)}"
+          ${isCurrent ? 'aria-current="step" disabled' : ''}
+        >
+          ${isCurrent
+            ? `<i class="fa-solid fa-check text-xs" aria-hidden="true"></i>`
+            : isPast
+              ? `<i class="fa-solid fa-rotate-left text-xs" aria-hidden="true"></i>`
+              : `<i class="fa-solid ${icon} text-xs" aria-hidden="true"></i>`
+          }
+          <span>${Utils.escapeHtml(label)}</span>
+        </button>
+      </div>`;
+  });
+
+  return html;
 }
 
 function statusLabel(s) {
@@ -269,53 +842,66 @@ function statusLabel(s) {
   return map[s] || s;
 }
 
-// ── Aksi Status ──────────────────────────────────────────────
+// ── Aksi Status ───────────────────────────────────────────────
 
-/**
- * FIX #2 & #19: pertahankan nilai isActive eksisting saat ubah status.
- * Tidak lagi otomatis mengubah isActive berdasarkan status baru.
- */
 async function setStatus(id, status, btn) {
   const el = _elections.find(e => e.id === id);
   if (!el) return;
 
-  // Jangan proses jika sudah status yang sama
+  // Sama seperti current — tidak perlu proses
   if (el.status === status) return;
 
-  // Konfirmasi untuk transisi yang berdampak besar
-  const needsConfirm = (status === 'active' && el.status !== 'upcoming')
-                    || (status === 'ended');
-  if (needsConfirm) {
-    const msg = status === 'ended'
-      ? `Mengubah status ke "Selesai" akan menutup pemilihan "${el.title}". Lanjutkan?`
-      : `Mengaktifkan pemilihan "${el.title}" langsung dari status "${statusLabel(el.status)}"?\nPastikan kandidat dan pemilih sudah disiapkan.`;
-    const ok = await Utils.confirm(msg, 'Konfirmasi Perubahan Status');
+  const currentIdx = STATUS_ORDER.indexOf(el.status);
+  const targetIdx  = STATUS_ORDER.indexOf(status);
+  const isBackward = targetIdx < currentIdx;
+  const isForward  = targetIdx > currentIdx;
+
+  // Tentukan apakah perlu konfirmasi
+  let confirmMsg = null;
+  let isDanger   = false;
+
+  if (status === 'ended') {
+    confirmMsg = `Mengubah status ke "Selesai" akan menutup pemilihan "${el.title}".\n\nPemilih tidak lagi bisa memilih setelah ini. Lanjutkan?`;
+    isDanger = true;
+  } else if (status === 'active' && el.status !== 'upcoming') {
+    confirmMsg = `Mengaktifkan pemilihan "${el.title}" langsung dari status "${statusLabel(el.status)}".\n\nPastikan kandidat dan pemilih sudah disiapkan. Lanjutkan?`;
+    isDanger = false;
+  } else if (isBackward) {
+    confirmMsg = `Memundurkan status dari "${statusLabel(el.status)}" ke "${statusLabel(status)}".\n\nPerubahan ini mungkin mempengaruhi data yang sudah ada. Lanjutkan?`;
+    isDanger = true;
+  }
+
+  if (confirmMsg) {
+    const ok = await Utils.confirm(confirmMsg, 'Konfirmasi Perubahan Status', isDanger);
     if (!ok) return;
   }
 
-  // Loading state pada tombol yang diklik
+  // Disable semua tombol status di card ini saat proses
+  const card = document.querySelector(`[data-election-id="${id}"]`);
+  const allStatusBtns = card ? card.querySelectorAll('.status-btn') : [];
+  allStatusBtns.forEach(b => { b.disabled = true; b.style.opacity = '0.6'; });
+
   Utils.setLoading(btn, true, statusLabel(status));
 
-  // Pertahankan isActive eksisting — tidak otomatis diubah
+  // Pertahankan isActive eksisting
   const res = await API.election.setStatus(id, status, el.isActive);
+
   Utils.setLoading(btn, false);
+  allStatusBtns.forEach(b => { b.disabled = false; b.style.opacity = ''; });
 
   if (res.success) {
-    Toast.success(`Status berhasil diubah ke "${statusLabel(status)}".`);
-    loadElections();
+    Toast.success(`Status diubah ke "${statusLabel(status)}".`);
+    await loadElections();
   } else {
-    Toast.error(res.message);
+    Toast.error(res.message || 'Gagal mengubah status. Silakan coba lagi.');
   }
 }
 
-/**
- * FIX #3: tambahkan loading state pada tombol toggle.
- */
 async function toggleActive(id, btn) {
   const el = _elections.find(e => e.id === id);
   if (!el) return;
 
-  const newActive = !el.isActive;
+  const newActive   = !el.isActive;
   const actionLabel = newActive ? 'Mengaktifkan...' : 'Menonaktifkan...';
 
   Utils.setLoading(btn, true, actionLabel);
@@ -323,109 +909,138 @@ async function toggleActive(id, btn) {
   Utils.setLoading(btn, false);
 
   if (res.success) {
-    Toast.success(newActive ? 'Pemilihan diaktifkan.' : 'Pemilihan dinonaktifkan.');
-    loadElections();
+    Toast.success(newActive ? 'Pemilihan berhasil diaktifkan.' : 'Pemilihan berhasil dinonaktifkan.');
+    await loadElections();
   } else {
-    Toast.error(res.message);
+    Toast.error(res.message || 'Gagal mengubah status aktif.');
   }
 }
 
 async function confirmDelete(id) {
   const el = _elections.find(e => e.id === id);
   if (!el) return;
+
   const ok = await Utils.confirm(
-    `Hapus pemilihan "${el.title}"?\n\nData kandidat dan pemilih yang terhubung mungkin juga terpengaruh. Pemilihan yang sudah memiliki suara tidak dapat dihapus.`,
+    `Hapus pemilihan "${el.title}"?\n\nSemua data kandidat dan pemilih yang terhubung mungkin terpengaruh. Pemilihan yang sudah memiliki suara tidak dapat dihapus.`,
     'Konfirmasi Hapus',
-    true
+    true // danger
   );
   if (!ok) return;
+
   const res = await API.election.delete(id);
   if (res.success) {
     Toast.success('Pemilihan berhasil dihapus.');
-    loadElections();
+    await loadElections();
   } else {
-    Toast.error(res.message);
+    Toast.error(res.message || 'Gagal menghapus pemilihan.');
   }
 }
 
-// ── Modal Form ───────────────────────────────────────────────
+// ── Modal Form ────────────────────────────────────────────────
+
+/**
+ * Konversi ISO string ke nilai datetime-local (YYYY-MM-DDTHH:mm) dalam timezone lokal.
+ * datetime-local input tidak support timezone, jadi kita konversi ke lokal.
+ */
+function toDatetimeLocal(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return '';
+  }
+}
 
 function electionFormHtml(data = {}) {
-  // Format datetime-local value dari ISO string
-  function toDatetimeLocal(iso) {
-    if (!iso) return '';
-    try {
-      const d = new Date(iso);
-      if (isNaN(d)) return '';
-      // Format: YYYY-MM-DDTHH:mm (lokal, bukan UTC)
-      const pad = n => String(n).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch { return ''; }
-  }
+  const isEdit = !!data.id;
 
   return `
-    <div class="space-y-4">
+    <div class="space-y-5">
 
-      <!-- Judul -->
-      <div class="form-group">
+      <!-- ── Judul ── -->
+      <div>
         <label class="form-label" for="f-title">
-          Judul Pemilihan <span class="text-red-500">*</span>
+          Judul Pemilihan <span class="text-red-500" aria-hidden="true">*</span>
         </label>
         <input type="text" id="f-title" class="form-input"
           value="${Utils.escapeHtml(data.title || '')}"
           placeholder="Contoh: Pemilihan Ketua OSIM 2025/2026"
-          maxlength="120" autocomplete="off"/>
+          maxlength="120"
+          autocomplete="off"
+          spellcheck="false"/>
+        <p id="f-title-error" class="field-error"></p>
+        <p class="text-xs text-gray-400 mt-1">Maksimal 120 karakter</p>
       </div>
 
-      <!-- Deskripsi -->
-      <div class="form-group">
-        <label class="form-label" for="f-desc">Deskripsi</label>
+      <!-- ── Deskripsi ── -->
+      <div>
+        <label class="form-label" for="f-desc">
+          Deskripsi <span class="text-gray-400 font-normal text-xs">(opsional)</span>
+        </label>
         <textarea id="f-desc" class="form-textarea" rows="2"
           placeholder="Deskripsi singkat tentang pemilihan ini..."
           maxlength="500">${Utils.escapeHtml(data.description || '')}</textarea>
+        <p class="text-xs text-gray-400 mt-1">Maksimal 500 karakter</p>
       </div>
 
-      <!-- Tanggal -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="form-group mb-0">
+      <!-- ── Tanggal Mulai & Selesai ── -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
           <label class="form-label" for="f-start">
-            Mulai <span class="text-red-500">*</span>
+            Tanggal Mulai <span class="text-red-500" aria-hidden="true">*</span>
           </label>
           <input type="datetime-local" id="f-start" class="form-input"
             value="${toDatetimeLocal(data.startDate)}"/>
+          <p id="f-start-error" class="field-error"></p>
         </div>
-        <div class="form-group mb-0">
+        <div>
           <label class="form-label" for="f-end">
-            Selesai <span class="text-red-500">*</span>
+            Tanggal Selesai <span class="text-red-500" aria-hidden="true">*</span>
           </label>
           <input type="datetime-local" id="f-end" class="form-input"
             value="${toDatetimeLocal(data.endDate)}"/>
+          <p id="f-end-error" class="field-error"></p>
         </div>
       </div>
 
-      <!-- Status & opsi -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="form-group mb-0">
-          <label class="form-label" for="f-status">Status Awal</label>
+      <!-- ── Divider ── -->
+      <div class="border-t border-gray-100 -mx-6"></div>
+
+      <!-- ── Status & Opsi ── -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="form-label" for="f-status">Status</label>
           <select id="f-status" class="form-select">
             <option value="draft"    ${(data.status || 'draft') === 'draft'    ? 'selected' : ''}>Draft</option>
             <option value="upcoming" ${data.status === 'upcoming' ? 'selected' : ''}>Akan Dimulai</option>
             <option value="active"   ${data.status === 'active'   ? 'selected' : ''}>Berlangsung</option>
             <option value="ended"    ${data.status === 'ended'    ? 'selected' : ''}>Selesai</option>
           </select>
+          ${isEdit ? `<p class="text-xs text-gray-400 mt-1">Atau gunakan tombol alur status pada kartu.</p>` : ''}
         </div>
-        <div class="form-group mb-0">
+        <div>
           <label class="form-label">Opsi</label>
-          <div class="flex flex-col gap-2 pt-1">
-            <label class="flex items-center gap-2.5 cursor-pointer select-none">
-              <input type="checkbox" id="f-active" class="w-4 h-4 accent-primary-600 flex-shrink-0"
+          <div class="flex flex-col gap-3 pt-0.5">
+            <label class="flex items-start gap-2.5 cursor-pointer select-none group">
+              <input type="checkbox" id="f-active"
+                class="w-4 h-4 mt-0.5 accent-primary-600 flex-shrink-0 cursor-pointer"
                 ${data.isActive ? 'checked' : ''}/>
-              <span class="text-sm text-gray-700">Aktifkan pemilihan</span>
+              <div>
+                <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">Aktifkan pemilihan</span>
+                <p class="text-xs text-gray-400 mt-0.5">Pemilih dapat mengakses sistem</p>
+              </div>
             </label>
-            <label class="flex items-center gap-2.5 cursor-pointer select-none">
-              <input type="checkbox" id="f-public" class="w-4 h-4 accent-primary-600 flex-shrink-0"
+            <label class="flex items-start gap-2.5 cursor-pointer select-none group">
+              <input type="checkbox" id="f-public"
+                class="w-4 h-4 mt-0.5 accent-primary-600 flex-shrink-0 cursor-pointer"
                 ${data.showResultPublic ? 'checked' : ''}/>
-              <span class="text-sm text-gray-700">Publikasikan hasil</span>
+              <div>
+                <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">Publikasikan hasil</span>
+                <p class="text-xs text-gray-400 mt-0.5">Hasil dapat dilihat publik</p>
+              </div>
             </label>
           </div>
         </div>
@@ -435,18 +1050,18 @@ function electionFormHtml(data = {}) {
 }
 
 /**
- * FIX #4: Gunakan satu fungsi helper untuk bind modal actions,
- * menghindari pola duplikasi addEventListener di open & edit.
+ * Bind action buttons pada modal.
+ * Guard _isSubmitting di sini agar tidak ada double-submit.
  */
 function bindModalActions(modal, id) {
   modal.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (btn.dataset.action === 'cancel') {
+        _isSubmitting = false; // reset flag jika cancel
         Modal.close();
         return;
       }
       if (btn.dataset.action === 'save') {
-        // FIX #4: guard double-submit
         if (_isSubmitting) return;
         await saveElection(id || null, btn);
       }
@@ -455,6 +1070,7 @@ function bindModalActions(modal, id) {
 }
 
 function openCreateModal() {
+  _isSubmitting = false; // reset setiap kali modal dibuka baru
   const modal = Modal.open({
     id: 'modal-election',
     title: 'Buat Pemilihan Baru',
@@ -474,6 +1090,7 @@ function openEditModal(id) {
     Toast.error('Data pemilihan tidak ditemukan.');
     return;
   }
+  _isSubmitting = false;
   const modal = Modal.open({
     id: 'modal-election',
     title: 'Edit Pemilihan',
@@ -487,48 +1104,67 @@ function openEditModal(id) {
   bindModalActions(modal, id);
 }
 
+/**
+ * Simpan data pemilihan (create atau update).
+ * Menggunakan try/finally untuk memastikan _isSubmitting & loading state
+ * selalu di-reset meskipun terjadi exception.
+ */
 async function saveElection(id, btn) {
-  // FIX #4: set flag sebelum proses
-  _isSubmitting = true;
+  // Bersihkan error field sebelumnya
+  clearFormErrors();
 
-  const title      = document.getElementById('f-title')?.value.trim();
-  const desc       = document.getElementById('f-desc')?.value.trim();
-  const start      = document.getElementById('f-start')?.value;
-  const end        = document.getElementById('f-end')?.value;
-  const status     = document.getElementById('f-status')?.value;
-  const isActive   = document.getElementById('f-active')?.checked ?? false;
-  const showPublic = document.getElementById('f-public')?.checked ?? false;
+  // Ambil nilai form
+  const titleEl  = document.getElementById('f-title');
+  const descEl   = document.getElementById('f-desc');
+  const startEl  = document.getElementById('f-start');
+  const endEl    = document.getElementById('f-end');
+  const statusEl = document.getElementById('f-status');
+  const activeEl = document.getElementById('f-active');
+  const publicEl = document.getElementById('f-public');
 
-  // Validasi
+  const title      = titleEl?.value.trim() ?? '';
+  const desc       = descEl?.value.trim() ?? '';
+  const start      = startEl?.value ?? '';
+  const end        = endEl?.value ?? '';
+  const status     = statusEl?.value ?? 'draft';
+  const isActive   = activeEl?.checked ?? false;
+  const showPublic = publicEl?.checked ?? false;
+
+  // ── Validasi ──
+  let hasError = false;
+
   if (!title) {
-    Toast.warning('Judul pemilihan wajib diisi.');
-    _isSubmitting = false;
-    return;
-  }
-  if (title.length < 5) {
-    Toast.warning('Judul pemilihan minimal 5 karakter.');
-    _isSubmitting = false;
-    return;
-  }
-  if (!start) {
-    Toast.warning('Tanggal mulai wajib diisi.');
-    _isSubmitting = false;
-    return;
-  }
-  if (!end) {
-    Toast.warning('Tanggal selesai wajib diisi.');
-    _isSubmitting = false;
-    return;
-  }
-  if (new Date(end) <= new Date(start)) {
-    Toast.warning('Tanggal selesai harus setelah tanggal mulai.');
-    _isSubmitting = false;
-    return;
+    showFormError('f-title', 'Judul pemilihan wajib diisi.');
+    hasError = true;
+  } else if (title.length < 5) {
+    showFormError('f-title', 'Judul minimal 5 karakter.');
+    hasError = true;
+  } else if (title.length > 120) {
+    showFormError('f-title', 'Judul maksimal 120 karakter.');
+    hasError = true;
   }
 
+  if (!start) {
+    showFormError('f-start', 'Tanggal mulai wajib diisi.');
+    hasError = true;
+  }
+
+  if (!end) {
+    showFormError('f-end', 'Tanggal selesai wajib diisi.');
+    hasError = true;
+  }
+
+  if (start && end && new Date(end) <= new Date(start)) {
+    showFormError('f-end', 'Tanggal selesai harus setelah tanggal mulai.');
+    hasError = true;
+  }
+
+  if (hasError) return; // jangan set _isSubmitting jika validasi gagal
+
+  // ── Set guard ──
+  _isSubmitting = true;
   Utils.setLoading(btn, true, 'Menyimpan...');
 
-  // FIX #6: gunakan id langsung (tanpa escapeHtml) sebagai payload ke API
   const payload = {
     title,
     description: desc,
@@ -540,27 +1176,66 @@ async function saveElection(id, btn) {
   };
   if (id) payload.id = id;
 
-  const res = id
-    ? await API.election.update(payload)
-    : await API.election.create(payload);
+  try {
+    const res = id
+      ? await API.election.update(payload)
+      : await API.election.create(payload);
 
-  Utils.setLoading(btn, false);
-  _isSubmitting = false;
-
-  if (res.success) {
-    Toast.success(id ? 'Pemilihan berhasil diperbarui.' : 'Pemilihan berhasil dibuat.');
-    Modal.close();
-    loadElections();
-  } else {
-    Toast.error(res.message || 'Terjadi kesalahan. Silakan coba lagi.');
+    if (res.success) {
+      Toast.success(id ? 'Pemilihan berhasil diperbarui.' : 'Pemilihan berhasil dibuat.');
+      Modal.close();
+      await loadElections();
+    } else {
+      Toast.error(res.message || 'Terjadi kesalahan. Silakan coba lagi.');
+    }
+  } catch (err) {
+    console.error('[saveElection] unexpected error:', err);
+    Toast.error('Terjadi kesalahan tak terduga. Silakan coba lagi.');
+  } finally {
+    // Selalu reset loading & guard, bahkan jika exception
+    Utils.setLoading(btn, false);
+    _isSubmitting = false;
   }
 }
 
-// ── Show State ───────────────────────────────────────────────
+// ── Form error helpers ────────────────────────────────────────
+
+function showFormError(fieldId, msg) {
+  const input  = document.getElementById(fieldId);
+  const errEl  = document.getElementById(`${fieldId}-error`);
+  if (input) input.classList.add('form-input-error');
+  if (errEl) {
+    errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> ${Utils.escapeHtml(msg)}`;
+  }
+  // Auto-focus ke field error pertama
+  if (input && document.activeElement !== input) {
+    // hanya focus kalau belum ada yang di-focus
+    const firstError = document.querySelector('.form-input-error');
+    if (firstError === input) input.focus();
+  }
+  // Bersihkan error saat input berubah
+  if (input && !input._errorHandlerBound) {
+    input._errorHandlerBound = true;
+    input.addEventListener('input', () => clearFormError(fieldId), { once: true });
+  }
+}
+
+function clearFormError(fieldId) {
+  const input = document.getElementById(fieldId);
+  const errEl = document.getElementById(`${fieldId}-error`);
+  if (input) input.classList.remove('form-input-error');
+  if (errEl) errEl.innerHTML = '';
+}
+
+function clearFormErrors() {
+  ['f-title', 'f-start', 'f-end'].forEach(clearFormError);
+}
+
+// ── Show State ────────────────────────────────────────────────
 
 /**
- * FIX #1: Hapus duplicate ID. Gunakan satu fungsi terpusat
- * untuk mengontrol visibility state, dengan tambahan error-state.
+ * Kontrol visibility state utama halaman.
+ * 'filtered-empty' dikelola terpisah di renderElections().
  */
 function showState(s) {
   const states = ['loading', 'content', 'empty', 'error'];
