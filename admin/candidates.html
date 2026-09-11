@@ -9,15 +9,217 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+  <style>
+    /* ── Candidate Photo Area ── */
+    .candidate-photo-col {
+      position: relative;
+      background: #f3f4f6;
+      overflow: hidden;
+    }
+    .candidate-photo-col img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+    }
+    .candidate-photo-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Upload overlay ── */
+    .upload-spinner-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+
+    /* ── Candidate card ── */
+    .cand-card {
+      background: #fff;
+      border-radius: 14px;
+      border: 1.5px solid #e5e7eb;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      overflow: hidden;
+      transition: box-shadow 0.2s, border-color 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+    .cand-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      border-color: #d1d5db;
+    }
+    .cand-card.card-inactive {
+      opacity: 0.72;
+    }
+
+    /* ── Photo strip ── */
+    .cand-photo-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      height: 140px;
+      flex-shrink: 0;
+    }
+    .cand-photo-strip .divider-line {
+      position: absolute;
+      top: 0; bottom: 0;
+      left: 50%;
+      width: 2px;
+      background: #fff;
+      z-index: 1;
+    }
+    @media (max-width: 360px) {
+      .cand-photo-strip { height: 120px; }
+    }
+
+    /* ── Number badge ── */
+    .order-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.62);
+      backdrop-filter: blur(4px);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.02em;
+      z-index: 3;
+      line-height: 1.6;
+    }
+
+    /* ── Role label on photo ── */
+    .role-label {
+      position: absolute;
+      bottom: 0;
+      left: 0; right: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 600;
+      text-align: center;
+      padding: 12px 4px 5px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    /* ── Preview thumb in form ── */
+    .photo-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #e5e7eb;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      border: 2px solid #e5e7eb;
+    }
+    .photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+    }
+    .photo-thumb-spinner {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Form section label ── */
+    .form-section-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .section-ketua  { background: #eff6ff; color: #1d4ed8; }
+    .section-wakil  { background: #f0fdf4; color: #15803d; }
+    .section-detail { background: #f9fafb; color: #4b5563; }
+
+    /* ── Election selector card ── */
+    .election-selector-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    /* ── Skeleton ── */
+    .sk { background: #e5e7eb; border-radius: 6px; animation: skpulse 1.5s ease-in-out infinite; }
+    @keyframes skpulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+
+    /* ── Mobile modal bottom sheet ── */
+    @media (max-width: 640px) {
+      .modal-backdrop { align-items: flex-end; padding: 0; }
+      .modal-box { border-radius: 20px 20px 0 0; max-height: 92dvh; max-height: 92vh; }
+    }
+
+    /* ── Field error inline ── */
+    .field-error { font-size: 11px; color: #ef4444; margin-top: 3px; display: flex; align-items: center; gap: 4px; }
+    .field-error:empty { display: none; }
+
+    /* ── State illustration ── */
+    .state-icon-wrap {
+      width: 64px; height: 64px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; font-size: 28px;
+    }
+
+    /* ── Count chip ── */
+    .count-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #f3f4f6; border-radius: 20px;
+      padding: 2px 10px; font-size: 11px; font-weight: 600; color: #6b7280;
+    }
+
+    /* ── Upload progress indicator ── */
+    .upload-status-dot {
+      display: inline-block;
+      width: 6px; height: 6px; border-radius: 50%;
+      margin-right: 4px;
+    }
+    .upload-ok   { background: #16a34a; }
+    .upload-fail { background: #ef4444; }
+    .upload-none { background: #d1d5db; }
+  </style>
 </head>
 <body class="h-full bg-gray-50 flex">
+
 <div id="toast-container"></div>
 <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
 
+<!-- ═══════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════ -->
 <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
   <div class="px-5 py-4 border-b border-gray-100">
     <div class="flex items-center gap-3">
-      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-box-ballot text-white"></i></div>
+      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-box-ballot text-white text-sm"></i>
+      </div>
       <div class="min-w-0">
         <p class="text-sm font-bold text-gray-800 truncate" id="sidebar-app-name">eVoting OSIM</p>
         <p class="text-xs text-gray-500 truncate" id="sidebar-school-name"></p>
@@ -32,268 +234,629 @@
         <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
         <p class="text-xs text-gray-500" id="topbar-user-role"></p>
       </div>
-      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1"><i class="fa-solid fa-right-from-bracket text-sm"></i></button>
+      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded" title="Logout">
+        <i class="fa-solid fa-right-from-bracket text-sm"></i>
+      </button>
     </div>
   </div>
 </aside>
 
-<div class="flex-1 flex flex-col min-w-0">
-  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-4 sticky top-0 z-20">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1"><i class="fa-solid fa-bars text-lg"></i></button>
-    <h1 class="text-base font-semibold text-gray-800 flex-1">Manajemen Kandidat</h1>
-    <button id="btn-add" class="btn btn-primary text-sm">
-      <i class="fa-solid fa-plus"></i> Tambah Kandidat
+<!-- ═══════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════ -->
+<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+  <!-- ── Header ── -->
+  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-3 sticky top-0 z-20 flex-shrink-0">
+    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors">
+      <i class="fa-solid fa-bars text-base"></i>
+    </button>
+    <div class="flex-1 min-w-0">
+      <h1 class="text-sm font-bold text-gray-800 truncate">Manajemen Kandidat</h1>
+    </div>
+    <button id="btn-add" class="btn btn-primary btn-sm flex-shrink-0 gap-1.5" title="Tambah Kandidat Baru">
+      <i class="fa-solid fa-plus text-xs"></i>
+      <span class="hidden xs:inline">Tambah Kandidat</span>
+      <span class="xs:hidden">Tambah</span>
     </button>
   </header>
 
-  <main class="flex-1 p-4 md:p-6 overflow-auto">
-    <!-- Election selector -->
-    <div class="card p-4 mb-5">
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-        <label class="form-label mb-0 flex-shrink-0">Pemilihan:</label>
-        <select id="election-select" class="form-select flex-1 max-w-sm">
-          <option value="">— Pilih Pemilihan —</option>
-        </select>
-        <p class="text-xs text-gray-400">Pilih pemilihan untuk mengelola kandidatnya.</p>
+  <!-- ── Main ── -->
+  <main class="flex-1 overflow-y-auto overflow-x-hidden">
+    <div class="px-4 md:px-6 py-5 max-w-6xl mx-auto space-y-5">
+
+      <!-- ── Election selector ── -->
+      <div class="election-selector-card">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <i class="fa-solid fa-calendar-check text-primary-500 text-sm w-4 text-center"></i>
+            <label class="text-sm font-semibold text-gray-700 whitespace-nowrap" for="election-select">Pemilihan</label>
+          </div>
+          <div class="flex-1 max-w-md relative">
+            <select id="election-select" class="form-select w-full pr-8 text-sm">
+              <option value="">— Memuat data pemilihan... —</option>
+            </select>
+          </div>
+          <div id="election-meta" class="hidden flex items-center gap-2 flex-shrink-0">
+            <!-- diisi JS -->
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div id="loading-state" class="text-center py-16 hidden">
-      <div class="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-3"></div>
-      <p class="text-gray-500 text-sm">Memuat kandidat...</p>
-    </div>
-
-    <div id="empty-state" class="hidden">
-      <div class="empty-state">
-        <i class="fa-solid fa-users-slash"></i>
-        <h3 class="text-base font-semibold text-gray-600">Belum ada kandidat</h3>
-        <p id="empty-text">Pilih pemilihan terlebih dahulu atau tambah kandidat.</p>
-        <button id="btn-add-empty" class="btn btn-primary mt-4"><i class="fa-solid fa-plus"></i> Tambah Kandidat</button>
+      <!-- ── Toolbar (info + actions) ── -->
+      <div id="toolbar" class="hidden flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-3">
+          <span class="count-chip" id="candidate-count-chip">
+            <i class="fa-solid fa-users text-gray-400 text-xs"></i>
+            <span id="candidate-count">0</span> kandidat
+          </span>
+        </div>
       </div>
-    </div>
 
-    <div id="content-state" class="hidden">
-      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" id="candidates-grid"></div>
+      <!-- ── Loading skeleton ── -->
+      <div id="loading-state" class="hidden">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div class="cand-card">
+            <div class="sk" style="height:140px;border-radius:0"></div>
+            <div class="p-4 space-y-2">
+              <div class="sk h-4 w-3/4 rounded"></div>
+              <div class="sk h-3 w-1/2 rounded"></div>
+              <div class="sk h-3 w-2/3 rounded mt-3"></div>
+              <div class="sk h-3 w-1/2 rounded"></div>
+            </div>
+          </div>
+          <div class="cand-card" style="opacity:.7">
+            <div class="sk" style="height:140px;border-radius:0"></div>
+            <div class="p-4 space-y-2">
+              <div class="sk h-4 w-2/3 rounded"></div>
+              <div class="sk h-3 w-1/3 rounded"></div>
+            </div>
+          </div>
+          <div class="cand-card hidden xl:block" style="opacity:.4">
+            <div class="sk" style="height:140px;border-radius:0"></div>
+            <div class="p-4 space-y-2">
+              <div class="sk h-4 w-1/2 rounded"></div>
+              <div class="sk h-3 w-2/5 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Content: grid kandidat ── -->
+      <div id="content-state" class="hidden">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" id="candidates-grid"></div>
+      </div>
+
+      <!-- ── Empty state ── -->
+      <div id="empty-state" class="hidden py-16 text-center">
+        <div class="state-icon-wrap bg-gray-100 text-gray-400 mx-auto" id="empty-icon-wrap">
+          <i class="fa-solid fa-users-slash" id="empty-icon"></i>
+        </div>
+        <h3 class="text-base font-semibold text-gray-700 mb-1" id="empty-title">Pilih pemilihan</h3>
+        <p class="text-sm text-gray-400 max-w-xs mx-auto" id="empty-text">
+          Pilih pemilihan terlebih dahulu untuk melihat kandidatnya.
+        </p>
+        <button id="btn-add-empty" class="btn btn-primary mt-5 gap-2 hidden">
+          <i class="fa-solid fa-plus text-xs"></i> Tambah Kandidat
+        </button>
+      </div>
+
+      <!-- ── Error state ── -->
+      <div id="error-state" class="hidden py-16 text-center">
+        <div class="state-icon-wrap bg-red-50 text-red-400 mx-auto">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3 class="text-base font-semibold text-gray-700 mb-1">Gagal memuat kandidat</h3>
+        <p class="text-sm text-gray-400 max-w-xs mx-auto" id="error-msg">Terjadi kesalahan.</p>
+        <button id="btn-retry" class="btn btn-secondary mt-5 gap-2">
+          <i class="fa-solid fa-rotate-right text-xs"></i> Coba Lagi
+        </button>
+      </div>
+
     </div>
   </main>
 </div>
 
+<!-- ─────────────────────────────────────────────
+     SCRIPTS
+──────────────────────────────────────────────── -->
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/components.js"></script>
 <script>
-let _elections   = [];
-let _candidates  = [];
-let _electionId  = '';
-let _uploadingFor = null; // 'main' | 'pair'
+/* ============================================================
+   candidates.js — Manajemen Kandidat (refactored)
+   ============================================================ */
 
+// ── State ────────────────────────────────────────────────────
+let _elections      = [];
+let _candidates     = [];
+let _electionId     = '';
+let _isSubmitting   = false;   // guard double-submit
+let _isLoading      = false;   // guard race condition loadCandidates
+let _uploadState    = {        // status upload per slot
+  main: 'none',  // 'none' | 'uploading' | 'done' | 'error'
+  pair: 'none',
+};
+
+// ── Init ─────────────────────────────────────────────────────
 (async () => {
   if (!Auth.requireAdminPage()) return;
-  Sidebar.init(); Topbar.init();
+  Sidebar.init();
+  Topbar.init();
 
   document.getElementById('btn-add').addEventListener('click', () => openCandidateModal());
-  document.getElementById('btn-add-empty')?.addEventListener('click', () => openCandidateModal());
+  document.getElementById('btn-add-empty').addEventListener('click', () => openCandidateModal());
+  document.getElementById('btn-retry').addEventListener('click', () => loadCandidates());
+
   document.getElementById('election-select').addEventListener('change', e => {
     _electionId = e.target.value;
-    if (_electionId) loadCandidates();
-    else showState('empty', 'Pilih pemilihan untuk melihat kandidat.');
+    if (_electionId) {
+      updateElectionMeta();
+      loadCandidates();
+    } else {
+      Utils.hide(document.getElementById('election-meta'));
+      showState('empty', {
+        icon: 'fa-calendar-check',
+        iconBg: 'bg-primary-50',
+        iconColor: 'text-primary-400',
+        title: 'Pilih pemilihan',
+        text: 'Pilih pemilihan untuk mengelola kandidatnya.',
+        showAdd: false,
+      });
+    }
   });
 
   await loadElectionOptions();
 })();
 
+// ── Load elections dropdown ───────────────────────────────────
+
 async function loadElectionOptions() {
-  const res = await API.election.getAll();
-  if (!res.success) return;
-  _elections = res.data || [];
   const sel = document.getElementById('election-select');
+  sel.disabled = true;
+
+  const res = await API.election.getAll();
+
+  sel.disabled = false;
+
+  if (!res.success) {
+    sel.innerHTML = '<option value="">— Gagal memuat pemilihan —</option>';
+    showState('error', 'Gagal memuat daftar pemilihan. Coba muat ulang halaman.');
+    return;
+  }
+
+  _elections = res.data || [];
+
+  if (!_elections.length) {
+    sel.innerHTML = '<option value="">— Belum ada pemilihan —</option>';
+    showState('empty', {
+      icon: 'fa-calendar-xmark',
+      iconBg: 'bg-gray-100',
+      iconColor: 'text-gray-400',
+      title: 'Belum ada pemilihan',
+      text: 'Buat pemilihan terlebih dahulu di Manajemen Pemilihan.',
+      showAdd: false,
+    });
+    return;
+  }
+
   sel.innerHTML = '<option value="">— Pilih Pemilihan —</option>' +
-    _elections.map(e => `<option value="${e.id}">${Utils.escapeHtml(e.title)}</option>`).join('');
-  // Auto-select jika hanya satu
+    _elections.map(e =>
+      `<option value="${Utils.escapeHtml(e.id)}">${Utils.escapeHtml(e.title)}</option>`
+    ).join('');
+
+  // Auto-select jika hanya satu pemilihan
   if (_elections.length === 1) {
-    sel.value = _elections[0].id;
+    sel.value   = _elections[0].id;
     _electionId = _elections[0].id;
-    loadCandidates();
+    updateElectionMeta();
+    await loadCandidates();
   } else {
-    showState('empty', 'Pilih pemilihan untuk melihat kandidat.');
+    showState('empty', {
+      icon: 'fa-hand-pointer',
+      iconBg: 'bg-primary-50',
+      iconColor: 'text-primary-400',
+      title: 'Pilih pemilihan',
+      text: 'Pilih pemilihan dari daftar di atas untuk mengelola kandidatnya.',
+      showAdd: false,
+    });
   }
 }
 
+// ── Load candidates ───────────────────────────────────────────
+
 async function loadCandidates() {
   if (!_electionId) return;
+  if (_isLoading) return;   // hindari parallel requests
+  _isLoading = true;
+
   showState('loading');
+
   const res = await API.candidate.getAll(_electionId);
-  if (!res.success) { Toast.error(res.message); showState('empty'); return; }
+  _isLoading = false;
+
+  if (!res.success) {
+    document.getElementById('error-msg').textContent =
+      res.message || 'Gagal memuat data kandidat.';
+    showState('error');
+    return;
+  }
+
   _candidates = res.data || [];
-  if (!_candidates.length) { showState('empty', 'Belum ada kandidat. Klik "Tambah Kandidat" untuk menambah.'); return; }
+  updateCandidateCount();
+
+  if (!_candidates.length) {
+    showState('empty', {
+      icon: 'fa-user-plus',
+      iconBg: 'bg-primary-50',
+      iconColor: 'text-primary-400',
+      title: 'Belum ada kandidat',
+      text: 'Tambahkan kandidat pertama untuk pemilihan ini.',
+      showAdd: true,
+    });
+    return;
+  }
+
   renderCandidates();
   showState('content');
 }
 
+// ── Render grid ───────────────────────────────────────────────
+
 function renderCandidates() {
   const grid = document.getElementById('candidates-grid');
-  grid.innerHTML = _candidates.map(c => {
-    const photoSrc     = Utils.buildDriveImgUrl(c.photoUrl);
-    const pairPhotoSrc = Utils.buildDriveImgUrl(c.pairPhotoUrl);
-    return `
-    <div class="card overflow-hidden">
-      <div class="grid grid-cols-2 gap-0">
-        <div class="relative bg-gray-100">
-          ${photoSrc
-            ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-36 object-cover object-top" loading="lazy"
-                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-            : ''}
-          <div class="w-full h-36 flex items-center justify-center bg-gray-100" ${photoSrc ? 'style="display:none"' : ''}>
-            <i class="fa-solid fa-user text-4xl text-gray-300"></i>
-          </div>
-          <span class="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full font-bold">No.${c.orderNumber}</span>
-        </div>
-        <div class="relative bg-gray-50">
-          ${pairPhotoSrc
-            ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" class="w-full h-36 object-cover object-top" loading="lazy"
-                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-            : ''}
-          <div class="w-full h-36 flex items-center justify-center bg-gray-100" ${pairPhotoSrc ? 'style="display:none"' : ''}>
-            <i class="fa-solid fa-user text-4xl text-gray-300"></i>
-          </div>
-        </div>
-      </div>
-      <div class="p-4">
-        <div class="flex items-start justify-between gap-2 mb-2">
-          <div class="min-w-0">
-            <p class="text-sm font-bold text-gray-800 truncate">${Utils.escapeHtml(c.name)}</p>
-            <p class="text-xs text-gray-500">Ketua · ${Utils.escapeHtml(c.className||'-')}</p>
-            <p class="text-sm font-semibold text-gray-700 truncate mt-1">${Utils.escapeHtml(c.pairName||'—')}</p>
-            <p class="text-xs text-gray-500">Wakil · ${Utils.escapeHtml(c.pairClassName||'-')}</p>
-          </div>
-          <span class="badge ${c.isActive ? 'badge-success' : 'badge-gray'} flex-shrink-0">${c.isActive ? 'Aktif' : 'Nonaktif'}</span>
-        </div>
-        ${c.vision ? `<p class="text-xs text-gray-500 line-clamp-2 mb-3">${Utils.escapeHtml(c.vision)}</p>` : ''}
-        <div class="flex gap-2">
-          <button class="btn btn-sm btn-outline flex-1 edit-candidate-btn" data-candidate-id="${Utils.escapeHtml(c.id)}">
-            <i class="fa-solid fa-pen-to-square"></i> Edit
-          </button>
-          <button class="btn btn-sm btn-danger delete-candidate-btn" data-candidate-id="${Utils.escapeHtml(c.id)}">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
 
-  // Event delegation — safe dari XSS
-  grid.querySelectorAll('.edit-candidate-btn').forEach(btn => {
-    btn.addEventListener('click', () => openCandidateModal(btn.dataset.candidateId));
+  grid.innerHTML = _candidates
+    .slice() // jangan mutasi array asli
+    .sort((a, b) => (a.orderNumber || 0) - (b.orderNumber || 0))
+    .map(c => candidateCardHtml(c))
+    .join('');
+
+  // Bind events via delegation
+  grid.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => openCandidateModal(btn.dataset.id));
   });
-  grid.querySelectorAll('.delete-candidate-btn').forEach(btn => {
-    btn.addEventListener('click', () => confirmDeleteCandidate(btn.dataset.candidateId));
+  grid.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => confirmDeleteCandidate(btn.dataset.id));
   });
 }
 
-// ── Candidate Modal ──────────────────────────────────────────
+function candidateCardHtml(c) {
+  const photoSrc     = Utils.buildDriveImgUrl(c.photoUrl     || '');
+  const pairPhotoSrc = Utils.buildDriveImgUrl(c.pairPhotoUrl || '');
+  const cardClass    = c.isActive !== false ? 'cand-card' : 'cand-card card-inactive';
+
+  return `
+    <div class="${cardClass}" data-id="${Utils.escapeHtml(c.id)}">
+
+      <!-- Photo strip -->
+      <div class="cand-photo-strip relative">
+
+        <!-- Nomor urut badge -->
+        <span class="order-badge">No. ${Utils.escapeHtml(String(c.orderNumber || '?'))}</span>
+
+        <!-- Status badge -->
+        <span class="absolute top-2 right-2 z-10">
+          ${c.isActive !== false
+            ? `<span class="badge badge-success" style="font-size:9px;padding:2px 7px">Aktif</span>`
+            : `<span class="badge badge-gray"    style="font-size:9px;padding:2px 7px">Nonaktif</span>`}
+        </span>
+
+        <!-- Divider line between photos -->
+        <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white z-10" aria-hidden="true"></div>
+
+        <!-- Foto ketua (kiri) -->
+        <div class="candidate-photo-col relative">
+          ${photoSrc
+            ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="${Utils.escapeHtml(c.name)}" loading="lazy"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+            : ''}
+          <div class="candidate-photo-placeholder" ${photoSrc ? 'style="display:none"' : ''}>
+            <i class="fa-solid fa-user text-3xl text-gray-300"></i>
+          </div>
+          <div class="role-label">Ketua</div>
+        </div>
+
+        <!-- Foto wakil (kanan) -->
+        <div class="candidate-photo-col relative">
+          ${pairPhotoSrc
+            ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" alt="${Utils.escapeHtml(c.pairName || 'Wakil')}" loading="lazy"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+            : ''}
+          <div class="candidate-photo-placeholder" ${pairPhotoSrc ? 'style="display:none"' : ''}>
+            <i class="fa-solid fa-user text-3xl text-gray-300"></i>
+          </div>
+          <div class="role-label">Wakil</div>
+        </div>
+
+      </div>
+
+      <!-- Info & actions -->
+      <div class="p-4 flex-1 flex flex-col">
+
+        <!-- Names -->
+        <div class="flex-1 mb-3">
+          <div class="flex items-start gap-2">
+            <div class="w-1 h-full min-h-[32px] rounded-full bg-blue-400 flex-shrink-0 mt-0.5"></div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-bold text-gray-800 truncate leading-tight">${Utils.escapeHtml(c.name || '-')}</p>
+              <p class="text-xs text-gray-500 truncate">${Utils.escapeHtml(c.className || '—')}</p>
+            </div>
+          </div>
+          ${c.pairName ? `
+          <div class="flex items-start gap-2 mt-2">
+            <div class="w-1 h-full min-h-[32px] rounded-full bg-green-400 flex-shrink-0 mt-0.5"></div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-gray-700 truncate leading-tight">${Utils.escapeHtml(c.pairName)}</p>
+              <p class="text-xs text-gray-500 truncate">${Utils.escapeHtml(c.pairClassName || '—')}</p>
+            </div>
+          </div>` : `
+          <div class="mt-2 flex items-center gap-1 text-xs text-gray-400">
+            <i class="fa-solid fa-circle-minus text-xs"></i>
+            <span>Tanpa calon wakil</span>
+          </div>`}
+          ${c.vision ? `
+          <p class="text-xs text-gray-500 mt-2.5 line-clamp-2 leading-relaxed italic border-l-2 border-gray-200 pl-2">
+            "${Utils.escapeHtml(c.vision)}"
+          </p>` : ''}
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex gap-2 mt-auto">
+          <button class="btn btn-sm btn-outline flex-1 edit-btn gap-1.5"
+            data-id="${Utils.escapeHtml(c.id)}"
+            title="Edit kandidat ini">
+            <i class="fa-solid fa-pen-to-square text-xs"></i>
+            <span>Edit</span>
+          </button>
+          <button class="btn btn-sm btn-danger px-3 delete-btn"
+            data-id="${Utils.escapeHtml(c.id)}"
+            title="Hapus kandidat ini">
+            <i class="fa-solid fa-trash text-xs"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>`;
+}
+
+// ── Helper: election meta info ────────────────────────────────
+
+function updateElectionMeta() {
+  const el = _elections.find(e => e.id === _electionId);
+  const metaEl = document.getElementById('election-meta');
+  if (!el || !metaEl) return;
+
+  const statusMap = {
+    draft:    { cls: 'badge-gray',    label: 'Draft' },
+    upcoming: { cls: 'badge-info',    label: 'Akan Dimulai' },
+    active:   { cls: 'badge-success', label: 'Berlangsung' },
+    ended:    { cls: 'badge-danger',  label: 'Selesai' },
+  };
+  const s = statusMap[el.status] || statusMap.draft;
+
+  metaEl.innerHTML = `<span class="badge ${s.cls}">${Utils.escapeHtml(s.label)}</span>`;
+  metaEl.classList.remove('hidden');
+  metaEl.classList.add('flex');
+}
+
+function updateCandidateCount() {
+  const countEl = document.getElementById('candidate-count');
+  if (countEl) countEl.textContent = _candidates.length;
+  const toolbar = document.getElementById('toolbar');
+  if (toolbar) {
+    if (_candidates.length > 0) {
+      toolbar.classList.remove('hidden');
+      toolbar.classList.add('flex');
+    } else {
+      toolbar.classList.add('hidden');
+    }
+  }
+}
+
+// ── Modal Form ────────────────────────────────────────────────
 
 function candidateFormHtml(data = {}) {
   const photoSrc     = Utils.buildDriveImgUrl(data.photoUrl     || '');
   const pairPhotoSrc = Utils.buildDriveImgUrl(data.pairPhotoUrl || '');
+
   return `
-    <div class="space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <!-- Ketua -->
-        <div class="space-y-3 p-3 bg-blue-50 rounded-xl">
-          <p class="text-xs font-bold text-blue-700 uppercase tracking-wide"><i class="fa-solid fa-crown mr-1"></i>Calon Ketua</p>
-          <div>
-            <label class="form-label text-xs">Nama Lengkap <span class="text-red-500">*</span></label>
-            <input type="text" id="f-name" class="form-input" value="${Utils.escapeHtml(data.name||'')}" placeholder="Nama ketua"/>
+    <div class="space-y-5">
+
+      <!-- ── Section: Ketua + Wakil (side-by-side on sm+) ── -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        <!-- Calon Ketua -->
+        <div class="space-y-3 rounded-xl border border-blue-100 p-4 bg-blue-50/40">
+          <div class="form-section-label section-ketua">
+            <i class="fa-solid fa-crown fa-xs" aria-hidden="true"></i>
+            Calon Ketua
           </div>
+
           <div>
-            <label class="form-label text-xs">Kelas</label>
-            <input type="text" id="f-class" class="form-input" value="${Utils.escapeHtml(data.className||'')}" placeholder="XII IPA 1"/>
+            <label class="form-label text-xs" for="f-name">
+              Nama Lengkap <span class="text-red-500" aria-hidden="true">*</span>
+            </label>
+            <input type="text" id="f-name" class="form-input"
+              value="${Utils.escapeHtml(data.name || '')}"
+              placeholder="Nama calon ketua"
+              maxlength="80" autocomplete="off"/>
+            <p id="f-name-error" class="field-error"></p>
           </div>
+
           <div>
-            <label class="form-label text-xs">Foto Ketua</label>
+            <label class="form-label text-xs" for="f-class">Kelas / Angkatan</label>
+            <input type="text" id="f-class" class="form-input"
+              value="${Utils.escapeHtml(data.className || '')}"
+              placeholder="Contoh: XII IPA 1"
+              maxlength="30" autocomplete="off"/>
+          </div>
+
+          <!-- Upload foto ketua -->
+          <div>
+            <label class="form-label text-xs">Foto</label>
             <div class="flex items-center gap-3">
-              <div id="preview-main" class="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center">
+              <div class="photo-thumb" id="preview-main">
                 ${photoSrc
-                  ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-full object-cover"
-                         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400\\'></i>'">`
-                  : '<i class="fa-solid fa-user text-gray-400"></i>'}
+                  ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="Foto ketua"
+                       onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`
+                  : `<i class="fa-solid fa-user text-gray-300 text-xl"></i>`}
               </div>
-              <label class="btn btn-sm btn-outline cursor-pointer">
-                <i class="fa-solid fa-upload"></i> Upload
-                <input type="file" id="f-photo" accept="image/jpeg,image/jpg,image/png,image/webp" class="hidden" onchange="previewAndUpload('main', this)"/>
-              </label>
+              <div>
+                <label class="btn btn-sm btn-outline cursor-pointer gap-1.5" title="Pilih foto ketua">
+                  <i class="fa-solid fa-image text-xs"></i>
+                  <span id="upload-main-label">Pilih Foto</span>
+                  <input type="file" id="f-photo"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    class="sr-only"
+                    aria-label="Upload foto calon ketua"/>
+                </label>
+                <p class="text-xs text-gray-400 mt-1">JPG/PNG/WebP, maks 5MB</p>
+              </div>
             </div>
-            <input type="hidden" id="f-photo-url" value="${Utils.escapeHtml(photoSrc)}"/>
+            <input type="hidden" id="f-photo-url" value="${Utils.escapeHtml(data.photoUrl || '')}"/>
           </div>
         </div>
 
-        <!-- Wakil -->
-        <div class="space-y-3 p-3 bg-green-50 rounded-xl">
-          <p class="text-xs font-bold text-green-700 uppercase tracking-wide"><i class="fa-solid fa-star mr-1"></i>Calon Wakil</p>
-          <div>
-            <label class="form-label text-xs">Nama Lengkap</label>
-            <input type="text" id="f-pair-name" class="form-input" value="${Utils.escapeHtml(data.pairName||'')}" placeholder="Nama wakil"/>
+        <!-- Calon Wakil -->
+        <div class="space-y-3 rounded-xl border border-green-100 p-4 bg-green-50/40">
+          <div class="form-section-label section-wakil">
+            <i class="fa-solid fa-star fa-xs" aria-hidden="true"></i>
+            Calon Wakil
           </div>
+
           <div>
-            <label class="form-label text-xs">Kelas</label>
-            <input type="text" id="f-pair-class" class="form-input" value="${Utils.escapeHtml(data.pairClassName||'')}" placeholder="XI IPS 2"/>
+            <label class="form-label text-xs" for="f-pair-name">Nama Lengkap</label>
+            <input type="text" id="f-pair-name" class="form-input"
+              value="${Utils.escapeHtml(data.pairName || '')}"
+              placeholder="Nama calon wakil (opsional)"
+              maxlength="80" autocomplete="off"/>
           </div>
+
           <div>
-            <label class="form-label text-xs">Foto Wakil</label>
+            <label class="form-label text-xs" for="f-pair-class">Kelas / Angkatan</label>
+            <input type="text" id="f-pair-class" class="form-input"
+              value="${Utils.escapeHtml(data.pairClassName || '')}"
+              placeholder="Contoh: XI IPS 2"
+              maxlength="30" autocomplete="off"/>
+          </div>
+
+          <!-- Upload foto wakil -->
+          <div>
+            <label class="form-label text-xs">Foto</label>
             <div class="flex items-center gap-3">
-              <div id="preview-pair" class="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center">
+              <div class="photo-thumb" id="preview-pair">
                 ${pairPhotoSrc
-                  ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" class="w-full h-full object-cover"
-                         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400\\'></i>'">`
-                  : '<i class="fa-solid fa-user text-gray-400"></i>'}
+                  ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" alt="Foto wakil"
+                       onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`
+                  : `<i class="fa-solid fa-user text-gray-300 text-xl"></i>`}
               </div>
-              <label class="btn btn-sm btn-outline cursor-pointer">
-                <i class="fa-solid fa-upload"></i> Upload
-                <input type="file" id="f-pair-photo" accept="image/jpeg,image/jpg,image/png,image/webp" class="hidden" onchange="previewAndUpload('pair', this)"/>
-              </label>
+              <div>
+                <label class="btn btn-sm btn-outline cursor-pointer gap-1.5" title="Pilih foto wakil">
+                  <i class="fa-solid fa-image text-xs"></i>
+                  <span id="upload-pair-label">Pilih Foto</span>
+                  <input type="file" id="f-pair-photo"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    class="sr-only"
+                    aria-label="Upload foto calon wakil"/>
+                </label>
+                <p class="text-xs text-gray-400 mt-1">JPG/PNG/WebP, maks 5MB</p>
+              </div>
             </div>
-            <input type="hidden" id="f-pair-photo-url" value="${Utils.escapeHtml(pairPhotoSrc)}"/>
+            <input type="hidden" id="f-pair-photo-url" value="${Utils.escapeHtml(data.pairPhotoUrl || '')}"/>
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div class="form-group mb-0">
-          <label class="form-label text-xs">No. Urut</label>
-          <input type="number" id="f-order" class="form-input" value="${data.orderNumber||''}" min="1" placeholder="Otomatis"/>
+      <!-- ── Section: Nomor urut + Status ── -->
+      <div class="rounded-xl border border-gray-100 p-4 bg-gray-50/50">
+        <div class="form-section-label section-detail">
+          <i class="fa-solid fa-sliders fa-xs" aria-hidden="true"></i>
+          Pengaturan
         </div>
-        <div class="form-group mb-0 flex items-end pb-1">
-          <label class="flex items-center gap-2 cursor-pointer select-none text-sm">
-            <input type="checkbox" id="f-active" class="w-4 h-4 accent-primary-600" ${data.isActive !== false ? 'checked':''}/>
-            Tampilkan ke Pemilih
-          </label>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="form-label text-xs" for="f-order">No. Urut</label>
+            <input type="number" id="f-order" class="form-input"
+              value="${data.orderNumber || ''}"
+              min="1" max="999"
+              placeholder="Otomatis"/>
+            <p class="text-xs text-gray-400 mt-1">Kosongkan = urutan otomatis</p>
+          </div>
+          <div class="flex flex-col justify-center">
+            <label class="flex items-start gap-2.5 cursor-pointer select-none group">
+              <input type="checkbox" id="f-active"
+                class="w-4 h-4 mt-0.5 accent-primary-600 flex-shrink-0 cursor-pointer"
+                ${data.isActive !== false ? 'checked' : ''}/>
+              <div>
+                <span class="text-sm font-medium text-gray-700">Tampilkan ke Pemilih</span>
+                <p class="text-xs text-gray-400 mt-0.5">Kandidat terlihat saat voting</p>
+              </div>
+            </label>
+          </div>
         </div>
       </div>
 
-      <div class="form-group mb-0">
-        <label class="form-label text-xs">Visi</label>
-        <textarea id="f-vision" class="form-textarea" rows="2" placeholder="Visi kandidat...">${Utils.escapeHtml(data.vision||'')}</textarea>
+      <!-- ── Section: Visi, Misi, Program ── -->
+      <div class="space-y-4">
+        <div>
+          <label class="form-label text-xs" for="f-vision">Visi</label>
+          <textarea id="f-vision" class="form-textarea" rows="2"
+            placeholder="Visi pasangan kandidat..."
+            maxlength="500">${Utils.escapeHtml(data.vision || '')}</textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="form-label text-xs" for="f-mission">
+              Misi
+              <span class="text-gray-400 font-normal ml-1">(satu per baris)</span>
+            </label>
+            <textarea id="f-mission" class="form-textarea" rows="3"
+              placeholder="Misi 1&#10;Misi 2&#10;Misi 3"
+              maxlength="1000">${Utils.escapeHtml(data.mission || '')}</textarea>
+          </div>
+          <div>
+            <label class="form-label text-xs" for="f-programs">
+              Program Kerja
+              <span class="text-gray-400 font-normal ml-1">(satu per baris)</span>
+            </label>
+            <textarea id="f-programs" class="form-textarea" rows="3"
+              placeholder="Program 1&#10;Program 2"
+              maxlength="1000">${Utils.escapeHtml(data.programs || '')}</textarea>
+          </div>
+        </div>
+
+        <div>
+          <label class="form-label text-xs" for="f-info">Informasi Tambahan</label>
+          <textarea id="f-info" class="form-textarea" rows="2"
+            placeholder="Informasi lain yang relevan (opsional)..."
+            maxlength="500">${Utils.escapeHtml(data.additionalInfo || '')}</textarea>
+        </div>
       </div>
-      <div class="form-group mb-0">
-        <label class="form-label text-xs">Misi <span class="text-gray-400 font-normal">(satu per baris)</span></label>
-        <textarea id="f-mission" class="form-textarea" rows="3" placeholder="Misi 1&#10;Misi 2&#10;Misi 3">${Utils.escapeHtml(data.mission||'')}</textarea>
-      </div>
-      <div class="form-group mb-0">
-        <label class="form-label text-xs">Program Kerja <span class="text-gray-400 font-normal">(satu per baris)</span></label>
-        <textarea id="f-programs" class="form-textarea" rows="3" placeholder="Program 1&#10;Program 2">${Utils.escapeHtml(data.programs||'')}</textarea>
-      </div>
-      <div class="form-group mb-0">
-        <label class="form-label text-xs">Informasi Tambahan</label>
-        <textarea id="f-info" class="form-textarea" rows="2" placeholder="Info tambahan...">${Utils.escapeHtml(data.additionalInfo||'')}</textarea>
-      </div>
+
     </div>`;
 }
 
 function openCandidateModal(id) {
-  if (!_electionId) { Toast.warning('Pilih pemilihan terlebih dahulu.'); return; }
-  const data = id ? _candidates.find(c => c.id === id) : {};
+  if (!_electionId) {
+    Toast.warning('Pilih pemilihan terlebih dahulu sebelum menambah kandidat.');
+    return;
+  }
+
+  const data = id ? (_candidates.find(c => c.id === id) || null) : null;
+  if (id && !data) {
+    Toast.error('Data kandidat tidak ditemukan.');
+    return;
+  }
+
+  // Reset upload state setiap kali modal dibuka
+  _uploadState = { main: 'none', pair: 'none' };
+  _isSubmitting = false;
+
   const modal = Modal.open({
     id: 'modal-candidate',
     title: id ? 'Edit Kandidat' : 'Tambah Kandidat Baru',
@@ -301,39 +864,74 @@ function openCandidateModal(id) {
     size: 'xl',
     actions: [
       { label: 'Batal', class: 'btn-secondary', action: 'cancel' },
-      { label: id ? 'Simpan Perubahan' : 'Tambah Kandidat', class: 'btn-primary', action: 'save', id: 'modal-save-btn' },
+      {
+        label: id ? 'Simpan Perubahan' : 'Tambah Kandidat',
+        class: 'btn-primary',
+        action: 'save',
+        id: 'modal-save-btn',
+      },
     ],
   });
+
+  // Bind file input events
+  const photoInput     = document.getElementById('f-photo');
+  const pairPhotoInput = document.getElementById('f-pair-photo');
+  if (photoInput)     photoInput.addEventListener('change',     e => previewAndUpload('main', e.target));
+  if (pairPhotoInput) pairPhotoInput.addEventListener('change', e => previewAndUpload('pair', e.target));
+
+  // Bind modal action buttons
   modal.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
-      await saveCandidate(id || null, btn);
+      if (btn.dataset.action === 'cancel') {
+        _isSubmitting = false;
+        Modal.close();
+        return;
+      }
+      if (btn.dataset.action === 'save') {
+        if (_isSubmitting) return;
+        await saveCandidate(id || null, btn);
+      }
     });
   });
 }
 
+// ── Photo upload ──────────────────────────────────────────────
+
 async function previewAndUpload(type, input) {
   const file = input.files[0];
   if (!file) return;
-  const validation = Utils.validateImageFile(file);
-  if (!validation.valid) { Toast.error(validation.error); input.value = ''; return; }
 
-  const previewId = type === 'main' ? 'preview-main' : 'preview-pair';
-  const urlId     = type === 'main' ? 'f-photo-url'  : 'f-pair-photo-url';
-  const preview   = document.getElementById(previewId);
-  const urlInput  = document.getElementById(urlId);
+  // Validasi file
+  const validation = Utils.validateImageFile(file, 5);
+  if (!validation.valid) {
+    Toast.error(validation.error);
+    input.value = '';
+    return;
+  }
 
-  // Simpan URL lama sebelum upload (untuk rollback jika gagal)
-  const oldUrl = urlInput ? urlInput.value : '';
+  const previewId = type === 'main' ? 'preview-main'    : 'preview-pair';
+  const urlId     = type === 'main' ? 'f-photo-url'     : 'f-pair-photo-url';
+  const labelId   = type === 'main' ? 'upload-main-label' : 'upload-pair-label';
 
-  // Show local preview + spinner
+  const preview  = document.getElementById(previewId);
+  const urlInput = document.getElementById(urlId);
+  const labelEl  = document.getElementById(labelId);
+
+  if (!preview || !urlInput) return;
+
+  // Simpan URL lama (untuk rollback jika gagal)
+  const oldUrl = urlInput.value || '';
+
+  // Set state uploading
+  _uploadState[type] = 'uploading';
+  if (labelEl) labelEl.textContent = 'Mengupload...';
+
+  // Tampilkan preview lokal + overlay spinner
   const localUrl = URL.createObjectURL(file);
   preview.innerHTML = `
-    <div class="relative w-full h-full">
-      <img src="${localUrl}" class="w-full h-full object-cover">
-      <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
-        <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-      </div>
+    <img src="${localUrl}" alt="Preview">
+    <div class="photo-thumb-spinner">
+      <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
     </div>`;
 
   try {
@@ -345,76 +943,196 @@ async function previewAndUpload(type, input) {
       oldUrl,
     });
 
-    if (res.success) {
-      // Upload berhasil — tampilkan preview bersih dan simpan URL baru
-      preview.innerHTML = `<img src="${localUrl}" class="w-full h-full object-cover">`;
-      if (urlInput) urlInput.value = res.data.url;
+    if (res.success && res.data && res.data.url) {
+      // Berhasil — simpan URL Drive, render preview dari URL Drive yang sudah dikonversi
+      urlInput.value = res.data.url;
+      URL.revokeObjectURL(localUrl); // bebaskan memori blob sementara
+
+      const displaySrc = Utils.buildDriveImgUrl(res.data.url);
+      preview.innerHTML = `<img src="${Utils.escapeHtml(displaySrc)}" alt="Foto ter-upload"
+        onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`;
+
+      _uploadState[type] = 'done';
+      if (labelEl) labelEl.textContent = 'Ganti Foto';
       Toast.success('Foto berhasil diupload.');
     } else {
-      // Upload gagal — kembalikan ke placeholder dan HAPUS URL di hidden input
-      preview.innerHTML = '<i class="fa-solid fa-user text-gray-400"></i>';
-      if (urlInput) urlInput.value = ''; // reset URL agar tidak simpan URL salah
-      input.value = '';
-      Toast.error(res.message || 'Gagal upload foto.');
+      // Gagal upload — rollback ke placeholder & URL lama
+      URL.revokeObjectURL(localUrl);
+      _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
+      _uploadState[type] = 'error';
+      Toast.error(res.message || 'Gagal mengupload foto.');
     }
-  } catch {
-    preview.innerHTML = '<i class="fa-solid fa-user text-gray-400"></i>';
-    if (urlInput) urlInput.value = ''; // reset URL
-    input.value = '';
-    Toast.error('Gagal mengupload foto.');
+  } catch (err) {
+    console.error('[previewAndUpload] error:', err);
+    URL.revokeObjectURL(localUrl);
+    _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
+    _uploadState[type] = 'error';
+    Toast.error('Gagal mengupload foto. Periksa koneksi internet.');
   }
 }
 
-async function saveCandidate(id, btn) {
-  const name = document.getElementById('f-name')?.value.trim();
-  if (!name) { Toast.warning('Nama calon ketua wajib diisi.'); return; }
+/**
+ * Rollback preview ke kondisi sebelum upload jika gagal.
+ * Mengembalikan placeholder/foto lama dan mereset input file.
+ */
+function _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input) {
+  if (oldUrl) {
+    const displaySrc = Utils.buildDriveImgUrl(oldUrl);
+    preview.innerHTML = `<img src="${Utils.escapeHtml(displaySrc)}" alt="Foto"
+      onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`;
+  } else {
+    preview.innerHTML = `<i class="fa-solid fa-user text-gray-300 text-xl"></i>`;
+  }
+  urlInput.value = oldUrl;
+  if (input) input.value = '';
+  if (labelEl) labelEl.textContent = 'Pilih Foto';
+}
 
+// ── Save candidate (create / update) ─────────────────────────
+
+async function saveCandidate(id, btn) {
+  // Blokir jika masih ada upload yang sedang berjalan
+  if (_uploadState.main === 'uploading' || _uploadState.pair === 'uploading') {
+    Toast.warning('Tunggu hingga proses upload foto selesai sebelum menyimpan.');
+    return;
+  }
+
+  // Ambil nilai form
+  const nameEl   = document.getElementById('f-name');
+  const name     = nameEl?.value.trim() ?? '';
+
+  // Validasi inline
+  const errEl = document.getElementById('f-name-error');
+  if (!name) {
+    if (nameEl) nameEl.classList.add('form-input-error');
+    if (errEl) errEl.innerHTML =
+      `<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Nama calon ketua wajib diisi.`;
+    nameEl?.focus();
+    return;
+  }
+  if (name.length < 2) {
+    if (nameEl) nameEl.classList.add('form-input-error');
+    if (errEl) errEl.innerHTML =
+      `<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Nama minimal 2 karakter.`;
+    nameEl?.focus();
+    return;
+  }
+
+  // Bersihkan error setelah validasi lewat
+  nameEl?.classList.remove('form-input-error');
+  if (errEl) errEl.innerHTML = '';
+
+  // Set guard
+  _isSubmitting = true;
   Utils.setLoading(btn, true, 'Menyimpan...');
+
+  const orderRaw = parseInt(document.getElementById('f-order')?.value || '0', 10);
+
   const payload = {
-    electionId:    _electionId,
-    orderNumber:   parseInt(document.getElementById('f-order')?.value) || 0,
+    electionId:     _electionId,
+    orderNumber:    isNaN(orderRaw) || orderRaw <= 0 ? 0 : orderRaw,
     name,
-    photoUrl:      document.getElementById('f-photo-url')?.value || '',
-    className:     document.getElementById('f-class')?.value.trim() || '',
-    pairName:      document.getElementById('f-pair-name')?.value.trim() || '',
-    pairPhotoUrl:  document.getElementById('f-pair-photo-url')?.value || '',
-    pairClassName: document.getElementById('f-pair-class')?.value.trim() || '',
-    vision:        document.getElementById('f-vision')?.value.trim() || '',
-    mission:       document.getElementById('f-mission')?.value.trim() || '',
-    programs:      document.getElementById('f-programs')?.value.trim() || '',
-    additionalInfo:document.getElementById('f-info')?.value.trim() || '',
-    isActive:      document.getElementById('f-active')?.checked !== false,
+    photoUrl:       document.getElementById('f-photo-url')?.value     || '',
+    className:      document.getElementById('f-class')?.value.trim()  || '',
+    pairName:       document.getElementById('f-pair-name')?.value.trim()  || '',
+    pairPhotoUrl:   document.getElementById('f-pair-photo-url')?.value    || '',
+    pairClassName:  document.getElementById('f-pair-class')?.value.trim() || '',
+    vision:         document.getElementById('f-vision')?.value.trim()    || '',
+    mission:        document.getElementById('f-mission')?.value.trim()   || '',
+    programs:       document.getElementById('f-programs')?.value.trim()  || '',
+    additionalInfo: document.getElementById('f-info')?.value.trim()      || '',
+    isActive:       document.getElementById('f-active')?.checked !== false,
   };
   if (id) payload.id = id;
 
-  const res = id ? await API.candidate.update(payload) : await API.candidate.create(payload);
-  Utils.setLoading(btn, false);
+  try {
+    const res = id
+      ? await API.candidate.update(payload)
+      : await API.candidate.create(payload);
 
-  if (res.success) {
-    Toast.success(id ? 'Kandidat berhasil diperbarui.' : 'Kandidat berhasil ditambahkan.');
-    Modal.close(); loadCandidates();
-  } else {
-    Toast.error(res.message);
+    if (res.success) {
+      Toast.success(id ? 'Kandidat berhasil diperbarui.' : 'Kandidat berhasil ditambahkan.');
+      Modal.close();
+      await loadCandidates();
+    } else {
+      Toast.error(res.message || 'Terjadi kesalahan. Silakan coba lagi.');
+    }
+  } catch (err) {
+    console.error('[saveCandidate] unexpected error:', err);
+    Toast.error('Terjadi kesalahan tak terduga. Silakan coba lagi.');
+  } finally {
+    Utils.setLoading(btn, false);
+    _isSubmitting = false;
   }
 }
+
+// ── Delete candidate ──────────────────────────────────────────
 
 async function confirmDeleteCandidate(id) {
   const c = _candidates.find(x => x.id === id);
   if (!c) return;
-  const ok = await Utils.confirm(`Hapus kandidat "${c.name}"?`, 'Konfirmasi Hapus', true);
+
+  const ok = await Utils.confirm(
+    `Hapus kandidat "${c.name}"?\n\nJika kandidat sudah menerima suara, penghapusan akan ditolak oleh server.`,
+    'Konfirmasi Hapus',
+    true
+  );
   if (!ok) return;
+
   const res = await API.candidate.delete(id);
-  if (res.success) { Toast.success('Kandidat berhasil dihapus.'); loadCandidates(); }
-  else Toast.error(res.message);
+  if (res.success) {
+    Toast.success('Kandidat berhasil dihapus.');
+    await loadCandidates();
+  } else {
+    Toast.error(res.message || 'Gagal menghapus kandidat.');
+  }
 }
 
-function showState(s, emptyMsg) {
-  document.getElementById('loading-state').classList.toggle('hidden', s !== 'loading');
-  document.getElementById('content-state').classList.toggle('hidden', s !== 'content');
-  document.getElementById('empty-state').classList.toggle('hidden', s !== 'empty');
-  if (emptyMsg) {
-    const el = document.getElementById('empty-text');
-    if (el) el.textContent = emptyMsg;
+// ── Show State ────────────────────────────────────────────────
+
+/**
+ * Kontrol visibility state utama.
+ * @param {string} s  - 'loading' | 'content' | 'empty' | 'error'
+ * @param {Object|string} [emptyConfig] - konfigurasi empty state
+ */
+function showState(s, emptyConfig) {
+  const states = ['loading', 'content', 'empty', 'error'];
+  states.forEach(name => {
+    const el = document.getElementById(`${name}-state`);
+    if (el) el.classList.toggle('hidden', s !== name);
+  });
+
+  // Update toolbar visibility
+  const toolbar = document.getElementById('toolbar');
+  if (toolbar && s !== 'content') {
+    toolbar.classList.add('hidden');
+  }
+
+  // Konfigurasi empty state
+  if (s === 'empty' && emptyConfig) {
+    const cfg = typeof emptyConfig === 'string'
+      ? { text: emptyConfig, title: '', icon: 'fa-users-slash', iconBg: 'bg-gray-100', iconColor: 'text-gray-400', showAdd: false }
+      : emptyConfig;
+
+    const iconWrap = document.getElementById('empty-icon-wrap');
+    const iconEl   = document.getElementById('empty-icon');
+    const titleEl  = document.getElementById('empty-title');
+    const textEl   = document.getElementById('empty-text');
+    const addBtn   = document.getElementById('btn-add-empty');
+
+    if (iconWrap) {
+      iconWrap.className = `state-icon-wrap mx-auto ${cfg.iconBg || 'bg-gray-100'} ${cfg.iconColor || 'text-gray-400'}`;
+    }
+    if (iconEl)  iconEl.className = `fa-solid ${cfg.icon || 'fa-users-slash'}`;
+    if (titleEl) titleEl.textContent = cfg.title || '';
+    if (textEl)  textEl.textContent  = cfg.text  || '';
+    if (addBtn) {
+      if (cfg.showAdd && _electionId) {
+        addBtn.classList.remove('hidden');
+      } else {
+        addBtn.classList.add('hidden');
+      }
+    }
   }
 }
 </script>
