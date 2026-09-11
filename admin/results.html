@@ -369,16 +369,42 @@
         <!-- Candidate rows skeleton -->
         <div class="result-card p-4 space-y-3">
           <div class="sk h-4 w-40 rounded mb-4"></div>
-          ${[100, 70, 45, 30].map(w => `
           <div class="flex items-center gap-3 py-1">
             <div class="sk w-8 h-8 rounded-full"></div>
             <div class="sk w-8 h-8 rounded-full -ml-2" style="opacity:.7"></div>
             <div class="flex-1">
-              <div class="sk h-3.5 rounded mb-1.5" style="width:${w}%"></div>
-              <div class="sk h-2 rounded" style="width:${Math.round(w*0.8)}%"></div>
+              <div class="sk h-3.5 rounded mb-1.5" style="width:100%"></div>
+              <div class="sk h-2 rounded" style="width:80%"></div>
             </div>
             <div class="sk h-5 w-14 rounded"></div>
-          </div>`).join('')}
+          </div>
+          <div class="flex items-center gap-3 py-1">
+            <div class="sk w-8 h-8 rounded-full"></div>
+            <div class="sk w-8 h-8 rounded-full -ml-2" style="opacity:.7"></div>
+            <div class="flex-1">
+              <div class="sk h-3.5 rounded mb-1.5" style="width:70%"></div>
+              <div class="sk h-2 rounded" style="width:56%"></div>
+            </div>
+            <div class="sk h-5 w-14 rounded"></div>
+          </div>
+          <div class="flex items-center gap-3 py-1">
+            <div class="sk w-8 h-8 rounded-full"></div>
+            <div class="sk w-8 h-8 rounded-full -ml-2" style="opacity:.7"></div>
+            <div class="flex-1">
+              <div class="sk h-3.5 rounded mb-1.5" style="width:45%"></div>
+              <div class="sk h-2 rounded" style="width:36%"></div>
+            </div>
+            <div class="sk h-5 w-14 rounded"></div>
+          </div>
+          <div class="flex items-center gap-3 py-1">
+            <div class="sk w-8 h-8 rounded-full"></div>
+            <div class="sk w-8 h-8 rounded-full -ml-2" style="opacity:.7"></div>
+            <div class="flex-1">
+              <div class="sk h-3.5 rounded mb-1.5" style="width:30%"></div>
+              <div class="sk h-2 rounded" style="width:24%"></div>
+            </div>
+            <div class="sk h-5 w-14 rounded"></div>
+          </div>
         </div>
       </div>
 
