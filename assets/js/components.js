@@ -19,6 +19,7 @@ const Toast = (() => {
     if (!container) {
       container = document.createElement('div');
       container.id = 'toast-container';
+      container.classList.add('toast-container--empty');
       document.body.appendChild(container);
     }
     return container;
@@ -53,6 +54,38 @@ const Toast = (() => {
   };
 
   /**
+   * Perbarui class tema kontainer berdasarkan tipe toast yang aktif.
+   * Prioritas: error > warning > info > success > empty.
+   * Dipanggil setiap kali toast ditambah atau dihapus.
+   */
+  function updateContainerTheme(container) {
+    const PRIORITY = ['error', 'warning', 'info', 'success'];
+    const toasts = container.querySelectorAll('.toast:not(.toast-exit)');
+
+    // Kumpulkan semua tipe yang sedang aktif
+    let dominant = null;
+    for (const type of PRIORITY) {
+      for (const t of toasts) {
+        if (t.classList.contains(`toast-${type}`)) {
+          dominant = type;
+          break;
+        }
+      }
+      if (dominant) break;
+    }
+
+    // Hapus semua class tema sebelumnya
+    container.classList.remove(
+      'toast-container--success',
+      'toast-container--error',
+      'toast-container--warning',
+      'toast-container--info',
+      'toast-container--empty',
+    );
+    container.classList.add(dominant ? `toast-container--${dominant}` : 'toast-container--empty');
+  }
+
+  /**
    * Dismiss toast dengan animasi exit.
    * FIX #2 + #3 + #7 + #9: animasi exit yang benar, timer dibatalkan.
    * @param {HTMLElement} toast
@@ -64,9 +97,12 @@ const Toast = (() => {
     if (timerId !== null) clearTimeout(timerId);
     // Tambah class exit untuk trigger animasi CSS
     toast.classList.add('toast-exit');
-    // Hapus dari DOM setelah animasi selesai (300ms)
+    // Hapus dari DOM setelah animasi selesai (300ms), lalu perbarui tema kontainer
     setTimeout(() => {
       if (toast.isConnected) toast.remove();
+      // Perbarui tema setelah toast benar-benar hilang dari DOM
+      const container = document.getElementById('toast-container');
+      if (container) updateContainerTheme(container);
     }, 300);
   }
 
@@ -117,6 +153,8 @@ const Toast = (() => {
     toast.appendChild(msgEl);
     toast.appendChild(closeBtn);
     container.appendChild(toast);
+    // Perbarui tema kontainer segera setelah toast baru ditambahkan
+    updateContainerTheme(container);
 
     // FIX #5: pause on hover — hentikan timer saat mouse di atas toast
     let timerId = null;
