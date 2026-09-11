@@ -1,28 +1,188 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="h-full">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>404 — Halaman Tidak Ditemukan</title>
+  <!-- FIX #9: noindex agar halaman error tidak diindeks search engine -->
+  <meta name="robots" content="noindex,nofollow"/>
+  <meta name="description" content="Halaman yang Anda cari tidak ditemukan."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="/assets/css/tailwind.css"/>
+  <style>
+    /* FIX #8: Animasi masuk halaman */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-up {
+      animation: fadeUp 0.45s ease-out both;
+    }
+    .animate-fade-up-delay {
+      animation: fadeUp 0.45s ease-out 0.1s both;
+    }
+    .animate-fade-up-delay-2 {
+      animation: fadeUp 0.45s ease-out 0.2s both;
+    }
+
+    /* Cegah horizontal overflow di semua ukuran layar */
+    body { overflow-x: hidden; }
+  </style>
+  <noscript>
+    <style>
+      .animate-fade-up,
+      .animate-fade-up-delay,
+      .animate-fade-up-delay-2 { animation: none; opacity: 1; }
+    </style>
+  </noscript>
 </head>
-<body class="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-  <div class="text-center max-w-sm">
-    <div class="text-8xl font-extrabold text-primary-200 mb-4">404</div>
-    <i class="fa-solid fa-map-location-dot text-5xl text-gray-300 mb-4"></i>
-    <h1 class="text-xl font-bold text-gray-700 mb-2">Halaman Tidak Ditemukan</h1>
-    <p class="text-gray-500 text-sm mb-6">Halaman yang Anda cari tidak ada atau telah dipindahkan.</p>
-    <a href="/index.html" class="btn btn-primary">
-      <i class="fa-solid fa-house"></i> Kembali ke Beranda
-    </a>
+<body class="min-h-screen bg-gray-50 flex flex-col">
+
+<!-- ── Topbar minimal ─────────────────────────────────────────── -->
+<header class="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+  <div class="max-w-3xl mx-auto px-4 h-14 flex items-center gap-2">
+    <!-- FIX #2: data-app-name akan diisi oleh loadAppConfig() -->
+    <div class="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+      <i class="fa-solid fa-box-ballot text-white text-xs" aria-hidden="true"></i>
+    </div>
+    <span class="text-sm font-semibold text-gray-700" data-app-name>eVoting OSIM</span>
   </div>
-  <script src="/assets/js/config.js"></script>
-  <script src="/assets/js/utils.js"></script>
-  <script src="/assets/js/api.js"></script>
-  <script src="/assets/js/auth.js"></script>
-  <script src="/assets/js/components.js"></script>
+</header>
+
+<!-- ── Main content ───────────────────────────────────────────── -->
+<!-- FIX #12: role="main" untuk landmark aksesibilitas -->
+<main class="flex-1 flex items-center justify-center px-4 py-12 sm:py-16" role="main">
+  <div class="w-full max-w-md text-center">
+
+    <!-- FIX #5/#7/#11: Angka 404 dengan warna kontras + responsif -->
+    <div class="animate-fade-up">
+      <!-- Ilustrasi ikon + angka dalam satu focal point -->
+      <div class="relative inline-flex items-center justify-center mb-6">
+        <!-- Lingkaran dekoratif latar -->
+        <div class="w-36 h-36 sm:w-44 sm:h-44 bg-primary-50 rounded-full flex items-center
+                    justify-center" aria-hidden="true">
+          <div class="w-24 h-24 sm:w-32 sm:h-32 bg-primary-100 rounded-full flex items-center
+                      justify-center">
+            <!-- FIX #13: aria-hidden pada ikon dekoratif -->
+            <i class="fa-solid fa-map-location-dot text-4xl sm:text-5xl text-primary-400"
+               aria-hidden="true"></i>
+          </div>
+        </div>
+        <!-- Badge angka 404 menempel di pojok -->
+        <div class="absolute -top-2 -right-2 sm:-top-3 sm:-right-3
+                    bg-white border-2 border-primary-200 rounded-2xl
+                    px-3 py-1 shadow-sm" aria-hidden="true">
+          <!-- FIX #11: text size responsif -->
+          <span class="text-2xl sm:text-3xl font-extrabold text-primary-600 tabular-nums
+                       leading-none">404</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teks utama -->
+    <div class="animate-fade-up-delay">
+      <h1 class="text-xl sm:text-2xl font-extrabold text-gray-800 mb-2">
+        Halaman Tidak Ditemukan
+      </h1>
+      <p class="text-gray-500 text-sm sm:text-base leading-relaxed max-w-sm mx-auto">
+        Halaman yang Anda cari tidak ada, telah dipindahkan, atau URL yang dimasukkan tidak benar.
+      </p>
+    </div>
+
+    <!-- FIX #6: Multiple aksi — tidak hanya beranda -->
+    <div class="animate-fade-up-delay-2 mt-8 flex flex-col sm:flex-row items-center
+                justify-center gap-3">
+      <!-- Aksi utama: kembali ke beranda -->
+      <a href="/index.html" class="btn btn-primary w-full sm:w-auto gap-2">
+        <i class="fa-solid fa-house" aria-hidden="true"></i>
+        Kembali ke Beranda
+      </a>
+      <!-- Aksi sekunder: lihat hasil pemilihan -->
+      <a href="/results.html" class="btn btn-secondary w-full sm:w-auto gap-2">
+        <i class="fa-solid fa-chart-bar" aria-hidden="true"></i>
+        Lihat Hasil Pemilihan
+      </a>
+    </div>
+
+    <!-- FIX #3: Tombol kembali (history-based) + link admin -->
+    <div class="animate-fade-up-delay-2 mt-6 flex items-center justify-center gap-4
+                text-xs text-gray-400">
+      <button id="btn-back" class="hover:text-gray-600 transition-colors flex items-center gap-1
+                                   focus:outline-none focus:text-gray-700 hidden">
+        <i class="fa-solid fa-arrow-left fa-xs" aria-hidden="true"></i>
+        Halaman sebelumnya
+      </button>
+      <span class="hidden" id="separator-dot" aria-hidden="true">·</span>
+      <a href="/admin/login.html"
+         class="hover:text-gray-600 transition-colors flex items-center gap-1">
+        <i class="fa-solid fa-shield-halved fa-xs" aria-hidden="true"></i>
+        Masuk sebagai Admin
+      </a>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── Footer minimal ─────────────────────────────────────────── -->
+<footer class="flex-shrink-0 py-4 text-center border-t border-gray-100 bg-white">
+  <p class="text-xs text-gray-400" data-app-name-footer>
+    eVoting OSIM
+  </p>
+</footer>
+
+<!-- FIX #14: noscript fallback -->
+<noscript>
+  <div style="position:fixed;bottom:0;left:0;right:0;background:#fef3c7;border-top:1px solid #d97706;
+              padding:0.75rem 1rem;text-align:center;font-size:0.8rem;color:#92400e;z-index:9999;">
+    JavaScript direkomendasikan untuk pengalaman terbaik.
+  </div>
+</noscript>
+
+<!--
+  FIX #1: Script dependencies untuk loadAppConfig():
+  loadAppConfig() ada di components.js, memanggil API.config.get() (api.js),
+  yang memanggil Auth.getToken() (auth.js) dan Utils.escapeHtml() (utils.js).
+  auth.js diperlukan sebagai dependency api.js meski tidak dipakai langsung di halaman ini.
+-->
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/assets/js/components.js"></script>
+<script>
+/* ============================================================
+   404.html — Halaman Error
+   ============================================================ */
+
+(async () => {
+  // FIX #2: Panggil loadAppConfig() agar app name ter-update
+  try {
+    const cfg = await loadAppConfig();
+    // Update footer juga
+    if (cfg && cfg.APP_NAME) {
+      document.querySelectorAll('[data-app-name-footer]').forEach(el => {
+        el.textContent = cfg.APP_NAME;
+      });
+    }
+  } catch (_) {
+    // Silent fail — tidak ada yang kritis di halaman ini
+  }
+
+  // FIX #3: Tampilkan tombol "Halaman sebelumnya" hanya jika ada history
+  if (window.history && window.history.length > 1) {
+    const btnBack  = document.getElementById('btn-back');
+    const dotSep   = document.getElementById('separator-dot');
+    if (btnBack)  btnBack.classList.remove('hidden');
+    if (dotSep)   dotSep.classList.remove('hidden');
+
+    btnBack.addEventListener('click', () => {
+      window.history.back();
+    });
+  }
+})();
+</script>
 </body>
 </html>
