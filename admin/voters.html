@@ -605,13 +605,20 @@ let   _accessTimerId  = null;
   }
 
   // Kontrol UI berdasarkan hak akses
-  const isReadonly = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
+  const isReadonly   = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
+  // Notifikasi "mode lihat saja" hanya untuk panitia (sesi PIN terbatas),
+  // bukan viewer (akun admin biasa yang memang hanya punya hak lihat)
+  const showReadonlyNotice = Auth.isPanitia();
+
   if (isReadonly) {
     document.getElementById('btn-add').classList.add('hidden');
     document.getElementById('btn-import').classList.add('hidden');
+  }
+  if (showReadonlyNotice) {
     document.getElementById('badge-readonly').classList.remove('hidden');
     document.getElementById('readonly-bar').classList.remove('hidden');
-  } else {
+  }
+  if (!isReadonly) {
     document.getElementById('btn-add').addEventListener('click', () => openVoterModal());
     document.getElementById('btn-import').addEventListener('click', openImportModal);
   }
