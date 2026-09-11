@@ -439,18 +439,67 @@ const Sidebar = (() => {
   }
 
   async function loadAppName() {
-    const el = document.getElementById('sidebar-app-name');
-    if (!el) return;
+    // Gunakan cache sessionStorage yang sama dengan loadAppConfig agar
+    // tidak ada duplikasi HTTP request ke GAS.
+    const CACHE_KEY = 'evoting_config';
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const entry = JSON.parse(raw);
+        if (Date.now() < entry.expiresAt) {
+          _applySidebarConfig(entry.data);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // Cache tidak ada / kedaluwarsa — fetch langsung
     try {
       const res = await API.config.get();
       if (res.success && res.data) {
-        el.textContent = res.data.APP_NAME || 'eVoting OSIM';
-        const topbarName = document.getElementById('topbar-app-name');
-        if (topbarName) topbarName.textContent = res.data.APP_NAME || 'eVoting OSIM';
-        const schoolName = document.getElementById('sidebar-school-name');
-        if (schoolName) schoolName.textContent = res.data.SCHOOL_NAME || '';
+        // Tulis ke cache agar halaman lain ikut menikmati
+        try {
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+            data: res.data,
+            expiresAt: Date.now() + 5 * 60 * 1000,
+          }));
+        } catch (_) {}
+        _applySidebarConfig(res.data);
       }
     } catch (_) {}
+  }
+
+  /** Terapkan config ke elemen sidebar & topbar, termasuk logo. */
+  function _applySidebarConfig(d) {
+    if (!d) return;
+    const appName = d.APP_NAME || 'eVoting OSIM';
+
+    const sidebarAppName = document.getElementById('sidebar-app-name');
+    if (sidebarAppName) sidebarAppName.textContent = appName;
+
+    const topbarName = document.getElementById('topbar-app-name');
+    if (topbarName) topbarName.textContent = appName;
+
+    const schoolName = document.getElementById('sidebar-school-name');
+    if (schoolName) schoolName.textContent = d.SCHOOL_NAME || '';
+
+    // Render logo ke semua kontainer [data-school-logo] di halaman ini
+    // (termasuk kontainer ikon sidebar yang sudah diberi atribut tersebut).
+    document.querySelectorAll('[data-school-logo]').forEach(el => {
+      if (!el.dataset.schoolLogoFallback) {
+        el.dataset.schoolLogoFallback = el.innerHTML;
+      }
+      const fallback = el.dataset.schoolLogoFallback;
+      if (d.SCHOOL_LOGO_URL) {
+        el.innerHTML =
+          `<img src="${d.SCHOOL_LOGO_URL}"
+                alt="${(d.SCHOOL_NAME || 'Logo Sekolah').replace(/"/g, '&quot;')}"
+                class="w-full h-full object-contain"
+                onerror="this.parentElement.innerHTML=this.parentElement.dataset.schoolLogoFallback">`;
+      } else {
+        el.innerHTML = fallback;
+      }
+    });
   }
 
   return { init };
@@ -725,8 +774,24 @@ function _applyAppConfig(d) {
   document.querySelectorAll('[data-app-subtitle]').forEach(el => {
     el.textContent = d.APP_SUBTITLE || 'Pemilihan Ketua OSIM/S';
   });
+  // [data-school-logo] adalah kontainer <div> yang menampung ikon fallback.
+  // Jika SCHOOL_LOGO_URL tersedia, ganti isi kontainer dengan <img>.
+  // Jika URL kosong atau gambar gagal dimuat, kembalikan ke ikon fallback.
   document.querySelectorAll('[data-school-logo]').forEach(el => {
-    if (d.SCHOOL_LOGO_URL) el.src = d.SCHOOL_LOGO_URL;
+    const fallbackHtml = el.dataset.schoolLogoFallback || el.innerHTML;
+    // Simpan fallback asli sekali saja
+    if (!el.dataset.schoolLogoFallback) {
+      el.dataset.schoolLogoFallback = el.innerHTML;
+    }
+    if (d.SCHOOL_LOGO_URL) {
+      el.innerHTML =
+        `<img src="${d.SCHOOL_LOGO_URL}"
+              alt="${(d.SCHOOL_NAME || 'Logo Sekolah').replace(/"/g, '&quot;')}"
+              class="w-full h-full object-contain"
+              onerror="this.parentElement.innerHTML=this.parentElement.dataset.schoolLogoFallback">`;
+    } else {
+      el.innerHTML = fallbackHtml;
+    }
   });
 }
 
