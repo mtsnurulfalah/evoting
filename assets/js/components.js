@@ -258,7 +258,8 @@ const Sidebar = (() => {
    */
   function buildNavHtml(role) {
     const items = getNavItems(role);
-    const showSettings = (role === 'superadmin' || role === 'admin' || role === 'viewer');
+    const showSettings    = (role === 'superadmin' || role === 'admin' || role === 'viewer');
+    const showUserMgmt    = (role === 'superadmin');
 
     let html = `<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">Menu Utama</p>`;
     html += items.map(item =>
@@ -267,6 +268,10 @@ const Sidebar = (() => {
 
     html += `<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">Akun</p>`;
     html += `<a href="./profile.html" class="sidebar-link"><i class="fa-solid fa-circle-user"></i> Profil Saya</a>`;
+
+    if (showUserMgmt) {
+      html += `<a href="./users.html" class="sidebar-link"><i class="fa-solid fa-users-gear"></i> Manajemen Pengguna</a>`;
+    }
 
     if (showSettings) {
       html += `<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">Pengaturan</p>`;
