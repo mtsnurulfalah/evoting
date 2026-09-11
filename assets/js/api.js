@@ -24,6 +24,9 @@ const API = (() => {
   // ── Request state ────────────────────────────────────────
   let _pendingRequests = 0;
 
+  // Timeout default (ms). GAS cold-start bisa 15–30 detik, jadi pakai 45 detik.
+  const DEFAULT_TIMEOUT_MS = 45000;
+
   // ── Core fetch ───────────────────────────────────────────
   /**
    * Kirim request ke GAS Web App.
@@ -33,8 +36,9 @@ const API = (() => {
    * @param {string} action  - Nama action (ex: 'voter.login')
    * @param {Object} payload - Data payload
    * @param {Object} options
-   * @param {boolean} [options.useToken=true]  - Sertakan token dari storage
-   * @param {boolean} [options.useGet=false]   - Gunakan GET (hanya untuk read sederhana)
+   * @param {boolean} [options.useToken=true]    - Sertakan token dari storage
+   * @param {boolean} [options.useGet=false]     - Gunakan GET (hanya untuk read sederhana)
+   * @param {number}  [options.timeoutMs]        - Override timeout (ms), default 45000
    * @returns {Promise<Object>} Parsed JSON response dari GAS
    */
   async function request(action, payload = {}, options = {}) {
@@ -44,6 +48,7 @@ const API = (() => {
     }
 
     const { useToken = true, useGet = false } = options;
+    const timeoutMs = (typeof options.timeoutMs === 'number') ? options.timeoutMs : DEFAULT_TIMEOUT_MS;
 
     // Ambil token dari storage
     // _customToken di options mengoverride token dari storage (digunakan oleh validateToken)
@@ -60,6 +65,10 @@ const API = (() => {
       payload,
     };
 
+    // ── Timeout via AbortController ──────────────────────
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
+
     _pendingRequests++;
 
     try {
@@ -71,6 +80,7 @@ const API = (() => {
         response = await fetch(`${baseUrl}?${params.toString()}`, {
           method: 'GET',
           redirect: 'follow',
+          signal: controller.signal,
         });
       } else {
         // POST: kirim sebagai JSON body
@@ -84,6 +94,7 @@ const API = (() => {
             'Content-Type': 'text/plain', // GAS membaca text/plain lebih reliabel
           },
           body: JSON.stringify(body),
+          signal: controller.signal,
         });
       }
 
@@ -95,15 +106,19 @@ const API = (() => {
       return data;
 
     } catch (err) {
-      console.error(`[API] Error on action "${action}":`, err);
-      // Network error atau parse error
+      // Bedakan timeout dari error jaringan biasa agar pesan lebih informatif
+      const isTimeout = err.name === 'AbortError';
+      console.error(`[API] ${isTimeout ? 'Timeout' : 'Error'} on action "${action}":`, err);
       return {
         success: false,
-        message: 'Gagal menghubungi server. Periksa koneksi internet Anda.',
-        errorCode: 'NETWORK_ERROR',
+        message: isTimeout
+          ? 'Permintaan membutuhkan waktu terlalu lama. Silakan coba lagi.'
+          : 'Gagal menghubungi server. Periksa koneksi internet Anda.',
+        errorCode: isTimeout ? 'TIMEOUT_ERROR' : 'NETWORK_ERROR',
         _originalError: err.message,
       };
     } finally {
+      clearTimeout(timeoutId);
       _pendingRequests--;
     }
   }
