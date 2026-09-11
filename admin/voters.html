@@ -685,7 +685,55 @@ let   _accessTimerId  = null;
   await loadElectionOptions();
 })();
 
-// ── Get active voted filter ───────────────────────────────────
+// ── PIN Generator ────────────────────────────────────────────
+
+/**
+ * Ambil set semua PIN yang sudah dipakai di election ini.
+ * Menggunakan voter.getAll dengan pageSize besar tanpa filter
+ * agar mendapat seluruh data. Hasil di-cache di _usedPins.
+ * @returns {Promise<Set<string>>}
+ */
+async function fetchUsedPins() {
+  if (!_electionId) return new Set();
+  try {
+    const res = await API.voter.getAll({ electionId: _electionId, page: 1, pageSize: 9999 });
+    if (res.success && res.data && res.data.items) {
+      return new Set(res.data.items.map(v => String(v.pin || '')).filter(Boolean));
+    }
+  } catch (_) {}
+  return new Set();
+}
+
+/**
+ * Generate PIN 5-digit acak yang tidak ada di `usedPins`.
+ * Menggunakan crypto.getRandomValues jika tersedia untuk
+ * distribusi yang lebih baik; fallback ke Math.random.
+ * Jika semua 90.000 kombinasi habis (sangat tidak mungkin),
+ * kembalikan null.
+ * @param {Set<string>} usedPins
+ * @returns {string|null}
+ */
+function generateUniquePin(usedPins) {
+  // 90.000 kemungkinan (10000–99999). Batas iterasi jauh
+  // di bawah ini untuk menghindari infinite loop.
+  const MAX_ATTEMPTS = 200;
+  const hasCrypto = typeof crypto !== 'undefined' && crypto.getRandomValues;
+  const buf = hasCrypto ? new Uint32Array(1) : null;
+
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    let n;
+    if (buf) {
+      crypto.getRandomValues(buf);
+      // Mapping ke [10000, 99999]
+      n = 10000 + (buf[0] % 90000);
+    } else {
+      n = Math.floor(Math.random() * 90000) + 10000;
+    }
+    const pin = String(n);
+    if (!usedPins.has(pin)) return pin;
+  }
+  return null; // sangat tidak mungkin terjadi
+}
 
 function getActiveVotedFilter() {
   const activeBtn = document.querySelector('.filter-status-btn.active');
@@ -1101,14 +1149,26 @@ function voterFormHtml(data = {}) {
           <label class="form-label text-xs" for="f-pin">
             PIN Login <span class="text-red-500" aria-hidden="true">*</span>
           </label>
-          <input type="text" id="f-pin"
-            class="form-input font-mono"
-            placeholder="5 digit angka"
-            maxlength="5"
-            inputmode="numeric"
-            autocomplete="off"/>
+          <div class="flex gap-2 items-center">
+            <input type="text" id="f-pin"
+              class="form-input font-mono flex-1"
+              placeholder="·····"
+              maxlength="5"
+              inputmode="numeric"
+              autocomplete="off"
+              aria-label="PIN login 5 digit"/>
+            <button type="button" id="btn-regen-pin"
+              class="btn btn-secondary btn-sm flex-shrink-0 gap-1.5 text-xs whitespace-nowrap"
+              title="Generate ulang PIN" aria-label="Generate ulang PIN">
+              <i class="fa-solid fa-rotate-right text-xs" aria-hidden="true"></i>
+              Generate Ulang
+            </button>
+          </div>
           <p id="f-pin-error" class="field-error" role="alert"></p>
-          <p class="text-xs text-gray-400 mt-1">PIN diberikan ke siswa untuk login.</p>
+          <p class="text-xs text-gray-400 mt-1">
+            <i class="fa-solid fa-circle-info fa-xs mr-1" aria-hidden="true"></i>
+            PIN digenerate otomatis, unik, dan dapat diubah manual. Berikan PIN ini ke siswa.
+          </p>
         </div>` : ''}
 
       </div>
@@ -1165,6 +1225,49 @@ function openVoterModal(id) {
     if (!currentModal || currentModal.dataset.token !== modalToken) return;
 
     Modal.updateBody('modal-voter', voterFormHtml(data));
+
+    // ── Auto-generate PIN untuk tambah baru ─────────────────
+    if (!id) {
+      // Ambil PIN yang sudah dipakai (latar belakang, tidak blokir UI)
+      const usedPins = await fetchUsedPins();
+
+      // Cek lagi — modal mungkin ditutup saat fetch berjalan
+      if (!document.getElementById('modal-voter') ||
+          document.getElementById('modal-voter').dataset.token !== modalToken) return;
+
+      const generatedPin = generateUniquePin(usedPins);
+      const pinInput = document.getElementById('f-pin');
+      if (pinInput && generatedPin) {
+        pinInput.value = generatedPin;
+        clearFormError('f-pin');
+      }
+
+      // Tombol "Generate Ulang"
+      document.getElementById('btn-regen-pin')?.addEventListener('click', async () => {
+        const regenBtn  = document.getElementById('btn-regen-pin');
+        const pinField  = document.getElementById('f-pin');
+        if (!regenBtn || !pinField) return;
+
+        // Tunjukkan loading singkat di tombol
+        const origHtml = regenBtn.innerHTML;
+        regenBtn.disabled = true;
+        regenBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i>';
+
+        // Re-fetch PIN terbaru agar hasilnya tetap unik
+        const latestUsed = await fetchUsedPins();
+        const newPin     = generateUniquePin(latestUsed);
+
+        regenBtn.disabled = false;
+        regenBtn.innerHTML = origHtml;
+
+        if (newPin) {
+          pinField.value = newPin;
+          clearFormError('f-pin');
+        } else {
+          Toast.error('Tidak dapat generate PIN unik. Semua kemungkinan habis.');
+        }
+      });
+    }
 
     // Bind real-time error clear
     ['f-name', 'f-birth-place', 'f-birth-date'].forEach(fid => {
