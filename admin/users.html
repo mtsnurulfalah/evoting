@@ -9,17 +9,77 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+  <style>
+    /* FIX #22: cegah horizontal overflow */
+    body { overflow-x: hidden; }
+
+    /* FIX #23: action dropdown */
+    .action-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      z-index: 50;
+      min-width: 11rem;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+      overflow: hidden;
+    }
+    .action-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      width: 100%;
+      padding: 0.6rem 1rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #374151;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s;
+    }
+    .action-menu-item:hover { background: #f9fafb; }
+    .action-menu-item.danger { color: #dc2626; }
+    .action-menu-item.danger:hover { background: #fef2f2; }
+    .action-menu-item:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
+    /* Row card di mobile (FIX #20) */
+    .user-card {
+      display: none;
+    }
+    @media (max-width: 639px) {
+      .table-desktop { display: none; }
+      .user-card     { display: block; }
+    }
+
+    /* Badge inline di user-card */
+    .uc-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+  </style>
 </head>
 <body class="h-full bg-gray-50 flex">
 <div id="toast-container"></div>
-<div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
+<div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden" aria-hidden="true"></div>
 
-<!-- Sidebar -->
-<aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<aside id="sidebar"
+       class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col
+              transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto"
+       aria-label="Sidebar navigasi">
   <div class="px-5 py-4 border-b border-gray-100">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-        <i class="fa-solid fa-box-ballot text-white"></i>
+        <i class="fa-solid fa-box-ballot text-white" aria-hidden="true"></i>
       </div>
       <div class="min-w-0">
         <p class="text-sm font-bold text-gray-800 truncate" id="sidebar-app-name">eVoting OSIM</p>
@@ -27,100 +87,161 @@
       </div>
     </div>
   </div>
-  <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto"></nav>
+  <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto" aria-label="Menu utama"></nav>
   <div class="p-3 border-t border-gray-100">
     <div class="flex items-center gap-3 px-2 py-2 rounded-lg">
-      <div id="topbar-user-avatar" class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary-100 flex items-center justify-center"></div>
+      <div id="topbar-user-avatar"
+           class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary-100 flex items-center justify-center"
+           aria-hidden="true"></div>
       <div class="flex-1 min-w-0">
         <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
         <p class="text-xs text-gray-500" id="topbar-user-role"></p>
       </div>
-      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1" title="Logout">
-        <i class="fa-solid fa-right-from-bracket text-sm"></i>
+      <button id="topbar-logout-btn"
+              class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
+              title="Logout" aria-label="Logout">
+        <i class="fa-solid fa-right-from-bracket text-sm" aria-hidden="true"></i>
       </button>
     </div>
   </div>
 </aside>
 
-<!-- Main -->
+<!-- ── Main ─────────────────────────────────────────────────── -->
 <div class="flex-1 flex flex-col min-w-0">
+
+  <!-- Topbar -->
   <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-3 sticky top-0 z-20">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1">
-      <i class="fa-solid fa-bars text-lg"></i>
+    <button id="sidebar-toggle"
+            class="lg:hidden text-gray-500 hover:text-gray-700 p-1 rounded"
+            aria-label="Buka sidebar">
+      <i class="fa-solid fa-bars text-lg" aria-hidden="true"></i>
     </button>
     <h1 class="text-base font-semibold text-gray-800 flex-1">Manajemen Pengguna</h1>
-    <button id="btn-add" class="btn btn-primary btn-sm text-xs">
-      <i class="fa-solid fa-plus"></i>
+    <button id="btn-refresh"
+            class="btn btn-secondary btn-sm text-xs gap-1.5"
+            title="Refresh data" aria-label="Refresh">
+      <i class="fa-solid fa-rotate-right text-xs" aria-hidden="true"></i>
+      <span class="hidden sm:inline">Refresh</span>
+    </button>
+    <button id="btn-add"
+            class="btn btn-primary btn-sm text-xs gap-1.5">
+      <i class="fa-solid fa-plus" aria-hidden="true"></i>
       <span class="hidden sm:inline">Tambah Pengguna</span>
     </button>
   </header>
 
   <main class="flex-1 p-4 md:p-6 overflow-auto">
 
-    <!-- Filter bar -->
+    <!-- FIX #17: Filter + summary dalam satu card ───────────────── -->
     <div class="card p-4 mb-5">
-      <div class="flex flex-col sm:flex-row gap-3">
-        <div class="relative flex-1">
-          <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-          <input type="text" id="search-input" class="form-input pl-9"
-                 placeholder="Cari username atau nama..."/>
+      <div class="flex flex-col gap-3">
+        <!-- Search + filter row -->
+        <div class="flex flex-col sm:flex-row gap-2.5">
+          <div class="relative flex-1 min-w-0">
+            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" aria-hidden="true"></i>
+            <input type="text" id="search-input"
+                   class="form-input pl-9"
+                   placeholder="Cari username atau nama..."
+                   autocomplete="off"/>
+          </div>
+          <!-- FIX #25: w-full saat mobile, sm:w-auto -->
+          <select id="filter-role" class="form-select w-full sm:w-44">
+            <option value="">Semua Role</option>
+            <option value="superadmin">Super Admin</option>
+            <option value="admin">Admin</option>
+            <option value="ketua_panitia">Ketua Panitia</option>
+            <option value="panitia">Panitia</option>
+            <option value="viewer">Viewer</option>
+          </select>
+          <select id="filter-status" class="form-select w-full sm:w-36">
+            <option value="">Semua Status</option>
+            <option value="true">Aktif</option>
+            <option value="false">Nonaktif</option>
+          </select>
+          <button id="btn-reset-filter"
+                  class="btn btn-secondary btn-sm text-xs flex-shrink-0 gap-1.5 w-full sm:w-auto">
+            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+            Reset
+          </button>
         </div>
-        <select id="filter-role" class="form-select sm:w-44">
-          <option value="">Semua Role</option>
-          <option value="superadmin">Super Admin</option>
-          <option value="admin">Admin</option>
-          <option value="ketua_panitia">Ketua Panitia</option>
-          <option value="panitia">Panitia</option>
-          <option value="viewer">Viewer</option>
-        </select>
-        <select id="filter-status" class="form-select sm:w-36">
-          <option value="">Semua Status</option>
-          <option value="true">Aktif</option>
-          <option value="false">Nonaktif</option>
-        </select>
-        <button id="btn-reset-filter" class="btn btn-secondary btn-sm text-xs flex-shrink-0">
-          <i class="fa-solid fa-rotate-left"></i> Reset
-        </button>
+
+        <!-- FIX #15 + #17: Summary badges inline di filter card -->
+        <div id="summary-row" class="hidden flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100">
+          <span class="text-xs text-gray-500">Menampilkan:</span>
+          <span class="badge badge-gray text-xs" id="badge-total"></span>
+          <span class="badge badge-success text-xs" id="badge-active"></span>
+          <span class="badge badge-gray text-xs" id="badge-inactive"></span>
+        </div>
       </div>
     </div>
 
-    <!-- Summary badges -->
-    <div id="summary-badges" class="flex flex-wrap gap-2 mb-4 hidden">
-      <span class="badge badge-gray text-xs" id="badge-total"></span>
-      <span class="badge badge-success text-xs" id="badge-active"></span>
-      <span class="badge badge-gray text-xs" id="badge-inactive"></span>
-    </div>
+    <!-- ── Table card ───────────────────────────────────────── -->
+    <div class="card overflow-hidden">
 
-    <!-- Table card -->
-    <div class="card">
-      <!-- Loading -->
-      <div id="loading-state" class="text-center py-16">
-        <div class="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-3"></div>
+      <!-- FIX #21: Card header dengan judul + tombol refresh status -->
+      <div class="card-header py-3">
+        <h2 class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <i class="fa-solid fa-users-gear text-gray-400" aria-hidden="true"></i>
+          Daftar Pengguna
+        </h2>
+        <span id="table-count" class="text-xs text-gray-400"></span>
+      </div>
+
+      <!-- FIX #1 + #4: Loading state -->
+      <div id="loading-state" class="py-16 flex flex-col items-center justify-center gap-3">
+        <div class="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"
+             role="status" aria-label="Memuat..."></div>
         <p class="text-gray-500 text-sm">Memuat data pengguna...</p>
       </div>
 
-      <!-- Empty -->
-      <div id="empty-state" class="hidden empty-state py-14">
-        <i class="fa-solid fa-users-slash"></i>
-        <p id="empty-msg">Belum ada pengguna.</p>
+      <!-- FIX #4: Error state dengan tombol retry -->
+      <div id="error-state" class="hidden py-16 flex flex-col items-center justify-center gap-3 px-4 text-center">
+        <div class="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+          <i class="fa-solid fa-triangle-exclamation text-red-500 text-2xl" aria-hidden="true"></i>
+        </div>
+        <div>
+          <p class="text-gray-700 font-semibold text-sm">Gagal Memuat Data</p>
+          <p class="text-gray-500 text-xs mt-1" id="error-msg">Tidak dapat menghubungi server.</p>
+        </div>
+        <button id="btn-retry" class="btn btn-outline btn-sm gap-2">
+          <i class="fa-solid fa-rotate-right text-xs" aria-hidden="true"></i>
+          Coba Lagi
+        </button>
+      </div>
+
+      <!-- FIX #16: Empty state dengan judul yang jelas -->
+      <div id="empty-state" class="hidden py-16 flex flex-col items-center justify-center gap-2 px-4 text-center">
+        <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-1">
+          <i class="fa-solid fa-users-slash text-gray-400 text-2xl" aria-hidden="true"></i>
+        </div>
+        <p class="text-gray-700 font-semibold text-sm">Tidak Ada Pengguna</p>
+        <p class="text-gray-500 text-xs" id="empty-msg">Belum ada pengguna yang ditambahkan.</p>
       </div>
 
       <!-- Content -->
       <div id="content-state" class="hidden">
-        <div class="table-wrapper rounded-t-none border-0">
-          <table class="table">
+
+        <!-- FIX #20: DESKTOP TABLE (hidden di mobile) -->
+        <div class="table-desktop table-wrapper rounded-none border-0 border-t border-gray-100">
+          <table class="table" aria-label="Daftar pengguna admin">
             <thead>
               <tr>
-                <th>Pengguna</th>
-                <th>Role</th>
-                <th class="hidden md:table-cell">Status</th>
-                <th class="hidden lg:table-cell">Login Terakhir</th>
-                <th class="text-right">Aksi</th>
+                <th scope="col">Pengguna</th>
+                <th scope="col">Role</th>
+                <th scope="col">Status</th>
+                <th scope="col" class="hidden lg:table-cell">Login Terakhir</th>
+                <th scope="col" class="text-right">Aksi</th>
               </tr>
             </thead>
             <tbody id="users-tbody"></tbody>
           </table>
         </div>
+
+        <!-- FIX #20 + #14: MOBILE CARDS (hidden di desktop) -->
+        <div id="users-cards" class="user-card divide-y divide-gray-100"></div>
+
+        <!-- Pagination container -->
+        <div id="pagination-container" class="px-4 py-3 border-t border-gray-100"></div>
       </div>
     </div>
 
@@ -133,509 +254,825 @@
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/components.js"></script>
 <script>
-// ── Constants ────────────────────────────────────────────────
-const ROLE_LABELS = {
-  superadmin:    'Super Admin',
-  admin:         'Admin',
-  ketua_panitia: 'Ketua Panitia',
-  panitia:       'Panitia',
-  viewer:        'Viewer',
-};
-
-const ROLE_BADGE = {
-  superadmin:    'bg-primary-100 text-primary-700',
-  admin:         'bg-indigo-100 text-indigo-700',
-  ketua_panitia: 'bg-emerald-100 text-emerald-700',
-  panitia:       'bg-amber-100 text-amber-700',
-  viewer:        'bg-gray-100 text-gray-600',
-};
-
-// ── State ────────────────────────────────────────────────────
-let _users     = [];
-let _myId      = '';
-
-// ── Init ─────────────────────────────────────────────────────
+/* =============================================================
+   MANAJEMEN PENGGUNA — eVoting OSIM/S
+   Semua logika dalam IIFE untuk mencegah global namespace pollution.
+   ============================================================= */
 (async () => {
-  // Hanya superadmin
+
+  // ── Guard ──────────────────────────────────────────────────
   if (!Auth.requireAdminPage(['superadmin'])) return;
   Sidebar.init();
   Topbar.init();
 
-  _myId = Auth.getUserData().id || '';
+  // ── Constants ──────────────────────────────────────────────
+  const ROLE_LABELS = {
+    superadmin:    'Super Admin',
+    admin:         'Admin',
+    ketua_panitia: 'Ketua Panitia',
+    panitia:       'Panitia',
+    viewer:        'Viewer',
+  };
 
+  const ROLE_BADGE_CLASS = {
+    superadmin:    'bg-primary-100 text-primary-700',
+    admin:         'bg-indigo-100 text-indigo-700',
+    ketua_panitia: 'bg-emerald-100 text-emerald-700',
+    panitia:       'bg-amber-100 text-amber-700',
+    viewer:        'bg-gray-100 text-gray-600',
+  };
+
+  const ROLE_AVATAR_CLASS = {
+    superadmin:    'bg-primary-600 text-white',
+    admin:         'bg-indigo-500 text-white',
+    ketua_panitia: 'bg-emerald-500 text-white',
+    panitia:       'bg-amber-500 text-white',
+    viewer:        'bg-gray-400 text-white',
+  };
+
+  const ROLE_DESCRIPTIONS = {
+    superadmin:    { color: 'bg-primary-50 border border-primary-200', icon: 'fa-shield-halved text-primary-600',  desc: 'Akses penuh ke seluruh fitur termasuk pengaturan aplikasi dan manajemen pengguna.' },
+    admin:         { color: 'bg-indigo-50 border border-indigo-200',   icon: 'fa-user-shield text-indigo-600',     desc: 'Akses ke semua halaman kecuali Pengaturan Aplikasi dan Manajemen Pengguna. Dapat mengelola pemilihan, kandidat, dan pemilih.' },
+    ketua_panitia: { color: 'bg-emerald-50 border border-emerald-200', icon: 'fa-user-tie text-emerald-600',       desc: 'Akses ke Dashboard, Pemilihan, Kandidat, Pemilih, dan Hasil. Tidak dapat mengakses Pengaturan.' },
+    panitia:       { color: 'bg-amber-50 border border-amber-200',     icon: 'fa-user-check text-amber-600',       desc: 'Hanya dapat mengakses halaman Hasil Pemilihan dan Pemilih.' },
+    viewer:        { color: 'bg-gray-50 border border-gray-200',       icon: 'fa-eye text-gray-500',               desc: 'Dapat melihat semua halaman dalam mode baca saja. Tidak dapat mengubah data.' },
+  };
+
+  // ── State ───────────────────────────────────────────────────
+  let _users       = [];
+  let _myId        = Auth.getUserData().id || '';
+  let _activeMenu  = null;   // dropdown yang sedang terbuka
+
+  // ── DOM refs ────────────────────────────────────────────────
+  const elLoading    = document.getElementById('loading-state');
+  const elError      = document.getElementById('error-state');
+  const elEmpty      = document.getElementById('empty-state');
+  const elContent    = document.getElementById('content-state');
+  const elErrorMsg   = document.getElementById('error-msg');
+  const elEmptyMsg   = document.getElementById('empty-msg');
+  const elTableCount = document.getElementById('table-count');
+  const elSummaryRow = document.getElementById('summary-row');
+
+  // ── showState helper ────────────────────────────────────────
+  function showState(s, msg) {
+    elLoading.classList.toggle('hidden', s !== 'loading');
+    elError.classList.toggle('hidden',   s !== 'error');
+    elEmpty.classList.toggle('hidden',   s !== 'empty');
+    elContent.classList.toggle('hidden', s !== 'content');
+    if (s === 'error'  && msg && elErrorMsg) elErrorMsg.textContent = msg;
+    if (s === 'empty'  && msg && elEmptyMsg) elEmptyMsg.textContent = msg;
+  }
+
+  // ── closeActiveMenu ─────────────────────────────────────────
+  // FIX #23: tutup dropdown yang sedang terbuka
+  function closeActiveMenu() {
+    if (_activeMenu) {
+      _activeMenu.remove();
+      _activeMenu = null;
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    if (_activeMenu && !_activeMenu.contains(e.target) &&
+        !e.target.closest('.action-menu-trigger')) {
+      closeActiveMenu();
+    }
+  });
+
+  // ── loadUsers ────────────────────────────────────────────────
+  // FIX #1: try-catch penuh
+  async function loadUsers() {
+    showState('loading');
+    closeActiveMenu();
+
+    let res;
+    try {
+      res = await API.adminUsers.getAll({
+        search:   document.getElementById('search-input').value.trim(),
+        role:     document.getElementById('filter-role').value,
+        isActive: document.getElementById('filter-status').value,
+      });
+    } catch (err) {
+      console.error('[Users] loadUsers exception:', err);
+      showState('error', 'Tidak dapat menghubungi server. Periksa koneksi Anda.');
+      return;
+    }
+
+    if (!res.success) {
+      showState('error', res.message || 'Gagal memuat data pengguna.');
+      return;
+    }
+
+    _users = res.data.items || [];
+
+    if (!_users.length) {
+      elSummaryRow.classList.add('hidden');
+      if (elTableCount) elTableCount.textContent = '';
+      showState('empty',
+        document.getElementById('search-input').value.trim() ||
+        document.getElementById('filter-role').value ||
+        document.getElementById('filter-status').value
+          ? 'Tidak ada pengguna yang cocok dengan filter.'
+          : 'Belum ada pengguna yang ditambahkan.'
+      );
+      return;
+    }
+
+    renderSummary(_users);
+    renderTable(_users);
+    renderCards(_users);
+    showState('content');
+  }
+
+  // ── renderSummary ────────────────────────────────────────────
+  function renderSummary(users) {
+    const active   = users.filter(u => u.isActive).length;
+    const inactive = users.length - active;
+    document.getElementById('badge-total').textContent    = users.length + ' pengguna';
+    document.getElementById('badge-active').textContent   = active + ' aktif';
+    document.getElementById('badge-inactive').textContent = inactive + ' nonaktif';
+    elSummaryRow.classList.remove('hidden');
+    if (elTableCount) elTableCount.textContent = users.length + ' data';
+  }
+
+  // ── Avatar builder (FIX #3: tidak menggunakan onerror di innerHTML) ──
+  function buildAvatarEl(u) {
+    const div = document.createElement('div');
+    div.className = 'w-9 h-9 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center';
+
+    const avatarClass = ROLE_AVATAR_CLASS[u.role] || 'bg-gray-400 text-white';
+    const initial     = (u.name || u.username || '?').charAt(0).toUpperCase();
+
+    if (u.photoUrl) {
+      const photoUrl = Utils.buildDriveImgUrl(u.photoUrl);
+      const img      = document.createElement('img');
+      img.src     = photoUrl;
+      img.className = 'w-full h-full object-cover object-top';
+      img.alt     = initial;
+      img.addEventListener('error', () => {
+        div.innerHTML = `<span class="text-xs font-bold w-full h-full flex items-center justify-center ${avatarClass}">${Utils.escapeHtml(initial)}</span>`;
+      });
+      div.appendChild(img);
+    } else {
+      div.innerHTML = `<span class="text-xs font-bold w-full h-full flex items-center justify-center ${avatarClass}">${Utils.escapeHtml(initial)}</span>`;
+    }
+    return div;
+  }
+
+  // ── Action dropdown builder (FIX #14 + #23) ──────────────────
+  function buildActionMenu(u) {
+    const isMe      = u.id === _myId;
+    const menu      = document.createElement('div');
+    menu.className  = 'action-menu';
+    menu.setAttribute('role', 'menu');
+
+    const items = [
+      {
+        icon:  'fa-pen-to-square text-gray-500',
+        label: 'Edit Pengguna',
+        cls:   '',
+        disabled: false,
+        action: () => openUserModal(u.id),
+      },
+      {
+        icon:  u.isActive ? 'fa-toggle-off text-orange-500' : 'fa-toggle-on text-green-600',
+        label: u.isActive ? 'Nonaktifkan' : 'Aktifkan',
+        cls:   '',
+        disabled: isMe,
+        title: isMe ? 'Tidak dapat mengubah akun Anda sendiri' : '',
+        action: () => toggleUserActive(u.id, u.isActive),
+      },
+      {
+        icon:  'fa-key text-blue-500',
+        label: 'Reset Password',
+        cls:   '',
+        disabled: false,
+        action: () => openResetPasswordModal(u.id, u.name || u.username),
+      },
+      {
+        icon:  'fa-trash text-red-500',
+        label: 'Hapus Pengguna',
+        cls:   'danger',
+        disabled: isMe,
+        title: isMe ? 'Tidak dapat menghapus akun Anda sendiri' : '',
+        action: () => confirmDelete(u.id, u.name || u.username),
+      },
+    ];
+
+    items.forEach(item => {
+      const btn = document.createElement('button');
+      btn.type      = 'button';
+      btn.className = `action-menu-item ${item.cls}`;
+      btn.setAttribute('role', 'menuitem');
+      if (item.disabled) {
+        btn.disabled = true;
+        if (item.title) btn.title = item.title;
+      }
+      btn.innerHTML = `<i class="fa-solid ${item.icon} w-4 text-center flex-shrink-0" aria-hidden="true"></i> ${Utils.escapeHtml(item.label)}`;
+      if (!item.disabled) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeActiveMenu();
+          item.action();
+        });
+      }
+      menu.appendChild(btn);
+    });
+
+    return menu;
+  }
+
+  // ── renderTable (DESKTOP) ────────────────────────────────────
+  function renderTable(users) {
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = '';
+
+    users.forEach(u => {
+      const isMe       = u.id === _myId;
+      const roleBadge  = ROLE_BADGE_CLASS[u.role] || 'bg-gray-100 text-gray-600';
+      const roleLabel  = ROLE_LABELS[u.role] || u.role;
+
+      const tr = document.createElement('tr');
+      tr.className = !u.isActive ? 'opacity-60' : '';
+
+      // ── Pengguna cell ──
+      const tdUser = document.createElement('td');
+      const userWrap = document.createElement('div');
+      userWrap.className = 'flex items-center gap-3 min-w-0';
+      userWrap.appendChild(buildAvatarEl(u));
+
+      const nameWrap = document.createElement('div');
+      nameWrap.className = 'min-w-0';
+      nameWrap.innerHTML = `
+        <p class="text-sm font-semibold text-gray-800 truncate">
+          ${Utils.escapeHtml(u.name || '—')}
+          ${isMe ? '<span class="ml-1 text-xs text-primary-500 font-normal">(Anda)</span>' : ''}
+        </p>
+        <p class="text-xs text-gray-500 font-mono truncate">@${Utils.escapeHtml(u.username)}</p>`;
+      userWrap.appendChild(nameWrap);
+      tdUser.appendChild(userWrap);
+
+      // ── Role cell ──
+      const tdRole = document.createElement('td');
+      tdRole.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge}">${Utils.escapeHtml(roleLabel)}</span>`;
+
+      // ── Status cell ──
+      const tdStatus = document.createElement('td');
+      tdStatus.innerHTML = `<span class="badge ${u.isActive ? 'badge-success' : 'badge-gray'} text-xs">
+        <i class="fa-solid fa-${u.isActive ? 'circle-check' : 'circle-xmark'} fa-xs" aria-hidden="true"></i>
+        ${u.isActive ? 'Aktif' : 'Nonaktif'}
+      </span>`;
+
+      // ── Last Login cell (desktop only) ──
+      const tdLogin = document.createElement('td');
+      tdLogin.className = 'hidden lg:table-cell text-xs text-gray-500';
+      tdLogin.innerHTML = u.lastLogin
+        ? Utils.escapeHtml(Utils.formatDateTime(u.lastLogin))
+        : '<span class="text-gray-300">Belum pernah</span>';
+
+      // ── Aksi cell (FIX #14 + #23: dropdown) ──
+      const tdAksi = document.createElement('td');
+      tdAksi.className = 'text-right';
+
+      const menuWrap = document.createElement('div');
+      menuWrap.className = 'relative inline-block';
+
+      const triggerBtn = document.createElement('button');
+      triggerBtn.type      = 'button';
+      triggerBtn.className = 'action-menu-trigger btn btn-icon btn-sm btn-outline';
+      triggerBtn.setAttribute('aria-haspopup', 'menu');
+      triggerBtn.setAttribute('aria-label', `Aksi untuk ${u.name || u.username}`);
+      triggerBtn.title     = 'Aksi';
+      triggerBtn.innerHTML = '<i class="fa-solid fa-ellipsis-vertical text-sm" aria-hidden="true"></i>';
+
+      triggerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (_activeMenu && menuWrap.contains(_activeMenu)) {
+          closeActiveMenu();
+          return;
+        }
+        closeActiveMenu();
+        const menu = buildActionMenu(u);
+        menuWrap.appendChild(menu);
+        _activeMenu = menu;
+      });
+
+      menuWrap.appendChild(triggerBtn);
+      tdAksi.appendChild(menuWrap);
+
+      tr.appendChild(tdUser);
+      tr.appendChild(tdRole);
+      tr.appendChild(tdStatus);
+      tr.appendChild(tdLogin);
+      tr.appendChild(tdAksi);
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ── renderCards (MOBILE — FIX #14 + #20) ─────────────────────
+  function renderCards(users) {
+    const container = document.getElementById('users-cards');
+    container.innerHTML = '';
+
+    users.forEach(u => {
+      const isMe       = u.id === _myId;
+      const roleBadge  = ROLE_BADGE_CLASS[u.role] || 'bg-gray-100 text-gray-600';
+      const roleLabel  = ROLE_LABELS[u.role] || u.role;
+
+      const card = document.createElement('div');
+      card.className = `flex items-start gap-3 px-4 py-3 ${!u.isActive ? 'opacity-60' : ''}`;
+
+      // Avatar
+      card.appendChild(buildAvatarEl(u));
+
+      // Info
+      const info = document.createElement('div');
+      info.className = 'flex-1 min-w-0';
+      info.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-gray-800 truncate">
+              ${Utils.escapeHtml(u.name || '—')}
+              ${isMe ? '<span class="ml-1 text-xs text-primary-500 font-normal">(Anda)</span>' : ''}
+            </p>
+            <p class="text-xs text-gray-500 font-mono">@${Utils.escapeHtml(u.username)}</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+          <span class="uc-badge ${roleBadge}">${Utils.escapeHtml(roleLabel)}</span>
+          <span class="uc-badge ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+            <i class="fa-solid fa-${u.isActive ? 'circle-check' : 'circle-xmark'}" aria-hidden="true"></i>
+            ${u.isActive ? 'Aktif' : 'Nonaktif'}
+          </span>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">
+          Login: ${u.lastLogin ? Utils.escapeHtml(Utils.formatDateTime(u.lastLogin)) : 'Belum pernah'}
+        </p>`;
+
+      // Dropdown trigger untuk mobile
+      const menuWrap = document.createElement('div');
+      menuWrap.className = 'relative flex-shrink-0';
+
+      const triggerBtn = document.createElement('button');
+      triggerBtn.type      = 'button';
+      triggerBtn.className = 'action-menu-trigger btn btn-icon btn-sm btn-secondary';
+      triggerBtn.setAttribute('aria-haspopup', 'menu');
+      triggerBtn.setAttribute('aria-label', `Aksi untuk ${u.name || u.username}`);
+      triggerBtn.innerHTML = '<i class="fa-solid fa-ellipsis-vertical text-sm" aria-hidden="true"></i>';
+
+      triggerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (_activeMenu && menuWrap.contains(_activeMenu)) {
+          closeActiveMenu();
+          return;
+        }
+        closeActiveMenu();
+        const menu = buildActionMenu(u);
+        // Pada mobile, posisikan ke kiri agar tidak keluar viewport
+        menu.style.right = '0';
+        menuWrap.appendChild(menu);
+        _activeMenu = menu;
+      });
+
+      menuWrap.appendChild(triggerBtn);
+
+      const rightCol = document.createElement('div');
+      rightCol.className = 'flex-shrink-0';
+      rightCol.appendChild(menuWrap);
+
+      card.appendChild(info);
+      card.appendChild(rightCol);
+      container.appendChild(card);
+    });
+  }
+
+  // ── openUserModal (Add / Edit) ───────────────────────────────
+  // FIX #6: guard jika data tidak ditemukan di cache
+  function openUserModal(id) {
+    const isEdit = !!id;
+    let data = {};
+
+    if (isEdit) {
+      data = _users.find(u => u.id === id);
+      if (!data) {
+        Toast.error('Data pengguna tidak ditemukan. Silakan refresh halaman.');
+        return;
+      }
+    }
+
+    const roleOptions = [
+      { value: 'superadmin',    label: 'Super Admin' },
+      { value: 'admin',         label: 'Admin' },
+      { value: 'ketua_panitia', label: 'Ketua Panitia' },
+      { value: 'panitia',       label: 'Panitia' },
+      { value: 'viewer',        label: 'Viewer' },
+    ];
+
+    const roleSelectHtml = roleOptions.map(o =>
+      `<option value="${o.value}" ${data.role === o.value ? 'selected' : ''}>${Utils.escapeHtml(o.label)}</option>`
+    ).join('');
+
+    // FIX #11: tambah hint validasi username
+    const body = `
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="form-group mb-0">
+            <label class="form-label text-xs" for="f-name">
+              Nama Tampilan <span class="text-red-500" aria-hidden="true">*</span>
+            </label>
+            <input type="text" id="f-name" class="form-input"
+                   value="${Utils.escapeHtml(data.name || '')}"
+                   placeholder="Nama lengkap pengguna"
+                   maxlength="100"/>
+            <p class="form-error hidden text-xs" id="f-name-error" role="alert"></p>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label text-xs" for="f-username">
+              Username <span class="text-red-500" aria-hidden="true">*</span>
+              ${isEdit ? '<span class="text-gray-400 font-normal text-xs">(tidak dapat diubah)</span>' : ''}
+            </label>
+            <input type="text" id="f-username" class="form-input font-mono"
+                   value="${Utils.escapeHtml(data.username || '')}"
+                   placeholder="min. 3 karakter, a-z 0-9 _"
+                   ${isEdit ? 'readonly' : ''}
+                   autocomplete="off" maxlength="30"/>
+            <p class="form-error hidden text-xs" id="f-username-error" role="alert"></p>
+            ${!isEdit ? '<p class="form-hint">Huruf kecil, angka, dan underscore. 3–30 karakter.</p>' : ''}
+          </div>
+        </div>
+
+        <div class="form-group mb-0">
+          <label class="form-label text-xs" for="f-role">
+            Role <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <select id="f-role" class="form-select">
+            <option value="">— Pilih Role —</option>
+            ${roleSelectHtml}
+          </select>
+          <p class="form-error hidden text-xs" id="f-role-error" role="alert"></p>
+        </div>
+
+        ${!isEdit ? `
+        <div class="form-group mb-0">
+          <label class="form-label text-xs" for="f-password">
+            Password <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <div class="relative">
+            <input type="password" id="f-password" class="form-input pr-10"
+                   placeholder="Minimal 6 karakter" autocomplete="new-password"/>
+            <button type="button" id="toggle-pw"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    aria-label="Tampilkan password">
+              <i class="fa-solid fa-eye fa-sm" aria-hidden="true"></i>
+            </button>
+          </div>
+          <p class="form-error hidden text-xs" id="f-password-error" role="alert"></p>
+        </div>
+        ` : ''}
+
+        <div class="form-group mb-0">
+          <label class="flex items-center gap-2.5 cursor-pointer select-none text-sm">
+            <input type="checkbox" id="f-active" class="w-4 h-4 accent-primary-600 flex-shrink-0"
+                   ${data.isActive !== false ? 'checked' : ''}/>
+            <span>Akun Aktif</span>
+          </label>
+        </div>
+
+        <!-- Role description card -->
+        <div id="role-info-card" class="hidden rounded-xl p-3 text-xs text-gray-600"></div>
+      </div>`;
+
+    const modal = Modal.open({
+      id:    'modal-user',
+      title: isEdit ? 'Edit Pengguna' : 'Tambah Pengguna Baru',
+      body,
+      size:  'md',
+      actions: [
+        { label: 'Batal',                      class: 'btn-secondary', action: 'cancel' },
+        { label: isEdit ? 'Simpan' : 'Tambah', class: 'btn-primary',   action: 'save', id: 'modal-save-btn' },
+      ],
+    });
+
+    // Password visibility toggle
+    const toggleBtn = document.getElementById('toggle-pw');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        const pw   = document.getElementById('f-password');
+        const show = pw.type === 'password';
+        pw.type = show ? 'text' : 'password';
+        toggleBtn.querySelector('i').className = `fa-solid fa-${show ? 'eye-slash' : 'eye'} fa-sm`;
+      });
+    }
+
+    // Role info card
+    const roleSelect = document.getElementById('f-role');
+    if (roleSelect) {
+      updateRoleCard(roleSelect.value);
+      roleSelect.addEventListener('change', () => updateRoleCard(roleSelect.value));
+    }
+
+    // Action buttons
+    modal.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (btn.dataset.action === 'cancel') { Modal.close(); return; }
+        await saveUser(isEdit ? id : null, btn);
+      });
+    });
+  }
+
+  function updateRoleCard(role) {
+    const card = document.getElementById('role-info-card');
+    if (!card) return;
+    if (!role || !ROLE_DESCRIPTIONS[role]) {
+      card.classList.add('hidden');
+      return;
+    }
+    const { color, icon, desc } = ROLE_DESCRIPTIONS[role];
+    card.className = `rounded-xl p-3 text-xs text-gray-600 space-y-1 ${color}`;
+    card.innerHTML = `
+      <div class="flex items-start gap-2">
+        <i class="fa-solid ${icon} mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+        <p>${Utils.escapeHtml(desc)}</p>
+      </div>`;
+    card.classList.remove('hidden');
+  }
+
+  // ── saveUser ──────────────────────────────────────────────────
+  // FIX #2 + #7 + #11 + #12: validasi lengkap + double-submit guard
+  async function saveUser(id, btn) {
+    const isEdit = !!id;
+
+    // Clear semua error dulu
+    ['f-name', 'f-username', 'f-role', 'f-password'].forEach(fid => {
+      const errEl = document.getElementById(fid + '-error');
+      const inEl  = document.getElementById(fid);
+      if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+      if (inEl)  inEl.classList.remove('form-input-error');
+    });
+
+    const name     = document.getElementById('f-name')?.value.trim()    || '';
+    const username = (document.getElementById('f-username')?.value.trim() || '').toLowerCase();
+    const role     = document.getElementById('f-role')?.value            || '';
+    const password = document.getElementById('f-password')?.value        || '';
+    // FIX #12: gunakan !! untuk nullable safe
+    const isActive = !!document.getElementById('f-active')?.checked;
+
+    let valid = true;
+
+    if (!name) {
+      _showFieldError('f-name', 'Nama tampilan wajib diisi.');
+      valid = false;
+    }
+
+    if (!isEdit) {
+      if (!username) {
+        _showFieldError('f-username', 'Username wajib diisi.');
+        valid = false;
+      } else if (!/^[a-z0-9_]{3,30}$/.test(username)) {
+        // FIX #11: validasi format username client-side
+        _showFieldError('f-username', 'Username 3–30 karakter: huruf kecil, angka, dan underscore saja.');
+        valid = false;
+      }
+    }
+
+    if (!role) {
+      _showFieldError('f-role', 'Role wajib dipilih.');
+      valid = false;
+    }
+
+    if (!isEdit && (!password || password.length < 6)) {
+      _showFieldError('f-password', 'Password minimal 6 karakter.');
+      valid = false;
+    }
+
+    if (!valid) return;
+
+    // FIX #7: double-submit guard
+    if (btn.disabled) return;
+    Utils.setLoading(btn, true, 'Menyimpan...');
+
+    let res;
+    try {
+      if (isEdit) {
+        res = await API.adminUsers.update({ id, name, role, isActive });
+      } else {
+        res = await API.adminUsers.create({ username, password, name, role, isActive });
+      }
+    } catch (err) {
+      console.error('[Users] saveUser exception:', err);
+      res = { success: false, message: 'Gagal menghubungi server.' };
+    }
+
+    Utils.setLoading(btn, false);
+
+    if (res.success) {
+      Toast.success(isEdit ? 'Pengguna berhasil diperbarui.' : 'Pengguna berhasil ditambahkan.');
+      Modal.close();
+      await loadUsers();
+    } else {
+      Toast.error(res.message || 'Gagal menyimpan pengguna.');
+    }
+  }
+
+  function _showFieldError(fieldId, message) {
+    const errEl = document.getElementById(fieldId + '-error');
+    const inEl  = document.getElementById(fieldId);
+    if (errEl) { errEl.textContent = message; errEl.classList.remove('hidden'); }
+    if (inEl)  { inEl.classList.add('form-input-error'); inEl.focus(); }
+  }
+
+  // ── toggleUserActive ──────────────────────────────────────────
+  // FIX #9: pisahkan teks konfirmasi menjadi dua argumen terpisah
+  async function toggleUserActive(id, currentlyActive) {
+    const user = _users.find(u => u.id === id);
+    if (!user) return;
+
+    const action = currentlyActive ? 'nonaktifkan' : 'aktifkan';
+    const title  = currentlyActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun';
+    // FIX #9: tidak menggunakan \n\n — pesan dipisah sebagai <p> di dalam Modal.confirm
+    const message = currentlyActive
+      ? `Nonaktifkan akun "${user.name || user.username}"? Sesi aktif pengguna ini akan dicabut.`
+      : `Aktifkan kembali akun "${user.name || user.username}"?`;
+
+    const ok = await Utils.confirm(message, title, currentlyActive);
+    if (!ok) return;
+
+    let res;
+    try {
+      res = await API.adminUsers.update({ id, isActive: !currentlyActive });
+    } catch (err) {
+      console.error('[Users] toggleUserActive exception:', err);
+      Toast.error('Gagal menghubungi server.');
+      return;
+    }
+
+    if (res.success) {
+      Toast.success(`Akun berhasil di${action}kan.`);
+      await loadUsers();
+    } else {
+      Toast.error(res.message || 'Gagal memperbarui status akun.');
+    }
+  }
+
+  // ── openResetPasswordModal ────────────────────────────────────
+  function openResetPasswordModal(id, name) {
+    const body = `
+      <div class="space-y-4">
+        <div class="alert alert-warning text-sm">
+          <i class="fa-solid fa-triangle-exclamation flex-shrink-0" aria-hidden="true"></i>
+          <span>Reset password untuk akun <strong>${Utils.escapeHtml(name)}</strong>.
+          Semua sesi aktif pengguna ini akan dicabut.</span>
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label text-xs" for="f-new-pw">
+            Password Baru <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <div class="relative">
+            <input type="password" id="f-new-pw" class="form-input pr-10"
+                   placeholder="Minimal 6 karakter" autocomplete="new-password"/>
+            <button type="button" id="toggle-new-pw"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    aria-label="Tampilkan password">
+              <i class="fa-solid fa-eye fa-sm" aria-hidden="true"></i>
+            </button>
+          </div>
+          <p class="form-error hidden text-xs" id="f-new-pw-error" role="alert"></p>
+        </div>
+        <div class="form-group mb-0">
+          <label class="form-label text-xs" for="f-confirm-pw">
+            Konfirmasi Password <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <input type="password" id="f-confirm-pw" class="form-input"
+                 placeholder="Ulangi password baru" autocomplete="new-password"/>
+          <p class="form-error hidden text-xs" id="f-confirm-pw-error" role="alert"></p>
+        </div>
+      </div>`;
+
+    const modal = Modal.open({
+      id:    'modal-reset-pw',
+      title: 'Reset Password',
+      body,
+      size:  'sm',
+      actions: [
+        { label: 'Batal',          class: 'btn-secondary', action: 'cancel' },
+        { label: 'Reset Password', class: 'btn-danger',    action: 'reset', id: 'modal-reset-btn' },
+      ],
+    });
+
+    const toggleBtn = document.getElementById('toggle-new-pw');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        const pw   = document.getElementById('f-new-pw');
+        const show = pw.type === 'password';
+        pw.type = show ? 'text' : 'password';
+        toggleBtn.querySelector('i').className = `fa-solid fa-${show ? 'eye-slash' : 'eye'} fa-sm`;
+      });
+    }
+
+    modal.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (btn.dataset.action === 'cancel') { Modal.close(); return; }
+        await doResetPassword(id, btn);
+      });
+    });
+  }
+
+  // ── doResetPassword ───────────────────────────────────────────
+  // FIX #8: double-submit guard + inline error
+  async function doResetPassword(id, btn) {
+    // Clear error
+    ['f-new-pw', 'f-confirm-pw'].forEach(fid => {
+      const errEl = document.getElementById(fid + '-error');
+      const inEl  = document.getElementById(fid);
+      if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+      if (inEl)  inEl.classList.remove('form-input-error');
+    });
+
+    const newPw  = document.getElementById('f-new-pw')?.value  || '';
+    const confPw = document.getElementById('f-confirm-pw')?.value || '';
+
+    let valid = true;
+    if (!newPw || newPw.length < 6) {
+      _showFieldError('f-new-pw', 'Password minimal 6 karakter.');
+      valid = false;
+    }
+    if (valid && newPw !== confPw) {
+      _showFieldError('f-confirm-pw', 'Konfirmasi password tidak cocok.');
+      valid = false;
+    }
+    if (!valid) return;
+
+    // FIX #8: double-submit guard
+    if (btn.disabled) return;
+    Utils.setLoading(btn, true, 'Mereset...');
+
+    let res;
+    try {
+      res = await API.adminUsers.resetPassword({ id, newPassword: newPw });
+    } catch (err) {
+      console.error('[Users] doResetPassword exception:', err);
+      res = { success: false, message: 'Gagal menghubungi server.' };
+    }
+
+    Utils.setLoading(btn, false);
+
+    if (res.success) {
+      Toast.success(res.message || 'Password berhasil direset.');
+      Modal.close();
+    } else {
+      Toast.error(res.message || 'Gagal mereset password.');
+    }
+  }
+
+  // ── confirmDelete ─────────────────────────────────────────────
+  // FIX #10: hapus \n\n
+  async function confirmDelete(id, name) {
+    const ok = await Utils.confirm(
+      `Hapus pengguna "${name}"? Aksi ini tidak dapat dibatalkan dan semua sesi aktif akan dicabut.`,
+      'Konfirmasi Hapus',
+      true
+    );
+    if (!ok) return;
+
+    let res;
+    try {
+      res = await API.adminUsers.delete(id);
+    } catch (err) {
+      console.error('[Users] confirmDelete exception:', err);
+      Toast.error('Gagal menghubungi server.');
+      return;
+    }
+
+    if (res.success) {
+      Toast.success(res.message || 'Pengguna berhasil dihapus.');
+      await loadUsers();
+    } else {
+      Toast.error(res.message || 'Gagal menghapus pengguna.');
+    }
+  }
+
+  // ── resetFilter ───────────────────────────────────────────────
+  function resetFilter() {
+    document.getElementById('search-input').value  = '';
+    document.getElementById('filter-role').value   = '';
+    document.getElementById('filter-status').value = '';
+    loadUsers();
+  }
+
+  // ── Event bindings ────────────────────────────────────────────
   document.getElementById('btn-add').addEventListener('click', () => openUserModal());
+  document.getElementById('btn-refresh').addEventListener('click', loadUsers);
+  document.getElementById('btn-retry')?.addEventListener('click', loadUsers);
   document.getElementById('btn-reset-filter').addEventListener('click', resetFilter);
   document.getElementById('search-input').addEventListener('input',
     Utils.debounce(loadUsers, 350));
   document.getElementById('filter-role').addEventListener('change', loadUsers);
   document.getElementById('filter-status').addEventListener('change', loadUsers);
 
+  // ── Init ──────────────────────────────────────────────────────
   await loadUsers();
+
 })();
-
-// ── Load ─────────────────────────────────────────────────────
-async function loadUsers() {
-  showState('loading');
-
-  const res = await API.adminUsers.getAll({
-    search:   document.getElementById('search-input').value.trim(),
-    role:     document.getElementById('filter-role').value,
-    isActive: document.getElementById('filter-status').value,
-  });
-
-  if (!res.success) {
-    Toast.error(res.message);
-    showState('empty', 'Gagal memuat data.');
-    return;
-  }
-
-  _users = res.data.items || [];
-
-  if (!_users.length) {
-    showState('empty', 'Tidak ada pengguna yang cocok dengan filter.');
-    document.getElementById('summary-badges').classList.add('hidden');
-    return;
-  }
-
-  renderSummary(_users);
-  renderTable(_users);
-  showState('content');
-}
-
-// ── Summary badges ────────────────────────────────────────────
-function renderSummary(users) {
-  const active   = users.filter(u => u.isActive).length;
-  const inactive = users.length - active;
-  document.getElementById('badge-total').textContent    = users.length + ' pengguna';
-  document.getElementById('badge-active').textContent   = active + ' aktif';
-  document.getElementById('badge-inactive').textContent = inactive + ' nonaktif';
-  document.getElementById('summary-badges').classList.remove('hidden');
-}
-
-// ── Render table ─────────────────────────────────────────────
-function renderTable(users) {
-  const tbody = document.getElementById('users-tbody');
-  tbody.innerHTML = users.map(u => {
-    const isMe       = u.id === _myId;
-    const roleBadge  = ROLE_BADGE[u.role] || 'bg-gray-100 text-gray-600';
-    const roleLabel  = ROLE_LABELS[u.role] || u.role;
-    const photoUrl   = u.photoUrl ? Utils.buildDriveImgUrl(u.photoUrl) : null;
-    const initial    = (u.name || u.username || '?').charAt(0).toUpperCase();
-    const roleColors = {
-      superadmin:    'bg-primary-600 text-white',
-      admin:         'bg-indigo-500 text-white',
-      ketua_panitia: 'bg-emerald-500 text-white',
-      panitia:       'bg-amber-500 text-white',
-      viewer:        'bg-gray-400 text-white',
-    };
-    const initColor = roleColors[u.role] || 'bg-gray-400 text-white';
-
-    const avatarHtml = photoUrl
-      ? `<img src="${Utils.escapeHtml(photoUrl)}"
-               class="w-full h-full object-cover object-top"
-               onerror="this.parentElement.innerHTML='<span class=\\'text-xs font-bold ${initColor} w-full h-full flex items-center justify-center\\'>${initial}</span>'">`
-      : `<span class="text-xs font-bold ${initColor} w-full h-full flex items-center justify-center">${initial}</span>`;
-
-    return `
-      <tr class="${!u.isActive ? 'opacity-60' : ''}">
-        <td>
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
-              ${avatarHtml}
-            </div>
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-gray-800 truncate">
-                ${Utils.escapeHtml(u.name || '—')}
-                ${isMe ? '<span class="ml-1 text-xs text-primary-500 font-normal">(Anda)</span>' : ''}
-              </p>
-              <p class="text-xs text-gray-500 font-mono truncate">@${Utils.escapeHtml(u.username)}</p>
-            </div>
-          </div>
-        </td>
-        <td>
-          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge}">
-            ${Utils.escapeHtml(roleLabel)}
-          </span>
-        </td>
-        <td class="hidden md:table-cell">
-          <span class="badge ${u.isActive ? 'badge-success' : 'badge-gray'} text-xs">
-            <i class="fa-solid fa-${u.isActive ? 'circle-check' : 'circle-xmark'} fa-xs"></i>
-            ${u.isActive ? 'Aktif' : 'Nonaktif'}
-          </span>
-        </td>
-        <td class="hidden lg:table-cell text-xs text-gray-500">
-          ${u.lastLogin ? Utils.formatDateTime(u.lastLogin) : '<span class="text-gray-300">Belum pernah</span>'}
-        </td>
-        <td>
-          <div class="flex items-center justify-end gap-1">
-            <button class="btn btn-icon btn-sm btn-outline user-edit-btn"
-                    data-id="${Utils.escapeHtml(u.id)}" title="Edit">
-              <i class="fa-solid fa-pen-to-square text-xs"></i>
-            </button>
-            <button class="btn btn-icon btn-sm btn-outline user-toggle-btn
-                           ${u.isActive ? 'text-orange-500 border-orange-200 hover:bg-orange-50'
-                                        : 'text-green-600 border-green-200 hover:bg-green-50'}"
-                    data-id="${Utils.escapeHtml(u.id)}"
-                    data-active="${u.isActive}"
-                    ${isMe ? 'disabled title="Tidak dapat mengubah akun Anda sendiri"'
-                           : `title="${u.isActive ? 'Nonaktifkan' : 'Aktifkan'}"`}>
-              <i class="fa-solid fa-${u.isActive ? 'toggle-off' : 'toggle-on'} text-xs"></i>
-            </button>
-            <button class="btn btn-icon btn-sm btn-outline user-reset-btn text-blue-500 border-blue-200 hover:bg-blue-50"
-                    data-id="${Utils.escapeHtml(u.id)}"
-                    data-name="${Utils.escapeHtml(u.name || u.username)}"
-                    title="Reset Password">
-              <i class="fa-solid fa-key text-xs"></i>
-            </button>
-            <button class="btn btn-icon btn-sm btn-danger user-delete-btn"
-                    data-id="${Utils.escapeHtml(u.id)}"
-                    data-name="${Utils.escapeHtml(u.name || u.username)}"
-                    ${isMe ? 'disabled title="Tidak dapat menghapus akun Anda sendiri"' : 'title="Hapus"'}>
-              <i class="fa-solid fa-trash text-xs"></i>
-            </button>
-          </div>
-        </td>
-      </tr>`;
-  }).join('');
-
-  // Event delegation
-  tbody.querySelectorAll('.user-edit-btn').forEach(btn =>
-    btn.addEventListener('click', () => openUserModal(btn.dataset.id)));
-
-  tbody.querySelectorAll('.user-toggle-btn').forEach(btn =>
-    btn.addEventListener('click', () => toggleUserActive(btn.dataset.id, btn.dataset.active === 'true')));
-
-  tbody.querySelectorAll('.user-reset-btn').forEach(btn =>
-    btn.addEventListener('click', () => openResetPasswordModal(btn.dataset.id, btn.dataset.name)));
-
-  tbody.querySelectorAll('.user-delete-btn').forEach(btn =>
-    btn.addEventListener('click', () => confirmDelete(btn.dataset.id, btn.dataset.name)));
-}
-
-// ── User Modal (Add / Edit) ───────────────────────────────────
-function userFormHtml(data = {}, isEdit = false) {
-  const roleOptions = [
-    { value: 'superadmin',    label: 'Super Admin' },
-    { value: 'admin',         label: 'Admin' },
-    { value: 'ketua_panitia', label: 'Ketua Panitia' },
-    { value: 'panitia',       label: 'Panitia' },
-    { value: 'viewer',        label: 'Viewer' },
-  ];
-
-  const roleSelectHtml = roleOptions.map(o =>
-    `<option value="${o.value}" ${data.role === o.value ? 'selected' : ''}>${o.label}</option>`
-  ).join('');
-
-  return `
-    <div class="space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="form-group mb-0">
-          <label class="form-label text-xs" for="f-name">
-            Nama Tampilan <span class="text-red-500">*</span>
-          </label>
-          <input type="text" id="f-name" class="form-input"
-                 value="${Utils.escapeHtml(data.name || '')}"
-                 placeholder="Nama lengkap pengguna"/>
-        </div>
-        <div class="form-group mb-0">
-          <label class="form-label text-xs" for="f-username">
-            Username <span class="text-red-500">*</span>
-            ${isEdit ? '<span class="text-gray-400 font-normal">(tidak dapat diubah)</span>' : ''}
-          </label>
-          <input type="text" id="f-username" class="form-input font-mono"
-                 value="${Utils.escapeHtml(data.username || '')}"
-                 placeholder="min. 3 karakter, huruf kecil/angka/_"
-                 ${isEdit ? 'readonly' : ''}
-                 autocomplete="off"/>
-        </div>
-      </div>
-
-      <div class="form-group mb-0">
-        <label class="form-label text-xs" for="f-role">
-          Role <span class="text-red-500">*</span>
-        </label>
-        <select id="f-role" class="form-select">
-          <option value="">— Pilih Role —</option>
-          ${roleSelectHtml}
-        </select>
-        <p class="form-hint" id="role-hint"></p>
-      </div>
-
-      ${!isEdit ? `
-      <div class="form-group mb-0">
-        <label class="form-label text-xs" for="f-password">
-          Password <span class="text-red-500">*</span>
-        </label>
-        <div class="relative">
-          <input type="password" id="f-password" class="form-input pr-10"
-                 placeholder="Minimal 6 karakter" autocomplete="new-password"/>
-          <button type="button" id="toggle-pw"
-                  class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label="Tampilkan password">
-            <i class="fa-solid fa-eye fa-sm"></i>
-          </button>
-        </div>
-      </div>
-      ` : ''}
-
-      <div class="form-group mb-0 flex items-center gap-3">
-        <label class="flex items-center gap-2 cursor-pointer select-none text-sm">
-          <input type="checkbox" id="f-active" class="w-4 h-4 accent-primary-600"
-                 ${data.isActive !== false ? 'checked' : ''}/>
-          Akun Aktif
-        </label>
-      </div>
-
-      <!-- Role description card -->
-      <div id="role-info-card" class="hidden rounded-xl p-3 text-xs text-gray-600 space-y-1"></div>
-    </div>`;
-}
-
-const ROLE_DESCRIPTIONS = {
-  superadmin:    { color: 'bg-primary-50 border border-primary-200', icon: 'fa-shield-halved text-primary-600', desc: 'Akses penuh ke seluruh fitur termasuk pengaturan aplikasi dan manajemen pengguna.' },
-  admin:         { color: 'bg-indigo-50 border border-indigo-200',   icon: 'fa-user-shield text-indigo-600',    desc: 'Akses ke semua halaman kecuali Pengaturan Aplikasi dan Manajemen Pengguna. Dapat mengelola pemilihan, kandidat, dan pemilih.' },
-  ketua_panitia: { color: 'bg-emerald-50 border border-emerald-200', icon: 'fa-user-tie text-emerald-600',      desc: 'Akses ke Dashboard, Pemilihan, Kandidat, Pemilih, dan Hasil. Tidak dapat mengakses Pengaturan.' },
-  panitia:       { color: 'bg-amber-50 border border-amber-200',     icon: 'fa-user-check text-amber-600',      desc: 'Hanya dapat mengakses halaman Hasil Pemilihan.' },
-  viewer:        { color: 'bg-gray-50 border border-gray-200',       icon: 'fa-eye text-gray-500',              desc: 'Dapat melihat semua halaman dalam mode baca saja. Tidak dapat mengubah data.' },
-};
-
-function openUserModal(id) {
-  const isEdit = !!id;
-  const data   = isEdit ? (_users.find(u => u.id === id) || {}) : {};
-
-  const modal = Modal.open({
-    id:    'modal-user',
-    title: isEdit ? 'Edit Pengguna' : 'Tambah Pengguna Baru',
-    body:  userFormHtml(data, isEdit),
-    size:  'md',
-    actions: [
-      { label: 'Batal',                           class: 'btn-secondary', action: 'cancel' },
-      { label: isEdit ? 'Simpan' : 'Tambah',      class: 'btn-primary',   action: 'save', id: 'modal-save-btn' },
-    ],
-  });
-
-  // Password toggle
-  const toggleBtn = document.getElementById('toggle-pw');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-      const pw   = document.getElementById('f-password');
-      const show = pw.type === 'password';
-      pw.type = show ? 'text' : 'password';
-      toggleBtn.querySelector('i').className = `fa-solid fa-${show ? 'eye-slash' : 'eye'} fa-sm`;
-    });
-  }
-
-  // Role description
-  const roleSelect = document.getElementById('f-role');
-  if (roleSelect) {
-    updateRoleCard(roleSelect.value);
-    roleSelect.addEventListener('change', () => updateRoleCard(roleSelect.value));
-  }
-
-  // Action buttons
-  modal.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
-      await saveUser(isEdit ? id : null, btn);
-    });
-  });
-}
-
-function updateRoleCard(role) {
-  const card = document.getElementById('role-info-card');
-  if (!card) return;
-  if (!role || !ROLE_DESCRIPTIONS[role]) {
-    card.classList.add('hidden');
-    return;
-  }
-  const { color, icon, desc } = ROLE_DESCRIPTIONS[role];
-  card.className = `rounded-xl p-3 text-xs text-gray-600 ${color}`;
-  card.innerHTML = `
-    <div class="flex items-start gap-2">
-      <i class="fa-solid ${icon} mt-0.5 flex-shrink-0"></i>
-      <p>${Utils.escapeHtml(desc)}</p>
-    </div>`;
-  card.classList.remove('hidden');
-}
-
-async function saveUser(id, btn) {
-  const name     = document.getElementById('f-name')?.value.trim();
-  const username = document.getElementById('f-username')?.value.trim().toLowerCase();
-  const role     = document.getElementById('f-role')?.value;
-  const password = document.getElementById('f-password')?.value;
-  const isActive = document.getElementById('f-active')?.checked !== false;
-
-  if (!name)     { Toast.warning('Nama tampilan wajib diisi.');   return; }
-  if (!username && !id) { Toast.warning('Username wajib diisi.'); return; }
-  if (!role)     { Toast.warning('Role wajib dipilih.');          return; }
-  if (!id && (!password || password.length < 6)) {
-    Toast.warning('Password minimal 6 karakter.');
-    return;
-  }
-
-  Utils.setLoading(btn, true, 'Menyimpan...');
-
-  let res;
-  if (id) {
-    res = await API.adminUsers.update({ id, name, role, isActive });
-  } else {
-    res = await API.adminUsers.create({ username, password, name, role, isActive });
-  }
-
-  Utils.setLoading(btn, false);
-
-  if (res.success) {
-    Toast.success(id ? 'Pengguna berhasil diperbarui.' : 'Pengguna berhasil ditambahkan.');
-    Modal.close();
-    await loadUsers();
-  } else {
-    Toast.error(res.message);
-  }
-}
-
-// ── Toggle Active ─────────────────────────────────────────────
-async function toggleUserActive(id, currentlyActive) {
-  const user = _users.find(u => u.id === id);
-  if (!user) return;
-
-  const action = currentlyActive ? 'nonaktifkan' : 'aktifkan';
-  const ok = await Utils.confirm(
-    `${currentlyActive ? 'Nonaktifkan' : 'Aktifkan'} akun "${user.name || user.username}"?`
-    + (currentlyActive ? '\n\nSesi aktif pengguna ini akan dicabut.' : ''),
-    'Konfirmasi',
-    currentlyActive
-  );
-  if (!ok) return;
-
-  const res = await API.adminUsers.update({ id, isActive: !currentlyActive });
-  if (res.success) {
-    Toast.success(`Akun berhasil di${action}kan.`);
-    await loadUsers();
-  } else {
-    Toast.error(res.message);
-  }
-}
-
-// ── Reset Password Modal ──────────────────────────────────────
-function openResetPasswordModal(id, name) {
-  const modal = Modal.open({
-    id:    'modal-reset-pw',
-    title: 'Reset Password',
-    body: `
-      <div class="space-y-4">
-        <div class="alert alert-warning text-sm">
-          <i class="fa-solid fa-triangle-exclamation flex-shrink-0"></i>
-          <span>Anda akan mereset password untuk akun <strong>${Utils.escapeHtml(name)}</strong>.
-          Semua sesi aktif pengguna ini akan dicabut.</span>
-        </div>
-        <div class="form-group mb-0">
-          <label class="form-label text-xs" for="f-new-pw">
-            Password Baru <span class="text-red-500">*</span>
-          </label>
-          <div class="relative">
-            <input type="password" id="f-new-pw" class="form-input pr-10"
-                   placeholder="Minimal 6 karakter" autocomplete="new-password"/>
-            <button type="button" id="toggle-new-pw"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                    aria-label="Tampilkan password">
-              <i class="fa-solid fa-eye fa-sm"></i>
-            </button>
-          </div>
-        </div>
-        <div class="form-group mb-0">
-          <label class="form-label text-xs" for="f-confirm-pw">
-            Konfirmasi Password <span class="text-red-500">*</span>
-          </label>
-          <input type="password" id="f-confirm-pw" class="form-input"
-                 placeholder="Ulangi password baru" autocomplete="new-password"/>
-        </div>
-      </div>`,
-    size: 'sm',
-    actions: [
-      { label: 'Batal',          class: 'btn-secondary', action: 'cancel' },
-      { label: 'Reset Password', class: 'btn-danger',    action: 'reset', id: 'modal-reset-btn' },
-    ],
-  });
-
-  // Password visibility toggle
-  const toggleBtn = document.getElementById('toggle-new-pw');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-      const pw   = document.getElementById('f-new-pw');
-      const show = pw.type === 'password';
-      pw.type = show ? 'text' : 'password';
-      toggleBtn.querySelector('i').className = `fa-solid fa-${show ? 'eye-slash' : 'eye'} fa-sm`;
-    });
-  }
-
-  modal.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
-      await doResetPassword(id, btn);
-    });
-  });
-}
-
-async function doResetPassword(id, btn) {
-  const newPw  = document.getElementById('f-new-pw')?.value;
-  const confPw = document.getElementById('f-confirm-pw')?.value;
-
-  if (!newPw || newPw.length < 6) {
-    Toast.warning('Password minimal 6 karakter.');
-    return;
-  }
-  if (newPw !== confPw) {
-    Toast.warning('Konfirmasi password tidak cocok.');
-    return;
-  }
-
-  Utils.setLoading(btn, true, 'Mereset...');
-  const res = await API.adminUsers.resetPassword({ id, newPassword: newPw });
-  Utils.setLoading(btn, false);
-
-  if (res.success) {
-    Toast.success(res.message || 'Password berhasil direset.');
-    Modal.close();
-  } else {
-    Toast.error(res.message);
-  }
-}
-
-// ── Delete ────────────────────────────────────────────────────
-async function confirmDelete(id, name) {
-  const ok = await Utils.confirm(
-    `Hapus pengguna "${name}"?\n\nAksi ini tidak dapat dibatalkan. Semua sesi aktif akan dicabut.`,
-    'Konfirmasi Hapus',
-    true
-  );
-  if (!ok) return;
-
-  const res = await API.adminUsers.delete(id);
-  if (res.success) {
-    Toast.success(res.message || 'Pengguna berhasil dihapus.');
-    await loadUsers();
-  } else {
-    Toast.error(res.message);
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────────
-function resetFilter() {
-  document.getElementById('search-input').value  = '';
-  document.getElementById('filter-role').value   = '';
-  document.getElementById('filter-status').value = '';
-  loadUsers();
-}
-
-function showState(s, emptyMsg) {
-  document.getElementById('loading-state').classList.toggle('hidden', s !== 'loading');
-  document.getElementById('content-state').classList.toggle('hidden', s !== 'content');
-  document.getElementById('empty-state').classList.toggle('hidden',   s !== 'empty');
-  if (emptyMsg) {
-    const el = document.getElementById('empty-msg');
-    if (el) el.textContent = emptyMsg;
-  }
-}
 </script>
 </body>
 </html>
