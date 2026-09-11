@@ -9,15 +9,188 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+  <style>
+    /* ── Responsive table: card-mode on mobile ── */
+    @media (max-width: 767px) {
+      .voters-table thead { display: none; }
+      .voters-table tbody tr {
+        display: flex;
+        flex-direction: column;
+        padding: 12px 14px;
+        border-bottom: 1px solid #f3f4f6;
+        gap: 6px;
+      }
+      .voters-table tbody tr:last-child { border-bottom: none; }
+      .voters-table td { display: block; padding: 0; border: none; }
+      .voters-table td::before {
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #9ca3af;
+        display: block;
+        margin-bottom: 2px;
+      }
+      .voters-table td:first-child::before { display: none; }
+      .voters-table .td-actions { display: flex; justify-content: flex-start; gap: 8px; }
+    }
+
+    /* ── Progress bar (voting participation) ── */
+    .participation-bar {
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .participation-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: #16a34a;
+      transition: width 0.5s ease;
+    }
+
+    /* ── Stat card ── */
+    .voter-stat-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .voter-stat-card .stat-num {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.1;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .voter-stat-card .stat-label {
+      font-size: 11px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    /* ── Filter bar ── */
+    .filter-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    /* ── Main content card ── */
+    .content-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    /* ── PIN display badge ── */
+    .pin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-family: ui-monospace, 'Courier New', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: #374151;
+    }
+
+    /* ── Skeleton ── */
+    .sk { background: #e5e7eb; border-radius: 6px; animation: skpulse 1.5s ease-in-out infinite; }
+    @keyframes skpulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+
+    /* ── Mobile modal bottom sheet ── */
+    @media (max-width: 640px) {
+      .modal-backdrop { align-items: flex-end; padding: 0; }
+      .modal-box { border-radius: 20px 20px 0 0; max-height: 92dvh; max-height: 92vh; }
+      .modal-box.modal-centered { border-radius: 14px; }
+    }
+
+    /* ── Field error inline ── */
+    .field-error { font-size: 11px; color: #ef4444; margin-top: 3px; display: flex; align-items: center; gap: 4px; }
+    .field-error:empty { display: none; }
+
+    /* ── State icon ── */
+    .state-icon-wrap {
+      width: 64px; height: 64px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; font-size: 26px;
+    }
+
+    /* ── CSV preview table max-height ── */
+    .csv-preview-wrap {
+      max-height: 200px;
+      overflow-y: auto;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+
+    /* ── Readonly notice bar ── */
+    .readonly-bar {
+      background: #fef3c7;
+      border-bottom: 1px solid #fde68a;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #92400e;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Import result summary ── */
+    .import-result-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .import-result-row.ok    { background: #f0fdf4; color: #15803d; }
+    .import-result-row.skip  { background: #eff6ff; color: #1d4ed8; }
+    .import-result-row.fail  { background: #fef2f2; color: #b91c1c; }
+
+    /* ── Overflow guard for main wrapper ── */
+    .main-content-wrapper { overflow-x: hidden; }
+
+    /* ── Header action btn responsive ── */
+    @media (max-width: 480px) {
+      .header-btn-label { display: none; }
+    }
+
+    /* ── Reset PIN modal input ── */
+    .pin-reset-input {
+      text-align: center;
+      font-family: ui-monospace, 'Courier New', monospace;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.35em;
+    }
+  </style>
 </head>
 <body class="h-full bg-gray-50 flex">
+
 <div id="toast-container"></div>
 <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
 
+<!-- ═══════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════ -->
 <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
   <div class="px-5 py-4 border-b border-gray-100">
     <div class="flex items-center gap-3">
-      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-box-ballot text-white"></i></div>
+      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-box-ballot text-white text-sm"></i>
+      </div>
       <div class="min-w-0">
         <p class="text-sm font-bold text-gray-800 truncate" id="sidebar-app-name">eVoting OSIM</p>
         <p class="text-xs text-gray-500 truncate" id="sidebar-school-name"></p>
@@ -32,103 +205,216 @@
         <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
         <p class="text-xs text-gray-500" id="topbar-user-role"></p>
       </div>
-      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1"><i class="fa-solid fa-right-from-bracket text-sm"></i></button>
+      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded" title="Logout">
+        <i class="fa-solid fa-right-from-bracket text-sm"></i>
+      </button>
     </div>
   </div>
 </aside>
 
-<div class="flex-1 flex flex-col min-w-0">
-  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-3 sticky top-0 z-20">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1"><i class="fa-solid fa-bars text-lg"></i></button>
-    <h1 class="text-base font-semibold text-gray-800 flex-1">Manajemen Pemilih</h1>
-    <button id="btn-import" class="btn btn-outline btn-sm text-xs">
-      <i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">Import CSV</span>
+<!-- ═══════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════ -->
+<div class="flex-1 flex flex-col min-w-0 main-content-wrapper">
+
+  <!-- ── Header ── -->
+  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-2 sticky top-0 z-20 flex-shrink-0">
+    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors">
+      <i class="fa-solid fa-bars text-base"></i>
     </button>
-    <button id="btn-export" class="btn btn-outline btn-sm text-xs">
-      <i class="fa-solid fa-file-export"></i> <span class="hidden sm:inline">Export</span>
-    </button>
-    <button id="btn-add" class="btn btn-primary btn-sm text-xs">
-      <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Tambah</span>
-    </button>
-    <!-- Badge readonly untuk Panitia — ditampilkan via JS -->
-    <span id="badge-readonly" class="hidden badge badge-warning text-xs gap-1">
-      <i class="fa-solid fa-eye fa-xs"></i> Hanya Lihat
-    </span>
+    <h1 class="text-sm font-bold text-gray-800 flex-1 truncate">Manajemen Pemilih</h1>
+
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <button id="btn-import" class="btn btn-outline btn-sm gap-1.5" title="Import CSV">
+        <i class="fa-solid fa-file-import text-xs"></i>
+        <span class="header-btn-label">Import CSV</span>
+      </button>
+      <button id="btn-export" class="btn btn-outline btn-sm gap-1.5" title="Export CSV">
+        <i class="fa-solid fa-file-export text-xs"></i>
+        <span class="header-btn-label">Export</span>
+      </button>
+      <button id="btn-add" class="btn btn-primary btn-sm gap-1.5" title="Tambah Pemilih">
+        <i class="fa-solid fa-plus text-xs"></i>
+        <span class="header-btn-label">Tambah</span>
+      </button>
+      <span id="badge-readonly" class="hidden badge badge-warning gap-1 text-xs">
+        <i class="fa-solid fa-eye fa-xs"></i>
+        <span class="header-btn-label">Hanya Lihat</span>
+      </span>
+    </div>
   </header>
 
-  <main class="flex-1 p-4 md:p-6 overflow-auto">
-    <!-- Filter bar -->
-    <div class="card p-4 mb-5">
-      <div class="flex flex-col sm:flex-row gap-3">
-        <select id="election-select" class="form-select sm:w-52">
-          <option value="">— Pilih Pemilihan —</option>
-        </select>
-        <div class="relative flex-1">
-          <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-          <input type="text" id="search-input" class="form-input pl-9" placeholder="Cari nama, NISN, kelas..."/>
-        </div>
-        <select id="filter-voted" class="form-select sm:w-40">
-          <option value="">Semua Status</option>
-          <option value="false">Belum Memilih</option>
-          <option value="true">Sudah Memilih</option>
-        </select>
-        <button id="btn-reset-filter" class="btn btn-secondary btn-sm text-xs flex-shrink-0">
-          <i class="fa-solid fa-rotate-left"></i> Reset
-        </button>
-      </div>
-    </div>
+  <!-- ── Readonly notice (Panitia / Viewer) ── -->
+  <div id="readonly-bar" class="hidden readonly-bar flex-shrink-0">
+    <i class="fa-solid fa-circle-info flex-shrink-0"></i>
+    <span>Mode lihat saja — Anda tidak dapat mengubah data pemilih.</span>
+  </div>
 
-    <!-- Summary stats -->
-    <div class="grid grid-cols-3 gap-3 mb-5" id="voter-stats">
-      <div class="card p-3 text-center"><p class="text-xl font-extrabold text-gray-800" id="s-total">-</p><p class="text-xs text-gray-500">Total</p></div>
-      <div class="card p-3 text-center bg-green-50"><p class="text-xl font-extrabold text-green-600" id="s-voted">-</p><p class="text-xs text-gray-500">Sudah Memilih</p></div>
-      <div class="card p-3 text-center bg-orange-50"><p class="text-xl font-extrabold text-orange-600" id="s-not-voted">-</p><p class="text-xs text-gray-500">Belum Memilih</p></div>
-    </div>
+  <!-- ── Main ── -->
+  <main class="flex-1 overflow-y-auto overflow-x-hidden">
+    <div class="px-4 md:px-6 py-5 max-w-6xl mx-auto space-y-4">
 
-    <!-- Table -->
-    <div class="card">
-      <div id="loading-state" class="text-center py-16">
-        <div class="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-3"></div>
-        <p class="text-gray-500 text-sm">Memuat data...</p>
-      </div>
-      <div id="content-state" class="hidden">
-        <div class="table-wrapper rounded-t-none border-0">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Nama / NISN</th>
-                <th class="hidden md:table-cell">Kelas</th>
-                <th class="hidden lg:table-cell">Tgl Lahir</th>
-                <th class="hidden xl:table-cell" id="th-pin">PIN</th>
-                <th>Status</th>
-                <th class="text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="voters-tbody"></tbody>
-          </table>
+      <!-- ── Filter bar ── -->
+      <div class="filter-card">
+        <div class="flex flex-col gap-3">
+          <!-- Row 1: Election select + search -->
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="sm:w-60 flex-shrink-0">
+              <select id="election-select" class="form-select w-full text-sm">
+                <option value="">— Pilih Pemilihan —</option>
+              </select>
+            </div>
+            <div class="relative flex-1">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+              <input type="text" id="search-input"
+                class="form-input pl-9 text-sm"
+                placeholder="Cari nama, NISN, kelas..."
+                autocomplete="off"
+                spellcheck="false"/>
+              <button id="btn-clear-search"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden p-1 rounded transition-colors"
+                title="Hapus pencarian" aria-label="Hapus pencarian">
+                <i class="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+          </div>
+          <!-- Row 2: Status filter + reset -->
+          <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button class="filter-status-btn active px-3 py-1 rounded-md text-xs font-semibold transition-all" data-voted="">
+                Semua
+              </button>
+              <button class="filter-status-btn px-3 py-1 rounded-md text-xs font-semibold transition-all" data-voted="false">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block mr-1"></span>Belum Memilih
+              </button>
+              <button class="filter-status-btn px-3 py-1 rounded-md text-xs font-semibold transition-all" data-voted="true">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1"></span>Sudah Memilih
+              </button>
+            </div>
+            <button id="btn-reset-filter" class="btn btn-secondary btn-sm gap-1.5 text-xs" title="Reset semua filter">
+              <i class="fa-solid fa-rotate-left text-xs"></i>
+              <span>Reset</span>
+            </button>
+          </div>
         </div>
-        <div class="px-4 py-3 border-t border-gray-100" id="pagination-container"></div>
       </div>
-      <div id="empty-state" class="hidden empty-state py-14">
-        <i class="fa-solid fa-users-slash"></i>
-        <p id="empty-msg">Pilih pemilihan terlebih dahulu.</p>
+
+      <!-- ── Stats cards ── -->
+      <div id="voter-stats" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="voter-stat-card">
+          <span class="stat-num text-gray-800" id="s-total">0</span>
+          <span class="stat-label">Total Pemilih</span>
+        </div>
+        <div class="voter-stat-card">
+          <span class="stat-num text-green-600" id="s-voted">0</span>
+          <span class="stat-label">Sudah Memilih</span>
+        </div>
+        <div class="voter-stat-card">
+          <span class="stat-num text-amber-600" id="s-not-voted">0</span>
+          <span class="stat-label">Belum Memilih</span>
+        </div>
+        <!-- Partisipasi -->
+        <div class="voter-stat-card flex flex-col justify-center gap-2">
+          <div class="flex items-center justify-between">
+            <span class="stat-label">Partisipasi</span>
+            <span class="text-sm font-bold text-gray-800" id="s-pct">0%</span>
+          </div>
+          <div class="participation-bar">
+            <div class="participation-fill" id="s-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Main card: table ── -->
+      <div class="content-card">
+
+        <!-- Loading skeleton -->
+        <div id="loading-state" class="p-5 space-y-3">
+          <div class="flex items-center justify-between mb-4">
+            <div class="sk h-4 w-32 rounded"></div>
+            <div class="sk h-4 w-20 rounded"></div>
+          </div>
+          ${[...Array(5)].map(() => `
+          <div class="flex items-center gap-4 py-2">
+            <div class="sk h-4 w-1/4 rounded"></div>
+            <div class="sk h-4 w-1/6 rounded hidden md:block"></div>
+            <div class="sk h-4 w-1/6 rounded hidden lg:block"></div>
+            <div class="sk h-5 w-16 rounded-full ml-auto"></div>
+            <div class="sk h-7 w-20 rounded"></div>
+          </div>`).join('')}
+        </div>
+
+        <!-- Content -->
+        <div id="content-state" class="hidden">
+          <!-- Toolbar -->
+          <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+            <p class="text-xs text-gray-500" id="result-info">—</p>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400" id="page-size-label"></span>
+            </div>
+          </div>
+
+          <!-- Table (desktop) / Card list (mobile) -->
+          <div class="overflow-x-auto">
+            <table class="table voters-table w-full min-w-0">
+              <thead>
+                <tr>
+                  <th class="pl-4">Nama / NISN</th>
+                  <th class="hidden md:table-cell">Kelas</th>
+                  <th class="hidden lg:table-cell">Tgl Lahir</th>
+                  <th class="hidden xl:table-cell">PIN</th>
+                  <th>Status</th>
+                  <th class="text-right pr-4">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="voters-tbody"></tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="px-4 py-3 border-t border-gray-100" id="pagination-container"></div>
+        </div>
+
+        <!-- Empty state -->
+        <div id="empty-state" class="hidden py-16 text-center px-4">
+          <div class="state-icon-wrap bg-gray-100 text-gray-400" id="empty-icon-wrap">
+            <i class="fa-solid fa-users-slash" id="empty-icon"></i>
+          </div>
+          <h3 class="text-base font-semibold text-gray-700 mb-1" id="empty-title">Pilih pemilihan</h3>
+          <p class="text-sm text-gray-400 max-w-xs mx-auto" id="empty-msg">
+            Pilih pemilihan untuk melihat daftar pemilih.
+          </p>
+        </div>
+
+        <!-- Error state -->
+        <div id="error-state" class="hidden py-16 text-center px-4">
+          <div class="state-icon-wrap bg-red-50 text-red-400 mx-auto">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <h3 class="text-base font-semibold text-gray-700 mb-1">Gagal memuat data</h3>
+          <p class="text-sm text-gray-400 max-w-xs mx-auto" id="error-msg">Terjadi kesalahan.</p>
+          <button id="btn-retry" class="btn btn-secondary mt-5 gap-2 text-sm">
+            <i class="fa-solid fa-rotate-right text-xs"></i> Coba Lagi
+          </button>
+        </div>
+
       </div>
     </div>
   </main>
 </div>
 
-<!-- ── Modal PIN Akses Panitia ─────────────────────────────── -->
-<!-- Overlay penuh — tidak bisa ditutup tanpa PIN yang benar -->
+<!-- ═══════════════════════════════════════════
+     PIN GATE OVERLAY (Panitia)
+════════════════════════════════════════════ -->
 <div id="pin-gate-overlay" class="hidden fixed inset-0 z-50 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
     <div class="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
       <i class="fa-solid fa-shield-keyhole text-amber-500 text-2xl"></i>
     </div>
     <h2 class="text-lg font-bold text-gray-800 mb-1">Verifikasi PIN Akses</h2>
-    <p class="text-sm text-gray-500 mb-5">
-      Masukkan PIN akses yang diberikan oleh Admin atau Ketua Panitia untuk membuka halaman ini.
+    <p class="text-sm text-gray-500 mb-5 leading-relaxed">
+      Masukkan PIN akses dari Admin atau Ketua Panitia untuk membuka halaman ini.
     </p>
-    <!-- Input PIN -->
     <div class="mb-4">
       <input
         type="text"
@@ -138,132 +424,1136 @@
         maxlength="6"
         inputmode="numeric"
         autocomplete="one-time-code"
-      />
-      <p id="pin-gate-error" class="hidden text-xs text-red-500 mt-2 font-medium"></p>
+        aria-label="PIN Akses"/>
+      <p id="pin-gate-error" class="hidden text-xs text-red-500 mt-2 font-medium flex items-center justify-center gap-1"></p>
     </div>
-    <button id="pin-gate-submit" class="btn btn-primary w-full">
+    <button id="pin-gate-submit" class="btn btn-primary w-full gap-2">
       <i class="fa-solid fa-unlock"></i> Buka Akses
     </button>
-    <button id="pin-gate-cancel" class="btn btn-secondary w-full mt-2">
+    <button id="pin-gate-cancel" class="btn btn-secondary w-full mt-2 gap-2">
       <i class="fa-solid fa-arrow-left"></i> Kembali
     </button>
-    <p class="text-xs text-gray-400 mt-4">
-      <i class="fa-solid fa-circle-info fa-xs"></i>
-      PIN berubah otomatis setiap 5 menit
+    <p class="text-xs text-gray-400 mt-4 leading-relaxed">
+      <i class="fa-solid fa-circle-info fa-xs mr-1"></i>PIN berubah otomatis setiap 5 menit
     </p>
   </div>
 </div>
 
-<!-- ── Timer bar akses 2 menit (muncul setelah PIN benar) ─── -->
-<div id="access-timer-bar" class="hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-amber-300 shadow-lg px-4 py-2 flex items-center gap-3">
-  <i class="fa-solid fa-hourglass-half text-amber-500 flex-shrink-0"></i>
-  <div class="flex-1 min-w-0">
-    <div class="flex items-center justify-between text-xs mb-1">
-      <span class="text-gray-600 font-medium">Sesi akses panitia berakhir dalam</span>
-      <span id="access-countdown" class="font-mono font-bold text-amber-700">2:00</span>
-    </div>
-    <div class="progress-bar h-1.5 bg-amber-100">
-      <div id="access-progress" class="progress-fill bg-amber-400 transition-all duration-1000" style="width:100%"></div>
+<!-- ═══════════════════════════════════════════
+     ACCESS TIMER BAR (Panitia)
+════════════════════════════════════════════ -->
+<div id="access-timer-bar" class="hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-amber-200 shadow-lg">
+  <div class="px-4 py-2.5 flex items-center gap-3 max-w-lg mx-auto">
+    <i class="fa-solid fa-hourglass-half text-amber-500 flex-shrink-0 text-sm"></i>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-xs text-gray-600 font-medium">Sesi akses panitia berakhir dalam</span>
+        <span id="access-countdown" class="font-mono text-xs font-bold text-amber-700">2:00</span>
+      </div>
+      <div class="participation-bar h-1.5 bg-amber-100">
+        <div id="access-progress" class="participation-fill bg-amber-400 transition-all duration-1000" style="width:100%"></div>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- ─────────────────────────────────────────────
+     SCRIPTS
+──────────────────────────────────────────────── -->
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/components.js"></script>
 <script>
-let _electionId = '';
-let _currentPage = 1;
-let _pageSize = 25;
-let _lastMeta = null;
+/* ============================================================
+   voters.js — Manajemen Pemilih (refactored)
+   ============================================================ */
 
-// Kunci sessionStorage untuk sesi akses panitia
-const _PIN_ACCESS_KEY      = 'ev_panitia_voter_access';  // JSON {expiresAt}
-const _PIN_ACCESS_SEC      = 120;                        // durasi akses: 2 menit
-let   _accessTimerId       = null;
+// ── State ────────────────────────────────────────────────────
+let _electionId   = '';
+let _currentPage  = 1;
+let _pageSize     = 25;
+let _lastMeta     = null;
+let _isLoading    = false;   // guard race condition
+let _isSubmitting = false;   // guard double-submit voter form
+let _parsedCSV    = [];      // data CSV yang di-parse untuk import
 
+// PIN Gate (Panitia)
+const _PIN_ACCESS_KEY = 'ev_panitia_voter_access';
+const _PIN_ACCESS_SEC = 120;
+let   _accessTimerId  = null;
+
+// ── Init ─────────────────────────────────────────────────────
 (async () => {
   if (!Auth.requireAdminPage()) return;
-  Sidebar.init(); Topbar.init();
+  Sidebar.init();
+  Topbar.init();
 
-  // ── Gate: role panitia wajib verifikasi PIN akses ─────────
+  // Gate: role panitia wajib verifikasi PIN
   if (Auth.isPanitia()) {
     const granted = await checkOrRequestPinAccess();
-    if (!granted) return; // Jika batal/gagal, sudah diarahkan ke results.html
+    if (!granted) return;
     startAccessTimer();
   }
 
   // Kontrol UI berdasarkan hak akses
-  const _isReadonly = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
-  if (_isReadonly) {
-    // Sembunyikan tombol write, tampilkan badge readonly
+  const isReadonly = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
+  if (isReadonly) {
     document.getElementById('btn-add').classList.add('hidden');
     document.getElementById('btn-import').classList.add('hidden');
     document.getElementById('badge-readonly').classList.remove('hidden');
-  }
-
-  if (!_isReadonly) {
+    document.getElementById('readonly-bar').classList.remove('hidden');
+  } else {
     document.getElementById('btn-add').addEventListener('click', () => openVoterModal());
     document.getElementById('btn-import').addEventListener('click', openImportModal);
   }
+
   document.getElementById('btn-export').addEventListener('click', exportVoters);
   document.getElementById('btn-reset-filter').addEventListener('click', resetFilter);
+  document.getElementById('btn-retry').addEventListener('click', () => loadVoters());
+
+  // Election selector
   document.getElementById('election-select').addEventListener('change', e => {
-    _electionId = e.target.value; _currentPage = 1;
-    if (_electionId) loadVoters(); else showState('empty', 'Pilih pemilihan terlebih dahulu.');
+    _electionId  = e.target.value;
+    _currentPage = 1;
+    if (_electionId) {
+      loadVoters();
+    } else {
+      showState('empty', { title: 'Pilih pemilihan', msg: 'Pilih pemilihan untuk melihat daftar pemilih.' });
+      hideStats();
+    }
   });
-  document.getElementById('search-input').addEventListener('input', Utils.debounce(() => { _currentPage=1; loadVoters(); }, 400));
-  document.getElementById('filter-voted').addEventListener('change', () => { _currentPage=1; loadVoters(); });
+
+  // Search input dengan debounce + clear button
+  const searchInput = document.getElementById('search-input');
+  const clearBtn    = document.getElementById('btn-clear-search');
+  searchInput.addEventListener('input', () => {
+    clearBtn.classList.toggle('hidden', !searchInput.value);
+    Utils.debounce(() => { _currentPage = 1; loadVoters(); }, 400)();
+  });
+  clearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    clearBtn.classList.add('hidden');
+    _currentPage = 1;
+    loadVoters();
+  });
+
+  // Status filter chips
+  document.querySelectorAll('.filter-status-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-status-btn').forEach(b => b.classList.remove('active', 'bg-white', 'shadow-sm', 'text-gray-800'));
+      btn.classList.add('active', 'bg-white', 'shadow-sm', 'text-gray-800');
+      _currentPage = 1;
+      loadVoters();
+    });
+  });
+
+  // Init filter chip active styles
+  updateFilterChipStyles();
 
   await loadElectionOptions();
 })();
 
-// ── PIN Access Gate ────────────────────────────────────────
+// ── Filter chip styles ────────────────────────────────────────
+
+function updateFilterChipStyles() {
+  document.querySelectorAll('.filter-status-btn').forEach(btn => {
+    const isActive = btn.classList.contains('active');
+    btn.classList.toggle('bg-white',    isActive);
+    btn.classList.toggle('shadow-sm',   isActive);
+    btn.classList.toggle('text-gray-800', isActive);
+    btn.classList.toggle('text-gray-500', !isActive);
+  });
+}
+
+function getActiveVotedFilter() {
+  const activeBtn = document.querySelector('.filter-status-btn.active');
+  return activeBtn ? activeBtn.dataset.voted : '';
+}
+
+// ── Load election options ─────────────────────────────────────
+
+async function loadElectionOptions() {
+  const sel = document.getElementById('election-select');
+  sel.disabled = true;
+
+  const res = await API.election.getAll();
+  sel.disabled = false;
+
+  if (!res.success) {
+    sel.innerHTML = '<option value="">— Gagal memuat pemilihan —</option>';
+    showState('error', 'Gagal memuat daftar pemilihan. Muat ulang halaman.');
+    return;
+  }
+
+  const elections = res.data || [];
+  if (!elections.length) {
+    sel.innerHTML = '<option value="">— Belum ada pemilihan —</option>';
+    showState('empty', {
+      icon: 'fa-calendar-xmark',
+      iconBg: 'bg-gray-100',
+      iconColor: 'text-gray-400',
+      title: 'Belum ada pemilihan',
+      msg: 'Buat pemilihan terlebih dahulu di Manajemen Pemilihan.',
+    });
+    return;
+  }
+
+  sel.innerHTML =
+    '<option value="">— Pilih Pemilihan —</option>' +
+    elections.map(e =>
+      `<option value="${Utils.escapeHtml(e.id)}">${Utils.escapeHtml(e.title)}</option>`
+    ).join('');
+
+  if (elections.length === 1) {
+    sel.value    = elections[0].id;
+    _electionId  = elections[0].id;
+    await loadVoters();
+  } else {
+    showState('empty', {
+      icon: 'fa-hand-pointer',
+      iconBg: 'bg-primary-50',
+      iconColor: 'text-primary-400',
+      title: 'Pilih pemilihan',
+      msg: 'Pilih pemilihan dari daftar di atas untuk mengelola pemilihnya.',
+    });
+  }
+}
+
+// ── Load voters ───────────────────────────────────────────────
+
+async function loadVoters() {
+  if (!_electionId) return;
+  if (_isLoading) return;   // cegah parallel requests
+  _isLoading = true;
+
+  showState('loading');
+
+  // Muat stats (tanpa filter) dan data tabel (dengan filter) secara paralel
+  const [statsRes, tableRes] = await Promise.all([
+    API.voter.getAll({ electionId: _electionId, page: 1, pageSize: 1 }),
+    API.voter.getAll({
+      electionId: _electionId,
+      search:   document.getElementById('search-input').value.trim(),
+      hasVoted: getActiveVotedFilter(),
+      page:     _currentPage,
+      pageSize: _pageSize,
+    }),
+  ]);
+
+  _isLoading = false;
+
+  if (!tableRes.success) {
+    document.getElementById('error-msg').textContent =
+      tableRes.message || 'Gagal memuat data pemilih.';
+    showState('error');
+    return;
+  }
+
+  const data  = tableRes.data || {};
+  _lastMeta   = data;
+  const items = data.items || [];
+
+  // Update stats dari request tanpa filter (nilai total akurat)
+  if (statsRes.success && statsRes.data) {
+    updateStats(statsRes.data, items);
+  }
+
+  // Update result info
+  const infoEl = document.getElementById('result-info');
+  if (infoEl) {
+    const total = data.total || 0;
+    const start = ((data.page || 1) - 1) * (data.pageSize || _pageSize) + 1;
+    const end   = Math.min(start + items.length - 1, total);
+    infoEl.textContent = total
+      ? `Menampilkan ${start}–${end} dari ${Utils.formatNumber(total)} pemilih`
+      : 'Tidak ada hasil';
+  }
+
+  if (!items.length) {
+    const isFiltered =
+      document.getElementById('search-input').value.trim() ||
+      getActiveVotedFilter() !== '';
+    showState('empty', {
+      icon: isFiltered ? 'fa-filter' : 'fa-user-plus',
+      iconBg: isFiltered ? 'bg-gray-100' : 'bg-primary-50',
+      iconColor: isFiltered ? 'text-gray-400' : 'text-primary-400',
+      title: isFiltered ? 'Tidak ada hasil' : 'Belum ada pemilih',
+      msg: isFiltered
+        ? 'Tidak ada pemilih yang cocok dengan filter ini.'
+        : 'Tambahkan pemilih pertama untuk pemilihan ini.',
+    });
+    return;
+  }
+
+  renderTable(items);
+  Pagination.render(
+    document.getElementById('pagination-container'),
+    {
+      page:       data.page       || 1,
+      totalPages: data.totalPages || 1,
+      total:      data.total      || items.length,
+      pageSize:   data.pageSize   || _pageSize,
+    },
+    p => { _currentPage = p; loadVoters(); }
+  );
+  showState('content');
+}
+
+// ── Render table ──────────────────────────────────────────────
+
+function renderTable(voters) {
+  const isSuperAdmin = Auth.isSuperAdmin();
+  const isReadonly   = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
+  const tbody        = document.getElementById('voters-tbody');
+
+  tbody.innerHTML = voters.map(v => {
+    const pinHtml = v.pin
+      ? `<span class="pin-badge">${Utils.escapeHtml(v.pin)}</span>`
+      : `<span class="text-gray-400 text-xs">—</span>`;
+
+    const statusBadge = v.hasVoted
+      ? `<span class="badge badge-success"><i class="fa-solid fa-circle-check fa-xs mr-0.5"></i>Sudah</span>`
+      : `<span class="badge badge-warning"><i class="fa-solid fa-clock fa-xs mr-0.5"></i>Belum</span>`;
+
+    // Aksi buttons
+    const editBtn = !isReadonly
+      ? `<button class="btn btn-icon btn-sm btn-outline voter-edit-btn"
+           data-voter-id="${Utils.escapeHtml(v.id)}" title="Edit data pemilih">
+           <i class="fa-solid fa-pen-to-square text-xs"></i></button>`
+      : '';
+    const pinBtn = isSuperAdmin
+      ? `<button class="btn btn-icon btn-sm btn-outline voter-pin-btn"
+           data-voter-id="${Utils.escapeHtml(v.id)}" title="Reset PIN">
+           <i class="fa-solid fa-key text-xs"></i></button>`
+      : '';
+    const resetBtn = isSuperAdmin && v.hasVoted
+      ? `<button class="btn btn-icon btn-sm btn-warning voter-reset-btn"
+           data-voter-id="${Utils.escapeHtml(v.id)}" title="Reset status voting">
+           <i class="fa-solid fa-rotate text-xs"></i></button>`
+      : '';
+    const deleteBtn = !isReadonly
+      ? `<button class="btn btn-icon btn-sm btn-danger voter-delete-btn"
+           data-voter-id="${Utils.escapeHtml(v.id)}"
+           data-voter-name="${Utils.escapeHtml(v.name)}" title="Hapus pemilih">
+           <i class="fa-solid fa-trash text-xs"></i></button>`
+      : '';
+    const noActionsLabel = isReadonly
+      ? `<span class="text-xs text-gray-400 italic">—</span>` : '';
+
+    return `
+      <tr>
+        <td class="pl-4" data-label="">
+          <div>
+            <p class="font-semibold text-gray-800 text-sm leading-tight">${Utils.escapeHtml(v.name || '-')}</p>
+            <p class="text-xs text-gray-400 font-mono mt-0.5">${Utils.escapeHtml(v.nisn || '-')}</p>
+          </div>
+        </td>
+        <td class="hidden md:table-cell text-sm text-gray-700" data-label="Kelas">
+          ${Utils.escapeHtml(v.className || '—')}
+        </td>
+        <td class="hidden lg:table-cell text-sm text-gray-700" data-label="Tgl Lahir">
+          ${Utils.formatDate(v.birthDate, { day: '2-digit', month: '2-digit', year: 'numeric' })}
+        </td>
+        <td class="hidden xl:table-cell" data-label="PIN">
+          ${pinHtml}
+        </td>
+        <td data-label="Status">${statusBadge}</td>
+        <td class="pr-4" data-label="Aksi">
+          <div class="flex items-center justify-end gap-1 td-actions">
+            ${editBtn}${pinBtn}${resetBtn}${deleteBtn}${noActionsLabel}
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  // Bind event listeners
+  tbody.querySelectorAll('.voter-edit-btn').forEach(btn =>
+    btn.addEventListener('click', () => openVoterModal(btn.dataset.voterId))
+  );
+  tbody.querySelectorAll('.voter-pin-btn').forEach(btn =>
+    btn.addEventListener('click', () => openResetPinModal(btn.dataset.voterId))
+  );
+  tbody.querySelectorAll('.voter-reset-btn').forEach(btn =>
+    btn.addEventListener('click', () => resetVoteStatus(btn.dataset.voterId))
+  );
+  tbody.querySelectorAll('.voter-delete-btn').forEach(btn =>
+    btn.addEventListener('click', () => confirmDeleteVoter(btn.dataset.voterId, btn.dataset.voterName))
+  );
+}
+
+// ── Stats ─────────────────────────────────────────────────────
+
+function updateStats(allData, pageItems) {
+  // Total dari request tanpa filter (akurat)
+  const total = allData.total || 0;
+
+  // Voted/belum dari items halaman saat ini
+  // Untuk angka akurat gunakan total di backend, tapi kita hanya
+  // punya halaman saat ini — tampilkan counted dari halaman ini
+  let voted = 0, notVoted = 0;
+  pageItems.forEach(v => { if (v.hasVoted) voted++; else notVoted++; });
+
+  document.getElementById('s-total').textContent     = Utils.formatNumber(total);
+  document.getElementById('s-voted').textContent     = Utils.formatNumber(voted);
+  document.getElementById('s-not-voted').textContent = Utils.formatNumber(notVoted);
+
+  const pct = total > 0 ? Math.round((voted / pageItems.length) * 100) : 0;
+  const pctActual = pageItems.length > 0 ? Math.round((voted / pageItems.length) * 100) : 0;
+  document.getElementById('s-pct').textContent = pctActual + '%';
+  const barEl = document.getElementById('s-bar');
+  if (barEl) barEl.style.width = pctActual + '%';
+
+  const statsEl = document.getElementById('voter-stats');
+  if (statsEl) {
+    statsEl.classList.remove('hidden');
+    statsEl.classList.add('grid');
+  }
+}
+
+function hideStats() {
+  const statsEl = document.getElementById('voter-stats');
+  if (statsEl) statsEl.classList.add('hidden');
+}
+
+// ── Reset filter ──────────────────────────────────────────────
+
+function resetFilter() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('btn-clear-search').classList.add('hidden');
+
+  document.querySelectorAll('.filter-status-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === 0);
+  });
+  updateFilterChipStyles();
+
+  _currentPage = 1;
+  if (_electionId) loadVoters();
+}
+
+// ── Voter modal (add / edit) ──────────────────────────────────
+
+function voterFormHtml(data = {}) {
+  const isEdit = !!data.id;
+  return `
+    <div class="space-y-4">
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        <!-- Nama -->
+        <div>
+          <label class="form-label text-xs" for="f-name">
+            Nama Lengkap <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <input type="text" id="f-name" class="form-input"
+            value="${Utils.escapeHtml(data.name || '')}"
+            placeholder="Nama lengkap siswa"
+            maxlength="80" autocomplete="off"/>
+          <p id="f-name-error" class="field-error"></p>
+        </div>
+
+        <!-- NISN -->
+        <div>
+          <label class="form-label text-xs" for="f-nisn">
+            NISN <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <input type="text" id="f-nisn"
+            class="form-input font-mono ${isEdit ? 'bg-gray-50 cursor-not-allowed' : ''}"
+            value="${Utils.escapeHtml(data.nisn || '')}"
+            placeholder="10 digit angka"
+            maxlength="10"
+            inputmode="numeric"
+            ${isEdit ? 'readonly title="NISN tidak dapat diubah"' : ''}/>
+          ${isEdit
+            ? `<p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-lock fa-xs mr-1"></i>NISN tidak dapat diubah</p>`
+            : `<p id="f-nisn-error" class="field-error"></p>`}
+        </div>
+
+        <!-- Kelas -->
+        <div>
+          <label class="form-label text-xs" for="f-class">Kelas / Jurusan</label>
+          <input type="text" id="f-class" class="form-input"
+            value="${Utils.escapeHtml(data.className || '')}"
+            placeholder="XII IPA 1"
+            maxlength="30" autocomplete="off"/>
+        </div>
+
+        <!-- Tempat Lahir -->
+        <div>
+          <label class="form-label text-xs" for="f-birth-place">
+            Tempat Lahir <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <input type="text" id="f-birth-place" class="form-input"
+            value="${Utils.escapeHtml(data.birthPlace || '')}"
+            placeholder="Kota/Kabupaten"
+            maxlength="50" autocomplete="off"/>
+          <p id="f-birth-place-error" class="field-error"></p>
+        </div>
+
+        <!-- Tanggal Lahir -->
+        <div>
+          <label class="form-label text-xs" for="f-birth-date">
+            Tanggal Lahir <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <input type="date" id="f-birth-date" class="form-input"
+            value="${data.birthDate ? data.birthDate.substring(0, 10) : ''}"/>
+          <p id="f-birth-date-error" class="field-error"></p>
+        </div>
+
+        <!-- PIN (hanya tambah baru) -->
+        ${!isEdit ? `
+        <div>
+          <label class="form-label text-xs" for="f-pin">
+            PIN Login <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <input type="text" id="f-pin"
+            class="form-input font-mono"
+            placeholder="5 digit angka"
+            maxlength="5"
+            inputmode="numeric"
+            autocomplete="off"/>
+          <p id="f-pin-error" class="field-error"></p>
+          <p class="text-xs text-gray-400 mt-1">PIN diberikan ke siswa untuk login.</p>
+        </div>` : ''}
+
+      </div>
+
+      <!-- Status aktif -->
+      <div class="border-t border-gray-100 pt-4">
+        <label class="flex items-start gap-2.5 cursor-pointer select-none">
+          <input type="checkbox" id="f-active"
+            class="w-4 h-4 mt-0.5 accent-primary-600 flex-shrink-0 cursor-pointer"
+            ${data.isActive !== false ? 'checked' : ''}/>
+          <div>
+            <span class="text-sm font-medium text-gray-700">Akun Aktif</span>
+            <p class="text-xs text-gray-400 mt-0.5">Pemilih dapat login ke sistem</p>
+          </div>
+        </label>
+      </div>
+
+    </div>`;
+}
+
+function openVoterModal(id) {
+  if (!_electionId) {
+    Toast.warning('Pilih pemilihan terlebih dahulu.');
+    return;
+  }
+
+  _isSubmitting = false;
+
+  const modal = Modal.open({
+    id: 'modal-voter',
+    title: id ? 'Edit Pemilih' : 'Tambah Pemilih Baru',
+    body: `<div class="flex items-center justify-center py-8">
+      <div class="w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+    </div>`,
+    size: 'lg',
+    actions: [
+      { label: 'Batal', class: 'btn-secondary', action: 'cancel' },
+      { label: id ? 'Simpan Perubahan' : 'Tambah Pemilih', class: 'btn-primary', action: 'save', id: 'modal-save-btn' },
+    ],
+  });
+
+  // Token untuk cek apakah modal masih aktif setelah async load
+  const modalToken = Date.now();
+  modal.dataset.token = String(modalToken);
+
+  // Load data async
+  (async () => {
+    let data = {};
+    if (id) {
+      const res = await API.voter.getById(id);
+      if (res.success && res.data) data = res.data;
+    }
+    // Verifikasi modal masih terbuka (belum ditutup user saat request berjalan)
+    const currentModal = document.getElementById('modal-voter');
+    if (!currentModal || currentModal.dataset.token !== String(modalToken)) return;
+    Modal.updateBody('modal-voter', voterFormHtml(data));
+
+    // Bind validasi real-time pada field error
+    ['f-name', 'f-birth-place', 'f-birth-date'].forEach(fid => {
+      const el = document.getElementById(fid);
+      if (el) el.addEventListener('input', () => clearFormError(fid), { once: true });
+    });
+    if (!id) {
+      ['f-nisn', 'f-pin'].forEach(fid => {
+        const el = document.getElementById(fid);
+        if (el) el.addEventListener('input', () => clearFormError(fid), { once: true });
+      });
+    }
+  })();
+
+  modal.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.action === 'cancel') {
+        _isSubmitting = false;
+        Modal.close();
+        return;
+      }
+      if (btn.dataset.action === 'save') {
+        if (_isSubmitting) return;
+        await saveVoter(id || null, btn);
+      }
+    });
+  });
+}
+
+// ── Save voter ────────────────────────────────────────────────
+
+async function saveVoter(id, btn) {
+  // Bersihkan semua error dulu
+  ['f-name', 'f-nisn', 'f-birth-place', 'f-birth-date', 'f-pin'].forEach(clearFormError);
+
+  const name       = document.getElementById('f-name')?.value.trim()       ?? '';
+  const nisn       = document.getElementById('f-nisn')?.value.trim()       ?? '';
+  const birthPlace = document.getElementById('f-birth-place')?.value.trim() ?? '';
+  const birthDate  = document.getElementById('f-birth-date')?.value        ?? '';
+  const pin        = document.getElementById('f-pin')?.value.trim()        ?? '';
+
+  let hasError = false;
+
+  if (!name) {
+    setFormError('f-name', 'Nama lengkap wajib diisi.'); hasError = true;
+  }
+  if (!id && !nisn) {
+    setFormError('f-nisn', 'NISN wajib diisi.'); hasError = true;
+  } else if (!id && !/^\d{10}$/.test(nisn)) {
+    setFormError('f-nisn', 'NISN harus tepat 10 digit angka.'); hasError = true;
+  }
+  if (!birthPlace) {
+    setFormError('f-birth-place', 'Tempat lahir wajib diisi.'); hasError = true;
+  }
+  if (!birthDate) {
+    setFormError('f-birth-date', 'Tanggal lahir wajib diisi.'); hasError = true;
+  }
+  if (!id && !pin) {
+    setFormError('f-pin', 'PIN wajib diisi.'); hasError = true;
+  } else if (!id && !/^\d{5}$/.test(pin)) {
+    setFormError('f-pin', 'PIN harus tepat 5 digit angka.'); hasError = true;
+  }
+
+  if (hasError) return;
+
+  _isSubmitting = true;
+  Utils.setLoading(btn, true, 'Menyimpan...');
+
+  const payload = {
+    electionId: _electionId,
+    name,
+    className:  document.getElementById('f-class')?.value.trim() || '',
+    birthPlace,
+    birthDate,
+    isActive:   document.getElementById('f-active')?.checked ?? true,
+  };
+  if (!id) {
+    payload.nisn = nisn;
+    payload.pin  = pin;
+  } else {
+    payload.id = id;
+  }
+
+  try {
+    const res = id
+      ? await API.voter.update(payload)
+      : await API.voter.create(payload);
+
+    if (res.success) {
+      Toast.success(id ? 'Data pemilih berhasil diperbarui.' : 'Pemilih berhasil ditambahkan.');
+      Modal.close();
+      await loadVoters();
+    } else {
+      Toast.error(res.message || 'Terjadi kesalahan. Silakan coba lagi.');
+    }
+  } catch (err) {
+    console.error('[saveVoter] unexpected error:', err);
+    Toast.error('Terjadi kesalahan tak terduga. Silakan coba lagi.');
+  } finally {
+    Utils.setLoading(btn, false);
+    _isSubmitting = false;
+  }
+}
+
+// ── Form error helpers ────────────────────────────────────────
+
+function setFormError(fieldId, msg) {
+  const input = document.getElementById(fieldId);
+  const errEl = document.getElementById(`${fieldId}-error`);
+  if (input) input.classList.add('form-input-error');
+  if (errEl) errEl.innerHTML =
+    `<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> ${Utils.escapeHtml(msg)}`;
+  // Focus ke field error pertama
+  const firstErr = document.querySelector('.form-input-error');
+  if (firstErr === input) input?.focus();
+}
+
+function clearFormError(fieldId) {
+  const input = document.getElementById(fieldId);
+  const errEl = document.getElementById(`${fieldId}-error`);
+  if (input) input.classList.remove('form-input-error');
+  if (errEl) errEl.innerHTML = '';
+}
+
+// ── Reset PIN Modal ───────────────────────────────────────────
 
 /**
- * Cek apakah sesi akses panitia masih valid di sessionStorage.
- * Jika valid → langsung return true.
- * Jika tidak → tampilkan modal PIN dan tunggu hasilnya.
- * @returns {Promise<boolean>} true jika akses diberikan
+ * Membuka modal dedicated untuk reset PIN.
+ * Menggantikan native browser `prompt()` yang tidak bisa diakses di beberapa browser
+ * dan tidak bisa di-style/validasi dengan baik.
  */
+function openResetPinModal(id) {
+  const voter = null; // tidak perlu data voter untuk reset PIN
+
+  const modal = Modal.open({
+    id: 'modal-reset-pin',
+    title: 'Reset PIN Pemilih',
+    body: `
+      <div class="space-y-4">
+        <div class="alert alert-warning text-sm">
+          <i class="fa-solid fa-triangle-exclamation flex-shrink-0"></i>
+          <span>Pastikan menyampaikan PIN baru ke pemilih yang bersangkutan.</span>
+        </div>
+        <div>
+          <label class="form-label text-xs" for="new-pin-input">
+            PIN Baru <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="new-pin-input"
+            class="form-input pin-reset-input"
+            placeholder="·····"
+            maxlength="5"
+            inputmode="numeric"
+            autocomplete="off"
+            aria-label="PIN baru 5 digit"/>
+          <p id="new-pin-error" class="field-error"></p>
+          <p class="text-xs text-gray-400 mt-1">5 digit angka.</p>
+        </div>
+      </div>`,
+    size: 'sm',
+    actions: [
+      { label: 'Batal',       class: 'btn-secondary', action: 'cancel' },
+      { label: 'Reset PIN',   class: 'btn-primary',   action: 'save', id: 'modal-pin-save-btn' },
+    ],
+  });
+
+  // Focus otomatis
+  setTimeout(() => document.getElementById('new-pin-input')?.focus(), 100);
+
+  modal.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
+      await doResetPin(id, btn);
+    });
+  });
+}
+
+async function doResetPin(voterId, btn) {
+  const pinEl  = document.getElementById('new-pin-input');
+  const errEl  = document.getElementById('new-pin-error');
+  const pin    = pinEl?.value.trim() ?? '';
+
+  if (!pin || !/^\d{5}$/.test(pin)) {
+    if (pinEl) pinEl.classList.add('form-input-error');
+    if (errEl) errEl.innerHTML =
+      `<i class="fa-solid fa-circle-exclamation"></i> PIN harus tepat 5 digit angka.`;
+    pinEl?.focus();
+    return;
+  }
+
+  Utils.setLoading(btn, true, 'Menyimpan...');
+
+  try {
+    const res = await API.voter.resetPin(voterId, pin);
+    if (res.success) {
+      Toast.success('PIN berhasil direset.');
+      Modal.close();
+      // Tidak perlu reload tabel — PIN tidak ditampilkan di tabel
+      // Kecuali kita refresh untuk update PIN di kolom PIN
+      await loadVoters();
+    } else {
+      Toast.error(res.message || 'Gagal mereset PIN.');
+    }
+  } catch (err) {
+    console.error('[doResetPin] error:', err);
+    Toast.error('Terjadi kesalahan. Silakan coba lagi.');
+  } finally {
+    Utils.setLoading(btn, false);
+  }
+}
+
+// ── Actions ───────────────────────────────────────────────────
+
+async function resetVoteStatus(id) {
+  const ok = await Utils.confirm(
+    'Reset status voting pemilih ini?\n\nPemilih akan bisa memilih kembali. Tindakan ini tidak dapat dibatalkan.',
+    'Reset Status Voting',
+    true
+  );
+  if (!ok) return;
+
+  const res = await API.voter.resetVoteStatus({ id });
+  if (res.success) {
+    Toast.success('Status voting berhasil direset.');
+    await loadVoters();
+  } else {
+    Toast.error(res.message || 'Gagal mereset status.');
+  }
+}
+
+async function confirmDeleteVoter(id, name) {
+  const ok = await Utils.confirm(
+    `Hapus pemilih "${name}"?\n\nPemilih yang sudah memilih tidak dapat dihapus.`,
+    'Konfirmasi Hapus',
+    true
+  );
+  if (!ok) return;
+
+  const res = await API.voter.delete(id);
+  if (res.success) {
+    Toast.success('Pemilih berhasil dihapus.');
+    await loadVoters();
+  } else {
+    Toast.error(res.message || 'Gagal menghapus pemilih.');
+  }
+}
+
+// ── Import CSV Modal ──────────────────────────────────────────
+
+function openImportModal() {
+  if (!_electionId) {
+    Toast.warning('Pilih pemilihan terlebih dahulu.');
+    return;
+  }
+
+  _parsedCSV = []; // reset state CSV
+
+  const modal = Modal.open({
+    id: 'modal-import',
+    title: 'Import Pemilih dari CSV',
+    size: 'lg',
+    body: `
+      <div class="space-y-4">
+        <div class="alert alert-info text-sm">
+          <i class="fa-solid fa-circle-info flex-shrink-0 mt-0.5"></i>
+          <div>
+            <p class="font-semibold mb-1">Format kolom CSV:</p>
+            <code class="text-xs bg-blue-50 px-2 py-0.5 rounded font-mono">
+              nisn, name, className, birthPlace, birthDate, pin
+            </code>
+            <p class="text-xs mt-1.5 opacity-80">
+              • birthDate: format <code>YYYY-MM-DD</code><br>
+              • pin: 5 digit angka<br>
+              • NISN: 10 digit angka (leading zero dipertahankan)
+            </p>
+          </div>
+        </div>
+
+        <!-- Upload area -->
+        <div>
+          <label for="csv-file" class="upload-area flex flex-col items-center cursor-pointer" id="csv-upload-area">
+            <i class="fa-solid fa-file-csv text-3xl text-gray-300 mb-2"></i>
+            <p class="text-sm font-medium text-gray-600">Klik untuk pilih file CSV</p>
+            <p class="text-xs text-gray-400 mt-1">Maksimal 500 pemilih per file</p>
+          </label>
+          <input type="file" id="csv-file" accept=".csv,text/csv" class="sr-only" aria-label="Pilih file CSV"/>
+        </div>
+
+        <!-- Preview -->
+        <div id="csv-preview" class="hidden space-y-2">
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-semibold text-gray-700" id="csv-count"></p>
+            <button type="button" id="csv-clear-btn"
+              class="text-xs text-gray-400 hover:text-red-500 transition-colors">
+              <i class="fa-solid fa-xmark mr-1"></i>Hapus
+            </button>
+          </div>
+          <div class="csv-preview-wrap">
+            <table class="table text-xs w-full">
+              <thead><tr id="csv-head"></tr></thead>
+              <tbody id="csv-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Options -->
+        <div class="flex items-start gap-2.5 pt-1">
+          <input type="checkbox" id="skip-dup"
+            class="w-4 h-4 mt-0.5 accent-primary-600 flex-shrink-0 cursor-pointer" checked/>
+          <label for="skip-dup" class="text-sm cursor-pointer select-none">
+            <span class="font-medium text-gray-700">Lewati duplikat NISN</span>
+            <p class="text-xs text-gray-400 mt-0.5">NISN yang sudah terdaftar di pemilihan ini akan dilewati.</p>
+          </label>
+        </div>
+      </div>`,
+    actions: [
+      { label: 'Batal',  class: 'btn-secondary', action: 'cancel' },
+      { label: 'Import', class: 'btn-primary',   action: 'import', id: 'modal-import-btn' },
+    ],
+  });
+
+  // Bind file input
+  const fileInput = document.getElementById('csv-file');
+  if (fileInput) {
+    fileInput.addEventListener('change', e => previewCSV(e.target));
+  }
+
+  // Bind clear button
+  const clearBtn = document.getElementById('csv-clear-btn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      _parsedCSV = [];
+      if (fileInput) fileInput.value = '';
+      document.getElementById('csv-preview').classList.add('hidden');
+    });
+  }
+
+  modal.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
+      await doImport(btn);
+    });
+  });
+}
+
+function previewCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      _parsedCSV = Utils.parseCSV(e.target.result);
+    } catch {
+      Toast.error('Gagal membaca file CSV. Pastikan format benar.');
+      return;
+    }
+
+    if (!_parsedCSV.length) {
+      Toast.warning('File CSV kosong atau format tidak valid.');
+      return;
+    }
+
+    const preview  = document.getElementById('csv-preview');
+    const countEl  = document.getElementById('csv-count');
+    const headEl   = document.getElementById('csv-head');
+    const bodyEl   = document.getElementById('csv-body');
+    const headers  = Object.keys(_parsedCSV[0]);
+
+    countEl.textContent = `${_parsedCSV.length} baris ditemukan`;
+    headEl.innerHTML = headers.map(h => `<th>${Utils.escapeHtml(h)}</th>`).join('');
+    bodyEl.innerHTML =
+      _parsedCSV.slice(0, 5).map(row =>
+        `<tr>${headers.map(h => `<td>${Utils.escapeHtml(String(row[h] || ''))}</td>`).join('')}</tr>`
+      ).join('') +
+      (_parsedCSV.length > 5
+        ? `<tr><td colspan="${headers.length}" class="text-center text-gray-400 py-2 italic">
+            ... dan ${_parsedCSV.length - 5} baris lainnya
+           </td></tr>`
+        : '');
+
+    preview.classList.remove('hidden');
+  };
+  reader.onerror = () => Toast.error('Gagal membaca file.');
+  reader.readAsText(file);
+}
+
+async function doImport(btn) {
+  if (!_parsedCSV.length) {
+    Toast.warning('Pilih file CSV terlebih dahulu.');
+    return;
+  }
+
+  const skipDup = document.getElementById('skip-dup')?.checked !== false;
+
+  Utils.setLoading(btn, true, 'Mengimpor...');
+
+  try {
+    const res = await API.voter.importBulk(_electionId, _parsedCSV, skipDup);
+    Utils.setLoading(btn, false);
+
+    if (res.success) {
+      const d = res.data || {};
+      Modal.close();
+      _parsedCSV = [];
+
+      // Tampilkan modal ringkasan hasil import
+      showImportResult(d);
+      await loadVoters();
+    } else {
+      Toast.error(res.message || 'Import gagal. Silakan coba lagi.');
+    }
+  } catch (err) {
+    console.error('[doImport] error:', err);
+    Utils.setLoading(btn, false);
+    Toast.error('Terjadi kesalahan saat import. Silakan coba lagi.');
+  }
+}
+
+/**
+ * Tampilkan modal ringkasan hasil import.
+ * Lebih informatif dari sekadar Toast.
+ */
+function showImportResult(d) {
+  const errorRows = (d.errors || []).slice(0, 10);
+  const errHtml = errorRows.length
+    ? `<div class="mt-3 border border-red-100 rounded-lg overflow-hidden">
+        <p class="text-xs font-semibold text-red-600 bg-red-50 px-3 py-2 border-b border-red-100">
+          Detail Error (maks 10 ditampilkan):
+        </p>
+        <div class="max-h-32 overflow-y-auto">
+          ${errorRows.map(e =>
+            `<div class="flex items-start gap-2 px-3 py-2 border-b border-red-50 last:border-0 text-xs">
+              <span class="font-mono font-bold text-gray-600 flex-shrink-0">Baris ${e.row}:</span>
+              <span class="text-gray-500">[${Utils.escapeHtml(e.nisn || '?')}] ${Utils.escapeHtml(e.reason || '-')}</span>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`
+    : '';
+
+  Modal.open({
+    id: 'modal-import-result',
+    title: 'Hasil Import',
+    size: 'sm',
+    body: `
+      <div class="space-y-2">
+        <div class="import-result-row ok">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>${d.success || 0} pemilih berhasil ditambahkan</span>
+        </div>
+        ${(d.skipped || 0) > 0 ? `
+        <div class="import-result-row skip">
+          <i class="fa-solid fa-forward"></i>
+          <span>${d.skipped} NISN dilewati (duplikat)</span>
+        </div>` : ''}
+        ${(d.failed || 0) > 0 ? `
+        <div class="import-result-row fail">
+          <i class="fa-solid fa-circle-xmark"></i>
+          <span>${d.failed} baris gagal diimport</span>
+        </div>
+        ${errHtml}` : ''}
+      </div>`,
+    actions: [
+      { label: 'Tutup', class: 'btn-primary', action: 'close' },
+    ],
+  });
+
+  document.querySelector('#modal-import-result [data-action="close"]')
+    ?.addEventListener('click', () => Modal.close());
+}
+
+// ── Export ────────────────────────────────────────────────────
+
+async function exportVoters() {
+  if (!_electionId) {
+    Toast.warning('Pilih pemilihan terlebih dahulu.');
+    return;
+  }
+
+  Loader.show('Mengekspor data pemilih...');
+
+  try {
+    const res = await API.voter.getAll({ electionId: _electionId, pageSize: 9999 });
+    Loader.hide();
+
+    if (!res.success) {
+      Toast.error(res.message || 'Gagal mengekspor data.');
+      return;
+    }
+
+    const items = res.data?.items || [];
+    if (!items.length) {
+      Toast.warning('Tidak ada data pemilih untuk diekspor.');
+      return;
+    }
+
+    const rows = items.map(v => ({
+      nisn:       v.nisn       || '',
+      nama:       v.name       || '',
+      kelas:      v.className  || '',
+      tempatLahir:v.birthPlace || '',
+      tanggalLahir:v.birthDate ? v.birthDate.substring(0, 10) : '',
+      sudahMemilih: v.hasVoted ? 'Ya' : 'Tidak',
+      waktuMemilih: v.hasVoted ? Utils.formatDateTime(v.votedAt) : '',
+    }));
+
+    const election = document.getElementById('election-select');
+    const elTitle  = election?.options[election.selectedIndex]?.text || _electionId;
+    Utils.exportCSV(rows, `pemilih-${elTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.csv`);
+    Toast.success(`${items.length} data pemilih berhasil diekspor.`);
+  } catch (err) {
+    Loader.hide();
+    console.error('[exportVoters] error:', err);
+    Toast.error('Terjadi kesalahan saat ekspor.');
+  }
+}
+
+// ── Show State ────────────────────────────────────────────────
+
+/**
+ * @param {string} s - 'loading' | 'content' | 'empty' | 'error'
+ * @param {Object|string} [cfg] - konfigurasi empty/error state
+ */
+function showState(s, cfg) {
+  ['loading', 'content', 'empty', 'error'].forEach(name => {
+    const el = document.getElementById(`${name}-state`);
+    if (el) el.classList.toggle('hidden', s !== name);
+  });
+
+  if (s === 'empty' && cfg) {
+    const config = typeof cfg === 'string'
+      ? { title: '', msg: cfg, icon: 'fa-users-slash', iconBg: 'bg-gray-100', iconColor: 'text-gray-400' }
+      : cfg;
+
+    const iconWrap = document.getElementById('empty-icon-wrap');
+    const iconEl   = document.getElementById('empty-icon');
+    const titleEl  = document.getElementById('empty-title');
+    const msgEl    = document.getElementById('empty-msg');
+
+    if (iconWrap) iconWrap.className =
+      `state-icon-wrap ${config.iconBg || 'bg-gray-100'} ${config.iconColor || 'text-gray-400'}`;
+    if (iconEl)  iconEl.className  = `fa-solid ${config.icon || 'fa-users-slash'}`;
+    if (titleEl) titleEl.textContent = config.title || '';
+    if (msgEl)   msgEl.textContent   = config.msg   || '';
+  }
+
+  if (s === 'error' && typeof cfg === 'string') {
+    const errEl = document.getElementById('error-msg');
+    if (errEl) errEl.textContent = cfg;
+  }
+}
+
+// ── PIN Gate & Access Timer ───────────────────────────────────
+
 async function checkOrRequestPinAccess() {
-  // Cek sesi yang masih aktif
   try {
     const stored = sessionStorage.getItem(_PIN_ACCESS_KEY);
     if (stored) {
       const { expiresAt } = JSON.parse(stored);
       if (expiresAt && Date.now() < new Date(expiresAt).getTime()) {
-        return true; // Sesi masih aktif
+        return true;
       }
     }
   } catch (_) {}
-
-  // Tidak ada sesi aktif — tampilkan modal PIN
   return showPinGateModal();
 }
 
-/**
- * Tampilkan modal PIN dan kembalikan Promise yang resolve
- * true (akses diberikan) atau false (batal/kembali).
- * @returns {Promise<boolean>}
- */
 function showPinGateModal() {
   return new Promise(resolve => {
-    const overlay  = document.getElementById('pin-gate-overlay');
-    const input    = document.getElementById('pin-gate-input');
-    const errorEl  = document.getElementById('pin-gate-error');
+    const overlay   = document.getElementById('pin-gate-overlay');
+    const input     = document.getElementById('pin-gate-input');
+    const errorEl   = document.getElementById('pin-gate-error');
     const submitBtn = document.getElementById('pin-gate-submit');
     const cancelBtn = document.getElementById('pin-gate-cancel');
 
     overlay.classList.remove('hidden');
     input.value = '';
-    input.focus();
+    // Small delay agar overlay render dulu sebelum focus
+    setTimeout(() => input.focus(), 100);
     errorEl.classList.add('hidden');
 
     function showError(msg) {
-      errorEl.textContent = msg;
+      errorEl.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${Utils.escapeHtml(msg)}`;
       errorEl.classList.remove('hidden');
       input.classList.add('border-red-400');
       input.focus();
@@ -280,13 +1570,18 @@ function showPinGateModal() {
       clearError();
       Utils.setLoading(submitBtn, true, 'Memverifikasi...');
 
-      const res = await API.accessPin.verify(pin);
+      let res;
+      try {
+        res = await API.accessPin.verify(pin);
+      } catch (err) {
+        Utils.setLoading(submitBtn, false);
+        showError('Gagal menghubungi server. Periksa koneksi.');
+        return;
+      }
 
       Utils.setLoading(submitBtn, false);
-      submitBtn.innerHTML = '<i class="fa-solid fa-unlock"></i> Buka Akses';
 
       if (res.success && res.data && res.data.accessGranted) {
-        // Simpan expiresAt ke sessionStorage
         sessionStorage.setItem(_PIN_ACCESS_KEY, JSON.stringify({
           expiresAt: res.data.expiresAt,
         }));
@@ -309,7 +1604,6 @@ function showPinGateModal() {
       overlay.classList.add('hidden');
       cleanup();
       resolve(false);
-      // Panitia yang batal dikembalikan ke halaman hasil
       window.location.replace('./results.html');
     }
 
@@ -331,414 +1625,43 @@ function showPinGateModal() {
   });
 }
 
-// ── Access Timer (2 menit) ─────────────────────────────────
-
-/**
- * Mulai countdown 2 menit. Ambil expiresAt dari sessionStorage
- * agar konsisten dengan waktu yang dikembalikan backend.
- * Saat habis → redirect ke results.html.
- */
 function startAccessTimer() {
   let expiresAt;
   try {
     const stored = sessionStorage.getItem(_PIN_ACCESS_KEY);
-    if (stored) {
-      expiresAt = new Date(JSON.parse(stored).expiresAt).getTime();
-    }
+    if (stored) expiresAt = new Date(JSON.parse(stored).expiresAt).getTime();
   } catch (_) {}
 
-  if (!expiresAt) {
-    // Fallback: hitung dari sekarang
-    expiresAt = Date.now() + _PIN_ACCESS_SEC * 1000;
-  }
+  if (!expiresAt) expiresAt = Date.now() + _PIN_ACCESS_SEC * 1000;
 
-  const timerBar      = document.getElementById('access-timer-bar');
-  const countdownEl   = document.getElementById('access-countdown');
-  const progressEl    = document.getElementById('access-progress');
+  const timerBar    = document.getElementById('access-timer-bar');
+  const countdownEl = document.getElementById('access-countdown');
+  const progressEl  = document.getElementById('access-progress');
+
   timerBar.classList.remove('hidden');
 
   function tick() {
     const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
     const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
     const ss = String(remaining % 60).padStart(2, '0');
-    countdownEl.textContent = mm + ':' + ss;
+    countdownEl.textContent = `${mm}:${ss}`;
 
     const pct = Math.min(100, Math.round((remaining / _PIN_ACCESS_SEC) * 100));
     progressEl.style.width = pct + '%';
-    progressEl.className = 'progress-fill transition-all duration-1000 ' +
-      (remaining <= 30 ? 'bg-red-500' : remaining <= 60 ? 'bg-orange-400' : 'bg-amber-400');
+    progressEl.className = `participation-fill transition-all duration-1000 ${
+      remaining <= 30 ? 'bg-red-500' : remaining <= 60 ? 'bg-orange-400' : 'bg-amber-400'
+    }`;
 
     if (remaining <= 0) {
       clearInterval(_accessTimerId);
       sessionStorage.removeItem(_PIN_ACCESS_KEY);
       Toast.warning('Sesi akses panitia telah berakhir.');
-      setTimeout(() => { window.location.replace('./results.html'); }, 1200);
+      setTimeout(() => window.location.replace('./results.html'), 1200);
     }
   }
 
   tick();
   _accessTimerId = setInterval(tick, 1000);
-}
-
-async function loadElectionOptions() {
-  const res = await API.election.getAll();
-  if (!res.success) return;
-  const elections = res.data || [];
-  const sel = document.getElementById('election-select');
-  sel.innerHTML = '<option value="">— Pilih Pemilihan —</option>' +
-    elections.map(e => `<option value="${e.id}">${Utils.escapeHtml(e.title)}</option>`).join('');
-  if (elections.length === 1) {
-    sel.value = elections[0].id; _electionId = elections[0].id; loadVoters();
-  } else {
-    showState('empty', 'Pilih pemilihan terlebih dahulu.');
-  }
-}
-
-async function loadVoters() {
-  if (!_electionId) return;
-  showState('loading');
-
-  // Muat stats agregat (tanpa filter) dan data tabel (dengan filter) secara paralel
-  const [statsRes, tableRes] = await Promise.all([
-    API.voter.getAll({ electionId: _electionId, page: 1, pageSize: 1 }),
-    API.voter.getAll({
-      electionId: _electionId,
-      search:   document.getElementById('search-input').value.trim(),
-      hasVoted: document.getElementById('filter-voted').value,
-      page:     _currentPage,
-      pageSize: _pageSize,
-    }),
-  ]);
-
-  if (!tableRes.success) { Toast.error(tableRes.message); showState('empty', 'Gagal memuat data.'); return; }
-
-  const data = tableRes.data || {};
-  _lastMeta = data;
-
-  // Stats akurat dari request tanpa filter
-  if (statsRes.success && statsRes.data) {
-    document.getElementById('s-total').textContent = Utils.formatNumber(statsRes.data.total || 0);
-  }
-
-  renderTable(data.items || []);
-  Pagination.render(
-    document.getElementById('pagination-container'),
-    { page: data.page, totalPages: data.totalPages, total: data.total, pageSize: data.pageSize },
-    p => { _currentPage = p; loadVoters(); }
-  );
-  showState('content');
-}
-
-function renderStats(data) {
-  // data.total = total dari filtered query (sesuai search/filter aktif)
-  document.getElementById('s-total').textContent = Utils.formatNumber(data.total || 0);
-  // Catatan: s-voted dan s-not-voted diisi oleh renderTable dari current page.
-  // Untuk akurasi penuh di page > 1, nilai ini hanya mencerminkan halaman saat ini.
-  // Stats akurat tersedia di dashboard admin melalui result.getDashboard().
-}
-
-function renderTable(voters) {
-  const isSuperAdmin = Auth.isSuperAdmin();
-  const isViewer     = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
-  let voted = 0, notVoted = 0;
-  const tbody = document.getElementById('voters-tbody');
-  tbody.innerHTML = voters.map(v => {
-    if (v.hasVoted) voted++; else notVoted++;
-
-    // Kolom PIN: tampilkan nilai PIN plaintext dengan font monospace
-    // Jika kosong (data lama sebelum migrasi), tampilkan tanda '—'
-    const pinDisplay = v.pin
-      ? `<span class="font-mono text-sm font-medium text-gray-800 tracking-widest">${Utils.escapeHtml(v.pin)}</span>`
-      : `<span class="text-gray-400 text-xs italic">—</span>`;
-
-    return `
-      <tr>
-        <td>
-          <div>
-            <p class="font-medium text-gray-800 text-sm">${Utils.escapeHtml(v.name)}</p>
-            <p class="text-xs text-gray-500 font-mono">${Utils.escapeHtml(v.nisn)}</p>
-          </div>
-        </td>
-        <td class="hidden md:table-cell text-sm">${Utils.escapeHtml(v.className||'-')}</td>
-        <td class="hidden lg:table-cell text-sm">${Utils.formatDate(v.birthDate, {day:'2-digit',month:'2-digit',year:'numeric'})}</td>
-        <td class="hidden xl:table-cell">${pinDisplay}</td>
-        <td>
-          <span class="badge ${v.hasVoted ? 'badge-success' : 'badge-warning'}">
-            <i class="fa-solid fa-${v.hasVoted ? 'check-circle' : 'clock'} fa-xs"></i>
-            ${v.hasVoted ? 'Sudah' : 'Belum'}
-          </span>
-        </td>
-        <td>
-          <div class="flex items-center justify-end gap-1">
-            ${!isViewer ? `<button class="btn btn-icon btn-sm btn-outline voter-edit-btn"
-              data-voter-id="${Utils.escapeHtml(v.id)}" title="Edit">
-              <i class="fa-solid fa-pen-to-square text-xs"></i></button>` : ''}
-            ${isSuperAdmin ? `<button class="btn btn-icon btn-sm btn-outline voter-pin-btn"
-              data-voter-id="${Utils.escapeHtml(v.id)}" title="Reset PIN">
-              <i class="fa-solid fa-key text-xs"></i></button>` : ''}
-            ${isSuperAdmin && v.hasVoted ? `<button class="btn btn-icon btn-sm btn-warning voter-reset-btn"
-              data-voter-id="${Utils.escapeHtml(v.id)}" title="Reset Status">
-              <i class="fa-solid fa-rotate text-xs"></i></button>` : ''}
-            ${!isViewer ? `<button class="btn btn-icon btn-sm btn-danger voter-delete-btn"
-              data-voter-id="${Utils.escapeHtml(v.id)}"
-              data-voter-name="${Utils.escapeHtml(v.name)}" title="Hapus">
-              <i class="fa-solid fa-trash text-xs"></i></button>` : ''}
-            ${isViewer ? `<span class="text-xs text-gray-400 italic">—</span>` : ''}
-          </div>
-        </td>
-      </tr>`;
-  }).join('');
-  document.getElementById('s-voted').textContent     = Utils.formatNumber(voted);
-  document.getElementById('s-not-voted').textContent  = Utils.formatNumber(notVoted);
-
-  // Event delegation untuk action buttons (data-* approach, safe dari XSS)
-  tbody.querySelectorAll('.voter-edit-btn').forEach(btn => {
-    btn.addEventListener('click', () => openVoterModal(btn.dataset.voterId));
-  });
-  tbody.querySelectorAll('.voter-pin-btn').forEach(btn => {
-    btn.addEventListener('click', () => resetVoterPin(btn.dataset.voterId));
-  });
-  tbody.querySelectorAll('.voter-reset-btn').forEach(btn => {
-    btn.addEventListener('click', () => resetVoteStatus(btn.dataset.voterId));
-  });
-  tbody.querySelectorAll('.voter-delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => confirmDeleteVoter(btn.dataset.voterId, btn.dataset.voterName));
-  });
-}
-
-function resetFilter() {
-  document.getElementById('search-input').value = '';
-  document.getElementById('filter-voted').value = '';
-  _currentPage = 1; loadVoters();
-}
-
-// ── Voter Modal ────────────────────────────────────────────
-
-function voterFormHtml(data = {}) {
-  return `
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div class="form-group"><label class="form-label text-xs">Nama Lengkap <span class="text-red-500">*</span></label>
-        <input type="text" id="f-name" class="form-input" value="${Utils.escapeHtml(data.name||'')}" placeholder="Nama siswa"/></div>
-      <div class="form-group"><label class="form-label text-xs">NISN <span class="text-red-500">*</span></label>
-        <input type="text" id="f-nisn" class="form-input font-mono" value="${Utils.escapeHtml(data.nisn||'')}" placeholder="10 digit" maxlength="10" ${data.nisn ? 'readonly title="NISN tidak dapat diubah"' : ''}/></div>
-      <div class="form-group"><label class="form-label text-xs">Kelas</label>
-        <input type="text" id="f-class" class="form-input" value="${Utils.escapeHtml(data.className||'')}" placeholder="XII IPA 1"/></div>
-      <div class="form-group"><label class="form-label text-xs">Tempat Lahir <span class="text-red-500">*</span></label>
-        <input type="text" id="f-birth-place" class="form-input" value="${Utils.escapeHtml(data.birthPlace||'')}" placeholder="Jakarta"/></div>
-      <div class="form-group"><label class="form-label text-xs">Tanggal Lahir <span class="text-red-500">*</span></label>
-        <input type="date" id="f-birth-date" class="form-input" value="${data.birthDate ? data.birthDate.substring(0,10) : ''}"/></div>
-      ${!data.nisn ? `<div class="form-group"><label class="form-label text-xs">PIN 5 Digit <span class="text-red-500">*</span></label>
-        <input type="text" id="f-pin" class="form-input font-mono" placeholder="12345" maxlength="5" inputmode="numeric"/>
-        <p class="form-hint">PIN yang diberikan ke siswa untuk login.</p></div>` : ''}
-      <div class="form-group sm:col-span-2 mb-0 flex items-center gap-3">
-        <label class="flex items-center gap-2 cursor-pointer select-none text-sm">
-          <input type="checkbox" id="f-active" class="w-4 h-4 accent-primary-600" ${data.isActive !== false ? 'checked':''}/> Akun Aktif
-        </label>
-      </div>
-    </div>`;
-}
-
-function openVoterModal(id) {
-  if (!_electionId) { Toast.warning('Pilih pemilihan terlebih dahulu.'); return; }
-  const modal = Modal.open({
-    id: 'modal-voter', title: id ? 'Edit Pemilih' : 'Tambah Pemilih',
-    body: '<div class="text-center py-4"><div class="inline-block w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div></div>',
-    size: 'lg',
-    actions: [
-      { label: 'Batal', class: 'btn-secondary', action: 'cancel' },
-      { label: id ? 'Simpan' : 'Tambah', class: 'btn-primary', action: 'save', id: 'modal-save-btn' },
-    ],
-  });
-
-  // Tandai modal dengan token unik agar kita bisa cek apakah masih aktif
-  const modalToken = Date.now();
-  modal.dataset.token = modalToken;
-
-  // Load data secara async
-  (async () => {
-    let data = {};
-    if (id) {
-      const res = await API.voter.getById(id);
-      if (res.success) data = res.data;
-    }
-    // Cek apakah modal yang sama masih terbuka (user belum menutupnya)
-    const currentModal = document.getElementById('modal-voter');
-    if (!currentModal || currentModal.dataset.token !== String(modalToken)) return;
-    Modal.updateBody('modal-voter', voterFormHtml(data));
-  })();
-
-  modal.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
-      await saveVoter(id || null, btn);
-    });
-  });
-}
-
-async function saveVoter(id, btn) {
-  const name       = document.getElementById('f-name')?.value.trim();
-  const nisn       = document.getElementById('f-nisn')?.value.trim();
-  const birthPlace = document.getElementById('f-birth-place')?.value.trim();
-  const birthDate  = document.getElementById('f-birth-date')?.value;
-  const pin        = document.getElementById('f-pin')?.value.trim();
-
-  if (!name) { Toast.warning('Nama wajib diisi.'); return; }
-  if (!id && !nisn) { Toast.warning('NISN wajib diisi.'); return; }
-  if (!id && !/^\d{10}$/.test(nisn)) { Toast.warning('NISN harus 10 digit angka.'); return; }
-  if (!birthPlace) { Toast.warning('Tempat lahir wajib diisi.'); return; }
-  if (!birthDate) { Toast.warning('Tanggal lahir wajib diisi.'); return; }
-  if (!id && (!pin || !/^\d{5}$/.test(pin))) { Toast.warning('PIN harus 5 digit angka.'); return; }
-
-  Utils.setLoading(btn, true, 'Menyimpan...');
-  const payload = {
-    electionId: _electionId, name, className: document.getElementById('f-class')?.value.trim()||'',
-    birthPlace, birthDate,
-    isActive: document.getElementById('f-active')?.checked !== false,
-  };
-  if (!id) { payload.nisn = nisn; payload.pin = pin; }
-  else payload.id = id;
-
-  const res = id ? await API.voter.update(payload) : await API.voter.create(payload);
-  Utils.setLoading(btn, false);
-  if (res.success) { Toast.success(id ? 'Data pemilih diperbarui.' : 'Pemilih ditambahkan.'); Modal.close(); loadVoters(); }
-  else Toast.error(res.message);
-}
-
-// ── Import CSV Modal ───────────────────────────────────────
-
-function openImportModal() {
-  if (!_electionId) { Toast.warning('Pilih pemilihan terlebih dahulu.'); return; }
-  const modal = Modal.open({
-    id: 'modal-import', title: 'Import Pemilih dari CSV', size: 'lg',
-    body: `
-      <div class="space-y-4">
-        <div class="alert alert-info text-sm">
-          <i class="fa-solid fa-circle-info flex-shrink-0"></i>
-          <div>
-            <p class="font-medium mb-1">Format CSV yang diperlukan:</p>
-            <p class="font-mono text-xs">nisn,name,className,birthPlace,birthDate,pin</p>
-            <p class="text-xs mt-1 opacity-80">birthDate: format YYYY-MM-DD. pin: 5 digit angka.</p>
-          </div>
-        </div>
-        <div class="upload-area" id="csv-upload-area" onclick="document.getElementById('csv-file').click()">
-          <i class="fa-solid fa-file-csv text-4xl text-gray-300 mb-2"></i>
-          <p class="text-sm text-gray-600 font-medium">Klik untuk pilih file CSV</p>
-          <p class="text-xs text-gray-400 mt-1">Maksimal 500 pemilih per file</p>
-          <input type="file" id="csv-file" accept=".csv,text/csv" class="hidden" onchange="previewCSV(this)"/>
-        </div>
-        <div id="csv-preview" class="hidden">
-          <p class="text-xs font-semibold text-gray-600 mb-2" id="csv-count"></p>
-          <div class="table-wrapper max-h-48">
-            <table class="table text-xs"><thead><tr id="csv-head"></tr></thead><tbody id="csv-body"></tbody></table>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <input type="checkbox" id="skip-dup" class="w-4 h-4 accent-primary-600" checked/>
-          <label for="skip-dup" class="text-sm cursor-pointer">Lewati NISN yang sudah terdaftar (skip duplikat)</label>
-        </div>
-      </div>`,
-    actions: [
-      { label: 'Batal', class: 'btn-secondary', action: 'cancel' },
-      { label: 'Import', class: 'btn-primary', action: 'import', id: 'modal-import-btn' },
-    ],
-  });
-  modal.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
-      await doImport(btn);
-    });
-  });
-}
-
-let _parsedCSV = [];
-
-function previewCSV(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    _parsedCSV = Utils.parseCSV(e.target.result);
-    const preview = document.getElementById('csv-preview');
-    const countEl = document.getElementById('csv-count');
-    const head    = document.getElementById('csv-head');
-    const body    = document.getElementById('csv-body');
-    if (!_parsedCSV.length) { Toast.warning('File CSV kosong atau format tidak valid.'); return; }
-    countEl.textContent = `${_parsedCSV.length} baris data ditemukan`;
-    const headers = Object.keys(_parsedCSV[0]);
-    head.innerHTML = headers.map(h => `<th>${Utils.escapeHtml(h)}</th>`).join('');
-    body.innerHTML = _parsedCSV.slice(0, 5).map(row =>
-      `<tr>${headers.map(h => `<td>${Utils.escapeHtml(String(row[h]||''))}</td>`).join('')}</tr>`
-    ).join('') + (_parsedCSV.length > 5 ? `<tr><td colspan="${headers.length}" class="text-center text-gray-400 py-2">... dan ${_parsedCSV.length-5} baris lainnya</td></tr>` : '');
-    preview.classList.remove('hidden');
-  };
-  reader.readAsText(file);
-}
-
-async function doImport(btn) {
-  if (!_parsedCSV.length) { Toast.warning('Pilih file CSV terlebih dahulu.'); return; }
-  Utils.setLoading(btn, true, 'Mengimpor...');
-  const skipDup = document.getElementById('skip-dup')?.checked !== false;
-  const res = await API.voter.importBulk(_electionId, _parsedCSV, skipDup);
-  Utils.setLoading(btn, false);
-  if (res.success) {
-    const d = res.data;
-    Toast.success(`Import selesai: ${d.success} berhasil, ${d.skipped} dilewati, ${d.failed} gagal.`, 0);
-    if (d.errors && d.errors.length > 0) {
-      console.warn('Import errors:', d.errors);
-    }
-    Modal.close(); _parsedCSV = []; loadVoters();
-  } else {
-    Toast.error(res.message);
-  }
-}
-
-// ── Actions ────────────────────────────────────────────────
-
-async function resetVoterPin(id) {
-  const pin = prompt('Masukkan PIN baru (5 digit angka):');
-  if (!pin) return;
-  if (!/^\d{5}$/.test(pin.trim())) { Toast.warning('PIN harus 5 digit angka.'); return; }
-  const res = await API.voter.resetPin(id, pin.trim());
-  if (res.success) Toast.success('PIN berhasil direset.');
-  else Toast.error(res.message);
-}
-
-async function resetVoteStatus(id) {
-  const ok = await Utils.confirm('Reset status voting pemilih ini? Pemilih akan bisa memilih lagi.', 'Reset Status', true);
-  if (!ok) return;
-  const res = await API.voter.resetVoteStatus({ id });
-  if (res.success) { Toast.success('Status berhasil direset.'); loadVoters(); }
-  else Toast.error(res.message);
-}
-
-async function confirmDeleteVoter(id, name) {
-  const ok = await Utils.confirm(`Hapus pemilih "${name}"?`, 'Konfirmasi Hapus', true);
-  if (!ok) return;
-  const res = await API.voter.delete(id);
-  if (res.success) { Toast.success('Pemilih berhasil dihapus.'); loadVoters(); }
-  else Toast.error(res.message);
-}
-
-async function exportVoters() {
-  if (!_electionId) { Toast.warning('Pilih pemilihan terlebih dahulu.'); return; }
-  Loader.show('Mengekspor data...');
-  const res = await API.voter.getAll({ electionId: _electionId, pageSize: 9999 });
-  Loader.hide();
-  if (!res.success || !res.data?.items?.length) { Toast.warning('Tidak ada data untuk diekspor.'); return; }
-  const rows = res.data.items.map(v => ({
-    nisn: v.nisn, name: v.name, className: v.className,
-    birthPlace: v.birthPlace, birthDate: v.birthDate,
-    hasVoted: v.hasVoted ? 'Ya' : 'Tidak',
-    votedAt: v.hasVoted ? Utils.formatDateTime(v.votedAt) : '',
-  }));
-  Utils.exportCSV(rows, 'pemilih-' + _electionId + '.csv');
-}
-
-function showState(s, emptyMsg) {
-  document.getElementById('loading-state').classList.toggle('hidden', s !== 'loading');
-  document.getElementById('content-state').classList.toggle('hidden', s !== 'content');
-  document.getElementById('empty-state').classList.toggle('hidden', s !== 'empty');
-  if (emptyMsg) { const el = document.getElementById('empty-msg'); if (el) el.textContent = emptyMsg; }
 }
 </script>
 </body>
