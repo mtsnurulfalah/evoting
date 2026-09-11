@@ -9,15 +9,282 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+  <style>
+    /* ── Stat cards ── */
+    .result-stat-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .result-stat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .result-stat-card .stat-num {
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1.1;
+      color: #111827;
+      display: block;
+    }
+    .result-stat-card .stat-label {
+      font-size: 11px;
+      color: #6b7280;
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    /* ── Winner banner ── */
+    .winner-banner {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+    .winner-banner::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -10%;
+      width: 200px;
+      height: 200px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 50%;
+    }
+    .winner-banner::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: 20%;
+      width: 150px;
+      height: 150px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 50%;
+    }
+    .winner-tie-banner {
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    }
+
+    /* ── Candidate result row ── */
+    .candidate-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      transition: background 0.15s;
+    }
+    .candidate-row:hover { background: #f9fafb; }
+    .candidate-row.is-winner {
+      background: #eff6ff;
+      border: 1.5px solid #bfdbfe;
+    }
+    .candidate-row.is-winner:hover { background: #dbeafe; }
+
+    /* ── Photo stack ── */
+    .photo-stack {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .photo-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #e5e7eb;
+      border: 2px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .photo-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+    }
+    .photo-circle + .photo-circle { margin-left: -10px; }
+    .photo-circle.is-winner-border { border-color: #93c5fd; }
+
+    /* ── Bar chart row ── */
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .votes-bar-wrapper {
+      background: #f3f4f6;
+      border-radius: 99px;
+      overflow: hidden;
+      height: 7px;
+      flex: 1;
+    }
+
+    /* ── Rank number ── */
+    .rank-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .rank-1 { background: #fef9c3; color: #854d0e; border: 1.5px solid #fde68a; }
+    .rank-2 { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; }
+    .rank-3 { background: #fef3c7; color: #92400e; border: 1.5px solid #fde68a; }
+    .rank-n { background: #f9fafb; color: #9ca3af; border: 1.5px solid #e5e7eb; }
+
+    /* ── Class breakdown table ── */
+    .class-table td, .class-table th {
+      padding: 10px 14px;
+      font-size: 12px;
+    }
+    .class-table th {
+      font-weight: 600;
+      color: #6b7280;
+      background: #f9fafb;
+      white-space: nowrap;
+    }
+    .class-participation-bar {
+      background: #e5e7eb;
+      border-radius: 99px;
+      height: 5px;
+      overflow: hidden;
+      min-width: 40px;
+    }
+
+    /* ── Skeleton ── */
+    .sk { background: #e5e7eb; border-radius: 6px; animation: skpulse 1.5s ease-in-out infinite; }
+    @keyframes skpulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+
+    /* ── Auto-refresh indicator ── */
+    .refresh-pulse {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    .refresh-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+    }
+    .refresh-dot.active { animation: pulse-dot 1.5s ease-in-out infinite; }
+    @keyframes pulse-dot {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:0.5; transform:scale(0.8); }
+    }
+
+    /* ── State icon ── */
+    .state-icon-wrap {
+      width: 64px; height: 64px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; font-size: 26px;
+    }
+
+    /* ── Participation bar in winner box ── */
+    .participation-thin {
+      height: 4px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .participation-thin-fill {
+      height: 100%;
+      background: rgba(255,255,255,0.7);
+      border-radius: 99px;
+      transition: width 0.6s ease;
+    }
+
+    /* ── Election selector card ── */
+    .selector-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    /* ── Content card ── */
+    .result-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .result-card-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    /* ── Mobile overflow guard ── */
+    .overflow-x-guard { overflow-x: hidden; }
+
+    /* ── Class table responsive ── */
+    @media (max-width: 640px) {
+      .class-table thead { display: none; }
+      .class-table tbody tr {
+        display: flex;
+        flex-direction: column;
+        padding: 10px 14px;
+        border-bottom: 1px solid #f3f4f6;
+        gap: 4px;
+      }
+      .class-table td { display: block; padding: 0; border: none; font-size: 12px; }
+      .class-table td::before {
+        content: attr(data-label);
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #9ca3af;
+        display: block;
+        margin-bottom: 2px;
+      }
+      .class-table td:first-child::before { display: none; }
+    }
+
+    /* ── Mobile bottom sheet modal ── */
+    @media (max-width: 640px) {
+      .modal-backdrop { align-items: flex-end; padding: 0; }
+      .modal-box { border-radius: 20px 20px 0 0; max-height: 92dvh; max-height: 92vh; }
+    }
+  </style>
 </head>
 <body class="h-full bg-gray-50 flex">
+
 <div id="toast-container"></div>
 <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
 
+<!-- ═══════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════ -->
 <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-40 flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:z-auto">
   <div class="px-5 py-4 border-b border-gray-100">
     <div class="flex items-center gap-3">
-      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-box-ballot text-white"></i></div>
+      <div class="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-box-ballot text-white text-sm"></i>
+      </div>
       <div class="min-w-0">
         <p class="text-sm font-bold text-gray-800 truncate" id="sidebar-app-name">eVoting OSIM</p>
         <p class="text-xs text-gray-500 truncate" id="sidebar-school-name"></p>
@@ -32,316 +299,800 @@
         <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
         <p class="text-xs text-gray-500" id="topbar-user-role"></p>
       </div>
-      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1"><i class="fa-solid fa-right-from-bracket text-sm"></i></button>
+      <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded" title="Logout">
+        <i class="fa-solid fa-right-from-bracket text-sm"></i>
+      </button>
     </div>
   </div>
 </aside>
 
-<div class="flex-1 flex flex-col min-w-0">
-  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-3 sticky top-0 z-20">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1"><i class="fa-solid fa-bars text-lg"></i></button>
-    <h1 class="text-base font-semibold text-gray-800 flex-1">Hasil Pemilihan</h1>
-    <button id="btn-refresh" class="btn btn-sm btn-outline text-xs">
-      <i class="fa-solid fa-rotate-right"></i> Refresh
+<!-- ═══════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════ -->
+<div class="flex-1 flex flex-col min-w-0 overflow-x-guard">
+
+  <!-- ── Header ── -->
+  <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-2 sticky top-0 z-20 flex-shrink-0">
+    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors">
+      <i class="fa-solid fa-bars text-base"></i>
     </button>
-    <button id="btn-export-result" class="btn btn-sm btn-outline text-xs">
-      <i class="fa-solid fa-file-export"></i> <span class="hidden sm:inline">Export</span>
-    </button>
+    <h1 class="text-sm font-bold text-gray-800 flex-1 truncate">Hasil Pemilihan</h1>
+
+    <!-- Auto-refresh indicator -->
+    <div id="auto-refresh-indicator" class="refresh-pulse hidden">
+      <span class="refresh-dot active" id="refresh-dot"></span>
+      <span>Live</span>
+    </div>
+
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <button id="btn-refresh" class="btn btn-outline btn-sm gap-1.5" title="Muat ulang data">
+        <i class="fa-solid fa-rotate-right text-xs" id="refresh-icon"></i>
+        <span class="hidden sm:inline text-xs">Refresh</span>
+      </button>
+      <button id="btn-export-result" class="btn btn-outline btn-sm gap-1.5" title="Export hasil ke CSV">
+        <i class="fa-solid fa-file-export text-xs"></i>
+        <span class="hidden sm:inline text-xs">Export</span>
+      </button>
+    </div>
   </header>
 
-  <main class="flex-1 p-4 md:p-6 overflow-auto">
-    <!-- Election selector -->
-    <div class="card p-4 mb-5">
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-        <label class="form-label mb-0 flex-shrink-0 text-sm font-medium">Pemilihan:</label>
-        <select id="election-select" class="form-select flex-1 max-w-sm"></select>
-        <div class="flex items-center gap-2 text-sm text-gray-500">
-          <i class="fa-solid fa-sync animate-spin hidden" id="refresh-icon"></i>
-          <span id="last-updated"></span>
-        </div>
-      </div>
-    </div>
+  <!-- ── Main ── -->
+  <main class="flex-1 overflow-y-auto overflow-x-hidden">
+    <div class="px-4 md:px-6 py-5 max-w-5xl mx-auto space-y-4">
 
-    <!-- Loading -->
-    <div id="loading-state" class="text-center py-16">
-      <div class="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-3"></div>
-      <p class="text-gray-500 text-sm">Memuat hasil...</p>
-    </div>
-
-    <!-- No election -->
-    <div id="empty-state" class="hidden empty-state py-16">
-      <i class="fa-solid fa-chart-bar"></i>
-      <p>Pilih pemilihan untuk melihat hasilnya.</p>
-    </div>
-
-    <!-- Content -->
-    <div id="content-state" class="hidden space-y-5">
-
-      <!-- Stats row -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="stat-card">
-          <div class="stat-icon bg-primary-50 text-primary-600"><i class="fa-solid fa-box-ballot"></i></div>
-          <div><p class="text-2xl font-extrabold text-gray-800" id="r-total-votes">0</p><p class="text-xs text-gray-500">Suara Masuk</p></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon bg-blue-50 text-blue-600"><i class="fa-solid fa-users"></i></div>
-          <div><p class="text-2xl font-extrabold text-gray-800" id="r-total-voters">0</p><p class="text-xs text-gray-500">Total Pemilih</p></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon bg-green-50 text-green-600"><i class="fa-solid fa-check-circle"></i></div>
-          <div><p class="text-2xl font-extrabold text-gray-800" id="r-voted">0</p><p class="text-xs text-gray-500">Sudah Memilih</p></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon bg-orange-50 text-orange-600"><i class="fa-solid fa-chart-pie"></i></div>
-          <div><p class="text-2xl font-extrabold text-gray-800" id="r-participation">0%</p><p class="text-xs text-gray-500">Partisipasi</p></div>
-        </div>
-      </div>
-
-      <!-- Winner box -->
-      <div id="winner-box" class="hidden card p-5 bg-gradient-to-r from-primary-600 to-primary-800 text-white">
-        <div class="flex items-center gap-4">
-          <div class="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-            <i class="fa-solid fa-trophy text-yellow-300 text-2xl"></i>
+      <!-- ── Election selector ── -->
+      <div class="selector-card">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <i class="fa-solid fa-calendar-check text-primary-500 text-sm w-4 text-center"></i>
+            <label class="text-sm font-semibold text-gray-700 whitespace-nowrap" for="election-select">Pemilihan</label>
           </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-xs text-white/70 mb-1">Pasangan Terpilih (Sementara)</p>
-            <h2 class="text-lg font-extrabold truncate" id="winner-name"></h2>
-            <p class="text-white/80 text-sm" id="winner-detail"></p>
-          </div>
-          <div class="text-right flex-shrink-0">
-            <p class="text-2xl font-extrabold" id="winner-votes"></p>
-            <p class="text-xs text-white/70">suara</p>
-            <p class="text-sm font-semibold" id="winner-pct"></p>
+          <select id="election-select" class="form-select flex-1 max-w-md text-sm">
+            <option value="">— Memuat... —</option>
+          </select>
+          <div class="flex items-center gap-2 flex-shrink-0 text-xs text-gray-400" id="last-updated-wrap">
+            <i class="fa-regular fa-clock text-xs"></i>
+            <span id="last-updated">—</span>
           </div>
         </div>
       </div>
 
-      <!-- Candidate results table -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="font-semibold text-gray-800 text-sm">Perolehan Suara Per Kandidat</h3>
-          <span class="text-xs text-gray-400" id="r-total-text"></span>
+      <!-- ── Loading skeleton ── -->
+      <div id="loading-state" class="space-y-4">
+        <!-- Stat cards skeleton -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="sk rounded-xl" style="height:76px"></div>
+          <div class="sk rounded-xl" style="height:76px;opacity:.8"></div>
+          <div class="sk rounded-xl" style="height:76px;opacity:.6"></div>
+          <div class="sk rounded-xl" style="height:76px;opacity:.4"></div>
         </div>
-        <div class="card-body space-y-4" id="candidate-results"></div>
-      </div>
-
-      <!-- Participation progress -->
-      <div class="card p-5">
-        <h3 class="font-semibold text-gray-800 text-sm mb-4">Tingkat Partisipasi Pemilih</h3>
-        <div class="flex items-center gap-3 mb-2">
-          <div class="progress-bar flex-1 h-3">
-            <div class="progress-fill bg-primary-500" id="r-progress" style="width:0%"></div>
-          </div>
-          <span class="text-sm font-bold text-primary-600 w-12 text-right" id="r-pct-text">0%</span>
-        </div>
-        <div class="grid grid-cols-3 gap-3 mt-4">
-          <div class="bg-blue-50 rounded-xl p-3 text-center">
-            <p class="text-xl font-bold text-blue-700" id="r-total-v">-</p>
-            <p class="text-xs text-gray-500 mt-0.5">Terdaftar</p>
-          </div>
-          <div class="bg-green-50 rounded-xl p-3 text-center">
-            <p class="text-xl font-bold text-green-700" id="r-voted-v">-</p>
-            <p class="text-xs text-gray-500 mt-0.5">Sudah Memilih</p>
-          </div>
-          <div class="bg-orange-50 rounded-xl p-3 text-center">
-            <p class="text-xl font-bold text-orange-700" id="r-not-voted-v">-</p>
-            <p class="text-xs text-gray-500 mt-0.5">Belum Memilih</p>
-          </div>
+        <!-- Candidate rows skeleton -->
+        <div class="result-card p-4 space-y-3">
+          <div class="sk h-4 w-40 rounded mb-4"></div>
+          ${[100, 70, 45, 30].map(w => `
+          <div class="flex items-center gap-3 py-1">
+            <div class="sk w-8 h-8 rounded-full"></div>
+            <div class="sk w-8 h-8 rounded-full -ml-2" style="opacity:.7"></div>
+            <div class="flex-1">
+              <div class="sk h-3.5 rounded mb-1.5" style="width:${w}%"></div>
+              <div class="sk h-2 rounded" style="width:${Math.round(w*0.8)}%"></div>
+            </div>
+            <div class="sk h-5 w-14 rounded"></div>
+          </div>`).join('')}
         </div>
       </div>
 
-      <!-- Class breakdown (jika tersedia) -->
-      <div class="card" id="class-breakdown-box">
-        <div class="card-header">
-          <h3 class="font-semibold text-gray-800 text-sm">Partisipasi per Kelas</h3>
+      <!-- ── Empty state ── -->
+      <div id="empty-state" class="hidden py-16 text-center">
+        <div class="state-icon-wrap bg-primary-50 text-primary-400 mx-auto">
+          <i class="fa-solid fa-chart-bar"></i>
         </div>
-        <div class="table-wrapper border-0 rounded-none">
-          <table class="table text-xs">
-            <thead><tr><th>Kelas</th><th>Total</th><th>Memilih</th><th>Belum</th><th>Partisipasi</th></tr></thead>
-            <tbody id="class-tbody"></tbody>
-          </table>
-        </div>
+        <h3 class="text-base font-semibold text-gray-700 mb-1" id="empty-title">Pilih pemilihan</h3>
+        <p class="text-sm text-gray-400 max-w-xs mx-auto" id="empty-msg">
+          Pilih pemilihan dari daftar di atas untuk melihat hasilnya.
+        </p>
       </div>
+
+      <!-- ── Error state ── -->
+      <div id="error-state" class="hidden py-16 text-center">
+        <div class="state-icon-wrap bg-red-50 text-red-400 mx-auto">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3 class="text-base font-semibold text-gray-700 mb-1">Gagal memuat hasil</h3>
+        <p class="text-sm text-gray-400 max-w-xs mx-auto" id="error-msg">Terjadi kesalahan.</p>
+        <button id="btn-retry" class="btn btn-secondary mt-5 gap-2 text-sm">
+          <i class="fa-solid fa-rotate-right text-xs"></i> Coba Lagi
+        </button>
+      </div>
+
+      <!-- ── Content ── -->
+      <div id="content-state" class="hidden space-y-4">
+
+        <!-- Stat cards row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="result-stat-card">
+            <div class="result-stat-icon bg-primary-50 text-primary-600">
+              <i class="fa-solid fa-box-ballot"></i>
+            </div>
+            <div>
+              <span class="stat-num" id="r-total-votes">0</span>
+              <span class="stat-label">Suara Masuk</span>
+            </div>
+          </div>
+          <div class="result-stat-card">
+            <div class="result-stat-icon bg-blue-50 text-blue-600">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+              <span class="stat-num" id="r-total-voters">0</span>
+              <span class="stat-label">Total Pemilih</span>
+            </div>
+          </div>
+          <div class="result-stat-card">
+            <div class="result-stat-icon bg-green-50 text-green-600">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+              <span class="stat-num" id="r-voted">0</span>
+              <span class="stat-label">Sudah Memilih</span>
+            </div>
+          </div>
+          <div class="result-stat-card">
+            <div class="result-stat-icon bg-orange-50 text-orange-600">
+              <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <div>
+              <span class="stat-num" id="r-participation">0%</span>
+              <span class="stat-label">Partisipasi</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Winner banner -->
+        <div id="winner-box" class="hidden winner-banner p-5 text-white relative z-0">
+          <div class="relative z-10">
+            <div class="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+              <!-- Icon -->
+              <div class="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-trophy text-yellow-300 text-xl" id="winner-trophy-icon"></i>
+              </div>
+              <!-- Info -->
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-white/65 mb-0.5" id="winner-label">Pasangan Unggul (Sementara)</p>
+                <h2 class="text-base font-extrabold leading-snug break-words" id="winner-name">—</h2>
+                <p class="text-white/75 text-xs mt-0.5" id="winner-detail">—</p>
+                <!-- Partisipasi mini bar -->
+                <div class="participation-thin mt-2 max-w-[200px]">
+                  <div class="participation-thin-fill" id="winner-participation-fill" style="width:0%"></div>
+                </div>
+                <p class="text-white/55 text-xs mt-1" id="winner-participation-text"></p>
+              </div>
+              <!-- Votes -->
+              <div class="text-right flex-shrink-0">
+                <p class="text-2xl font-extrabold leading-tight" id="winner-votes">0</p>
+                <p class="text-xs text-white/65">suara</p>
+                <p class="text-sm font-bold mt-0.5" id="winner-pct">0%</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Candidate results card -->
+        <div class="result-card">
+          <div class="result-card-header">
+            <div>
+              <h3 class="text-sm font-bold text-gray-800">Perolehan Suara</h3>
+              <p class="text-xs text-gray-400 mt-0.5" id="r-total-text">—</p>
+            </div>
+            <span class="text-xs text-gray-400 flex-shrink-0">Diurutkan: suara terbanyak</span>
+          </div>
+          <div class="p-3 sm:p-4 space-y-1" id="candidate-results">
+            <!-- diisi JS -->
+          </div>
+        </div>
+
+        <!-- Participation card -->
+        <div class="result-card p-4 sm:p-5">
+          <h3 class="text-sm font-bold text-gray-800 mb-4">Tingkat Partisipasi Pemilih</h3>
+          <!-- Main bar -->
+          <div class="flex items-center gap-3 mb-4">
+            <div class="votes-bar-wrapper h-3 flex-1">
+              <div class="bar-fill bg-primary-500 h-full" id="r-progress" style="width:0%"></div>
+            </div>
+            <span class="text-sm font-bold text-primary-600 w-12 text-right tabular-nums" id="r-pct-text">0%</span>
+          </div>
+          <!-- Stats row -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-blue-50 rounded-xl p-3 text-center">
+              <p class="text-lg font-extrabold text-blue-700 tabular-nums" id="r-total-v">0</p>
+              <p class="text-xs text-gray-500 mt-0.5">Terdaftar</p>
+            </div>
+            <div class="bg-green-50 rounded-xl p-3 text-center">
+              <p class="text-lg font-extrabold text-green-700 tabular-nums" id="r-voted-v">0</p>
+              <p class="text-xs text-gray-500 mt-0.5">Sudah Memilih</p>
+            </div>
+            <div class="bg-orange-50 rounded-xl p-3 text-center">
+              <p class="text-lg font-extrabold text-orange-700 tabular-nums" id="r-not-voted-v">0</p>
+              <p class="text-xs text-gray-500 mt-0.5">Belum Memilih</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Class breakdown card -->
+        <div class="result-card hidden" id="class-breakdown-box">
+          <div class="result-card-header">
+            <h3 class="text-sm font-bold text-gray-800">Partisipasi per Kelas</h3>
+            <span class="text-xs text-gray-400" id="class-count-label"></span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="class-table w-full border-collapse">
+              <thead>
+                <tr class="border-b border-gray-100">
+                  <th class="text-left">Kelas</th>
+                  <th class="text-right">Total</th>
+                  <th class="text-right">Memilih</th>
+                  <th class="text-right">Belum</th>
+                  <th class="text-left">Partisipasi</th>
+                </tr>
+              </thead>
+              <tbody id="class-tbody" class="divide-y divide-gray-50"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /content-state -->
     </div>
   </main>
 </div>
 
+<!-- ─────────────────────────────────────────────
+     SCRIPTS
+──────────────────────────────────────────────── -->
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/components.js"></script>
 <script>
-const COLORS = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'];
-let _electionId = '';
-let _autoRefresh = null;
+/* ============================================================
+   results.js — Hasil Pemilihan Admin (refactored)
+   ============================================================ */
 
+// ── Konstanta ─────────────────────────────────────────────────
+const CANDIDATE_COLORS = [
+  '#3b82f6', '#22c55e', '#f59e0b', '#ef4444',
+  '#8b5cf6', '#06b6d4', '#f97316', '#ec4899',
+];
+
+// ── State ─────────────────────────────────────────────────────
+let _electionId   = '';
+let _autoRefresh  = null;
+let _isLoading    = false;   // guard race condition
+let _lastData     = null;    // data terakhir yang dirender (untuk export)
+
+// ── Init ──────────────────────────────────────────────────────
 (async () => {
   if (!Auth.requireAdminPage()) return;
-  Sidebar.init(); Topbar.init();
+  Sidebar.init();
+  Topbar.init();
 
-  document.getElementById('btn-refresh').addEventListener('click', loadResults);
+  document.getElementById('btn-refresh').addEventListener('click', () => loadResults());
   document.getElementById('btn-export-result').addEventListener('click', exportResults);
+  document.getElementById('btn-retry').addEventListener('click', () => loadResults());
+
   document.getElementById('election-select').addEventListener('change', e => {
-    _electionId = e.target.value;
-    if (_electionId) loadResults(); else showState('empty');
+    const newId = e.target.value;
+
+    // Ferihentikan auto-refresh untuk pemilihan sebelumnya
+    stopAutoRefresh();
+
+    _electionId = newId;
+    _lastData   = null;
+
+    if (_electionId) {
+      loadResults();
+    } else {
+      showState('empty', {
+        title: 'Pilih pemilihan',
+        msg: 'Pilih pemilihan dari daftar di atas untuk melihat hasilnya.',
+      });
+    }
   });
 
   await loadElectionOptions();
 })();
 
+// ── Load election options ─────────────────────────────────────
+
 async function loadElectionOptions() {
-  const res = await API.election.getAll();
-  if (!res.success) return;
-  const elections = res.data || [];
   const sel = document.getElementById('election-select');
-  sel.innerHTML = '<option value="">— Pilih Pemilihan —</option>' +
-    elections.map(e => `<option value="${e.id}">${Utils.escapeHtml(e.title)}</option>`).join('');
-  // Auto-select active or first
-  const active = elections.find(e => e.status === 'active') || elections[0];
-  if (active) {
-    sel.value = active.id; _electionId = active.id; loadResults();
-    // Auto-refresh setiap 30 detik jika active
-    if (active.status === 'active') {
-      _autoRefresh = setInterval(loadResults, 30000);
+  sel.disabled = true;
+
+  const res = await API.election.getAll();
+  sel.disabled = false;
+
+  if (!res.success) {
+    sel.innerHTML = '<option value="">— Gagal memuat —</option>';
+    showState('error', 'Gagal memuat daftar pemilihan. Muat ulang halaman.');
+    return;
+  }
+
+  const elections = res.data || [];
+
+  if (!elections.length) {
+    sel.innerHTML = '<option value="">— Belum ada pemilihan —</option>';
+    showState('empty', {
+      title: 'Belum ada pemilihan',
+      msg: 'Buat pemilihan terlebih dahulu di Manajemen Pemilihan.',
+    });
+    return;
+  }
+
+  sel.innerHTML =
+    '<option value="">— Pilih Pemilihan —</option>' +
+    elections.map(e =>
+      `<option value="${Utils.escapeHtml(e.id)}">${Utils.escapeHtml(e.title)}</option>`
+    ).join('');
+
+  // Auto-select: prioritas active → upcoming → pertama
+  const preferred =
+    elections.find(e => e.status === 'active' && e.isActive) ||
+    elections.find(e => e.status === 'active')               ||
+    elections.find(e => e.status === 'upcoming')             ||
+    elections[0];
+
+  if (preferred) {
+    sel.value   = preferred.id;
+    _electionId = preferred.id;
+    await loadResults();
+
+    // Auto-refresh hanya jika pemilihan sedang aktif
+    if (preferred.status === 'active' && preferred.isActive) {
+      startAutoRefresh();
     }
   } else {
-    showState('empty');
+    showState('empty', {
+      title: 'Pilih pemilihan',
+      msg: 'Pilih pemilihan dari daftar di atas.',
+    });
   }
 }
+
+// ── Load results ──────────────────────────────────────────────
 
 async function loadResults() {
   if (!_electionId) return;
-  document.getElementById('refresh-icon')?.classList.remove('hidden');
-  const res = await API.result.getAdmin(_electionId);
-  document.getElementById('refresh-icon')?.classList.add('hidden');
-  if (!res.success) { Toast.error(res.message); return; }
+  if (_isLoading)   return;   // cegah parallel requests
+  _isLoading = true;
+
+  // Tampilkan spinner kecil pada ikon refresh
+  const refreshIcon = document.getElementById('refresh-icon');
+  if (refreshIcon) refreshIcon.classList.add('animate-spin');
+
+  // Tampilkan loading hanya jika belum ada data (first load)
+  if (!_lastData) showState('loading');
+
+  let res;
+  try {
+    res = await API.result.getAdmin(_electionId);
+  } catch (err) {
+    console.error('[loadResults] network error:', err);
+    _isLoading = false;
+    if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+    showState('error', 'Gagal menghubungi server. Periksa koneksi internet.');
+    return;
+  }
+
+  _isLoading = false;
+  if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+
+  if (!res.success) {
+    // Jika sudah ada data, jangan ganti ke error state — cukup toast
+    if (_lastData) {
+      Toast.error(res.message || 'Gagal memperbarui data.');
+    } else {
+      document.getElementById('error-msg').textContent =
+        res.message || 'Gagal memuat hasil pemilihan.';
+      showState('error');
+    }
+    return;
+  }
+
+  _lastData = res.data;
   renderResults(res.data);
-  document.getElementById('last-updated').textContent = 'Diperbarui: ' + new Date().toLocaleTimeString('id-ID');
+
+  // Update timestamp
+  const lastUpdatedEl = document.getElementById('last-updated');
+  if (lastUpdatedEl) {
+    lastUpdatedEl.textContent = new Date().toLocaleTimeString('id-ID', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+  }
+
   showState('content');
 }
 
+// ── Auto refresh ──────────────────────────────────────────────
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  _autoRefresh = setInterval(() => {
+    // Hanya refresh jika tab aktif (Page Visibility API)
+    if (!document.hidden) loadResults();
+  }, 30000);
+
+  const indicator = document.getElementById('auto-refresh-indicator');
+  if (indicator) {
+    indicator.classList.remove('hidden');
+    indicator.classList.add('flex');
+  }
+}
+
+function stopAutoRefresh() {
+  if (_autoRefresh) {
+    clearInterval(_autoRefresh);
+    _autoRefresh = null;
+  }
+  const indicator = document.getElementById('auto-refresh-indicator');
+  if (indicator) indicator.classList.add('hidden');
+}
+
+// Hentikan auto-refresh saat tab tidak aktif, lanjutkan saat kembali
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && _autoRefresh !== null) {
+    loadResults(); // langsung refresh saat tab aktif kembali
+  }
+});
+
+// ── Render ────────────────────────────────────────────────────
+
 function renderResults(data) {
-  const stats = data.stats || {};
+  const stats      = data.stats      || {};
   const candidates = data.candidates || [];
-  const winner = data.winner;
+  const winner     = data.winner;
 
-  const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  setEl('r-total-votes',  Utils.formatNumber(data.totalVotes || 0));
-  setEl('r-total-voters', Utils.formatNumber(stats.totalVoters || 0));
-  setEl('r-voted',        Utils.formatNumber(stats.voted || 0));
-  setEl('r-participation',(stats.participationRate || 0) + '%');
-  setEl('r-total-text',   Utils.formatNumber(data.totalVotes || 0) + ' suara');
-  setEl('r-pct-text',     (stats.participationRate || 0) + '%');
-  setEl('r-total-v',      Utils.formatNumber(stats.totalVoters || 0));
-  setEl('r-voted-v',      Utils.formatNumber(stats.voted || 0));
-  setEl('r-not-voted-v',  Utils.formatNumber(stats.notVoted || 0));
-  document.getElementById('r-progress').style.width = Math.min(stats.participationRate || 0, 100) + '%';
+  // Helper: set text content dengan null-safe
+  const setText = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  };
 
-  // Winner
-  if (winner && !winner.isTied) {
-    const w = winner.candidate;
-    setEl('winner-name',   w.name + (w.pairName ? ' & ' + w.pairName : ''));
-    setEl('winner-detail', 'No. Urut ' + w.orderNumber + (w.className ? ' · ' + w.className : ''));
-    setEl('winner-votes',  Utils.formatNumber(w.votes));
-    setEl('winner-pct',    w.percentage + '%');
-    document.getElementById('winner-box').classList.remove('hidden');
-  } else {
-    document.getElementById('winner-box').classList.add('hidden');
+  // ── Stats cards ──
+  setText('r-total-votes',  Utils.formatNumber(data.totalVotes         || 0));
+  setText('r-total-voters', Utils.formatNumber(stats.totalVoters       || 0));
+  setText('r-voted',        Utils.formatNumber(stats.voted             || 0));
+  setText('r-participation', (stats.participationRate || 0) + '%');
+
+  // ── Participation section ──
+  const pct = Math.min(stats.participationRate || 0, 100);
+  setText('r-pct-text',    pct + '%');
+  setText('r-total-text',  Utils.formatNumber(data.totalVotes || 0) + ' suara sah masuk');
+  setText('r-total-v',     Utils.formatNumber(stats.totalVoters || 0));
+  setText('r-voted-v',     Utils.formatNumber(stats.voted       || 0));
+  setText('r-not-voted-v', Utils.formatNumber(stats.notVoted    || 0));
+
+  const progressEl = document.getElementById('r-progress');
+  if (progressEl) {
+    // RAF agar animasi width transisi terlihat setelah elemen visible
+    requestAnimationFrame(() => { progressEl.style.width = pct + '%'; });
   }
 
-  // Candidate results — dengan foto paslon
-  const resultEl = document.getElementById('candidate-results');
-  const totalVotes = data.totalVotes || 0;
-  resultEl.innerHTML = candidates.map((c, i) => {
-    const isWin     = winner && !winner.isTied && winner.candidate.id === c.id;
-    const photoSrc  = Utils.buildDriveImgUrl(c.photoUrl);
-    const pairSrc   = Utils.buildDriveImgUrl(c.pairPhotoUrl);
+  // ── Winner banner ──
+  renderWinnerBanner(winner, stats);
+
+  // ── Candidate results ──
+  renderCandidateRows(candidates, winner, data.totalVotes || 0);
+
+  // ── Class breakdown ──
+  renderClassBreakdown(data.classSummary);
+}
+
+function renderWinnerBanner(winner, stats) {
+  const box = document.getElementById('winner-box');
+  if (!box) return;
+
+  if (!winner || (!winner.isTied && winner.candidate.votes === 0)) {
+    box.classList.add('hidden');
+    return;
+  }
+
+  box.classList.remove('hidden');
+
+  const setText = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v;
+  };
+
+  if (winner.isTied) {
+    // Seri — tampilkan dengan warna amber
+    box.className = box.className.replace('winner-banner', 'winner-banner winner-tie-banner');
+    box.classList.add('winner-tie-banner');
+    setText('winner-label',  'Hasil Sementara: Seri');
+    setText('winner-name',   winner.tiedWith.join(' & '));
+    setText('winner-detail', `${winner.tiedWith.length} pasangan dengan suara yang sama`);
+    setText('winner-votes',  Utils.formatNumber(winner.candidate.votes));
+    setText('winner-pct',    winner.candidate.percentage + '%');
+
+    const trophy = document.getElementById('winner-trophy-icon');
+    if (trophy) trophy.className = 'fa-solid fa-scale-balanced text-white text-xl';
+  } else {
+    // Unggul jelas
+    box.classList.remove('winner-tie-banner');
+    const w = winner.candidate;
+    const isEnded = false; // bisa diperluas untuk cek status election
+
+    setText('winner-label',  'Pasangan Unggul (Sementara)');
+    setText('winner-name',   w.name + (w.pairName ? ' & ' + w.pairName : ''));
+    setText('winner-detail', `No. ${w.orderNumber}${w.className ? ' · ' + w.className : ''}`);
+    setText('winner-votes',  Utils.formatNumber(w.votes));
+    setText('winner-pct',    w.percentage + '%');
+
+    const trophy = document.getElementById('winner-trophy-icon');
+    if (trophy) trophy.className = 'fa-solid fa-trophy text-yellow-300 text-xl';
+  }
+
+  // Participation mini-bar
+  const pct      = Math.min(stats.participationRate || 0, 100);
+  const fillEl   = document.getElementById('winner-participation-fill');
+  const textEl   = document.getElementById('winner-participation-text');
+  if (fillEl) requestAnimationFrame(() => { fillEl.style.width = pct + '%'; });
+  if (textEl) textEl.textContent = `Partisipasi: ${pct}% (${Utils.formatNumber(stats.voted || 0)} dari ${Utils.formatNumber(stats.totalVoters || 0)} pemilih)`;
+}
+
+function renderCandidateRows(candidates, winner, totalVotes) {
+  const container = document.getElementById('candidate-results');
+  if (!container) return;
+
+  if (!candidates.length) {
+    container.innerHTML = `
+      <div class="py-10 text-center text-gray-400">
+        <i class="fa-solid fa-users-slash text-2xl mb-2 block"></i>
+        <p class="text-sm">Belum ada kandidat terdaftar.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = candidates.map((c, i) => {
+    const isWinner  = winner && !winner.isTied && winner.candidate.id === c.id;
+    const photoSrc  = Utils.buildDriveImgUrl(c.photoUrl     || '');
+    const pairSrc   = Utils.buildDriveImgUrl(c.pairPhotoUrl || '');
+    const color     = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
+    const pct       = c.percentage || 0;
+    const barWidth  = totalVotes > 0 ? pct : 0;
+
+    // Rank badge
+    const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n';
+    const rankLabel = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : String(i + 1);
+
+    // Foto stack
+    const photoHtml = buildPhotoStack(photoSrc, pairSrc, c, isWinner);
+
     return `
-      <div class="flex items-center gap-3 p-3 rounded-xl ${isWin ? 'bg-primary-50' : 'hover:bg-gray-50'} transition-colors">
-        <!-- Foto paslon -->
-        <div class="hidden sm:flex items-center gap-1 flex-shrink-0">
-          <div class="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-2
-            ${isWin ? 'border-primary-400' : 'border-gray-200'}">
-            ${photoSrc
-              ? `<img src="${Utils.escapeHtml(photoSrc)}" class="w-full h-full object-cover object-top"
-                     onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-sm\\'></i>'">`
-              : '<i class="fa-solid fa-user text-gray-400 text-sm"></i>'}
-          </div>
-          ${pairSrc ? `
-          <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center -ml-3 border-2 border-white">
-            <img src="${Utils.escapeHtml(pairSrc)}" class="w-full h-full object-cover object-top"
-                 onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-xs\\'></i>'">
-          </div>` : ''}
+      <div class="candidate-row ${isWinner ? 'is-winner' : ''}" data-candidate-id="${Utils.escapeHtml(c.id)}">
+
+        <!-- Rank -->
+        <div class="${rankClass} rank-num flex-shrink-0" aria-label="Peringkat ${i + 1}">
+          ${Utils.escapeHtml(rankLabel)}
         </div>
+
+        <!-- Foto (desktop) -->
+        <div class="hidden sm:block">
+          ${photoHtml}
+        </div>
+
         <!-- Nomor urut (mobile fallback) -->
-        <div class="sm:hidden w-10 h-10 rounded-full flex items-center justify-center font-bold text-base flex-shrink-0
-          ${isWin ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}">${c.orderNumber}</div>
+        <div class="sm:hidden w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0
+          ${isWinner ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'}">
+          ${Utils.escapeHtml(String(c.orderNumber || i + 1))}
+        </div>
+
+        <!-- Nama + bar -->
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-1 flex-wrap">
-            <p class="text-sm font-semibold text-gray-800">
-              ${Utils.escapeHtml(c.name)}${c.pairName ? ' <span class="text-gray-500 font-normal text-xs">&amp; ' + Utils.escapeHtml(c.pairName) + '</span>' : ''}
+          <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+            <p class="text-sm font-semibold text-gray-800 leading-tight">
+              ${Utils.escapeHtml(c.name || '-')}
+              ${c.pairName
+                ? `<span class="text-gray-400 font-normal text-xs"> &amp; ${Utils.escapeHtml(c.pairName)}</span>`
+                : ''}
             </p>
-            ${isWin ? '<span class="badge badge-success text-xs"><i class="fa-solid fa-trophy fa-xs"></i> Unggul</span>' : ''}
+            ${isWinner
+              ? `<span class="badge badge-success" style="font-size:9px;padding:2px 7px">
+                  <i class="fa-solid fa-trophy fa-xs"></i> Unggul
+                 </span>`
+              : ''}
           </div>
+          <!-- Bar -->
           <div class="flex items-center gap-2">
-            <div class="progress-bar flex-1 h-2">
-              <div class="progress-fill" style="width:${c.percentage||0}%; background:${COLORS[i%COLORS.length]}"></div>
+            <div class="votes-bar-wrapper">
+              <div class="bar-fill" style="width:0%; background:${color}"
+                data-target-width="${barWidth}%"
+                id="bar-${Utils.escapeHtml(c.id)}">
+              </div>
             </div>
-            <span class="text-xs text-gray-500 w-8 text-right">${c.percentage||0}%</span>
+            <span class="text-xs text-gray-500 tabular-nums w-9 text-right flex-shrink-0">${pct}%</span>
           </div>
         </div>
+
+        <!-- Jumlah suara -->
         <div class="text-right flex-shrink-0 pl-2">
-          <p class="text-lg font-extrabold text-gray-800">${Utils.formatNumber(c.votes)}</p>
+          <p class="text-base font-extrabold text-gray-800 tabular-nums leading-tight">
+            ${Utils.formatNumber(c.votes)}
+          </p>
           <p class="text-xs text-gray-400">suara</p>
         </div>
+
       </div>`;
   }).join('');
 
-  // Class breakdown
-  if (data.classSummary && data.classSummary.length > 0) {
-    document.getElementById('class-breakdown-box').classList.remove('hidden');
-    document.getElementById('class-tbody').innerHTML = data.classSummary.map(cs => `
-      <tr>
-        <td class="font-medium">${Utils.escapeHtml(cs.className)}</td>
-        <td>${Utils.formatNumber(cs.total)}</td>
-        <td class="text-green-600 font-medium">${Utils.formatNumber(cs.voted)}</td>
-        <td class="text-orange-600">${Utils.formatNumber(cs.notVoted)}</td>
-        <td>
+  // Animasikan bar setelah render (RAF untuk smooth transition)
+  requestAnimationFrame(() => {
+    container.querySelectorAll('.bar-fill[data-target-width]').forEach(el => {
+      el.style.width = el.dataset.targetWidth;
+    });
+  });
+}
+
+/**
+ * Build HTML untuk foto stack (paslon: ketua + wakil).
+ * Foto disusun overlap kanan.
+ */
+function buildPhotoStack(photoSrc, pairSrc, c, isWinner) {
+  const borderClass = isWinner ? 'is-winner-border' : '';
+
+  const mainPhoto = photoSrc
+    ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="${Utils.escapeHtml(c.name || '')}"
+         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xs\\'></i>'">`
+    : `<i class="fa-solid fa-user text-gray-300 text-xs"></i>`;
+
+  const pairPhoto = pairSrc
+    ? `<img src="${Utils.escapeHtml(pairSrc)}" alt="${Utils.escapeHtml(c.pairName || '')}"
+         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xs\\'></i>'">`
+    : `<i class="fa-solid fa-user text-gray-300 text-xs"></i>`;
+
+  if (pairSrc || c.pairName) {
+    return `
+      <div class="photo-stack">
+        <div class="photo-circle ${borderClass}">${mainPhoto}</div>
+        <div class="photo-circle ${borderClass}">${pairPhoto}</div>
+      </div>`;
+  }
+
+  return `
+    <div class="photo-stack">
+      <div class="photo-circle ${borderClass}" style="width:40px;height:40px">${mainPhoto}</div>
+    </div>`;
+}
+
+function renderClassBreakdown(classSummary) {
+  const box   = document.getElementById('class-breakdown-box');
+  const tbody = document.getElementById('class-tbody');
+  if (!box || !tbody) return;
+
+  if (!classSummary || !classSummary.length) {
+    box.classList.add('hidden');
+    return;
+  }
+
+  box.classList.remove('hidden');
+
+  const countLabel = document.getElementById('class-count-label');
+  if (countLabel) countLabel.textContent = `${classSummary.length} kelas`;
+
+  tbody.innerHTML = classSummary.map(cs => {
+    const pct       = cs.participation || 0;
+    const barColor  = pct >= 80 ? '#16a34a' : pct >= 50 ? '#f59e0b' : '#ef4444';
+
+    return `
+      <tr class="border-b border-gray-50 last:border-0">
+        <td class="font-semibold text-gray-800" data-label="">${Utils.escapeHtml(cs.className)}</td>
+        <td class="text-right tabular-nums text-gray-700" data-label="Total">${Utils.formatNumber(cs.total)}</td>
+        <td class="text-right tabular-nums text-green-700 font-medium" data-label="Memilih">${Utils.formatNumber(cs.voted)}</td>
+        <td class="text-right tabular-nums text-orange-600" data-label="Belum">${Utils.formatNumber(cs.notVoted)}</td>
+        <td data-label="Partisipasi">
           <div class="flex items-center gap-2">
-            <div class="progress-bar w-16 h-1.5">
-              <div class="progress-fill bg-primary-500" style="width:${cs.participation}%"></div>
+            <div class="class-participation-bar flex-1" style="min-width:50px">
+              <div style="height:100%;width:${pct}%;background:${barColor};border-radius:99px"></div>
             </div>
-            <span class="text-gray-600">${cs.participation}%</span>
+            <span class="tabular-nums text-gray-700 font-medium flex-shrink-0">${pct}%</span>
           </div>
         </td>
-      </tr>`).join('');
-  } else {
-    document.getElementById('class-breakdown-box').classList.add('hidden');
-  }
+      </tr>`;
+  }).join('');
 }
+
+// ── Export ────────────────────────────────────────────────────
 
 async function exportResults() {
-  if (!_electionId) { Toast.warning('Pilih pemilihan terlebih dahulu.'); return; }
-  const res = await API.result.getAdmin(_electionId);
-  if (!res.success) { Toast.error(res.message); return; }
-  const data = res.data;
-  const rows = (data.candidates || []).map(c => ({
-    no_urut: c.orderNumber,
-    nama_ketua: c.name,
-    nama_wakil: c.pairName || '',
-    kelas_ketua: c.className || '',
-    jumlah_suara: c.votes,
-    persentase: c.percentage + '%',
+  if (!_electionId) {
+    Toast.warning('Pilih pemilihan terlebih dahulu.');
+    return;
+  }
+
+  Loader.show('Mengekspor hasil...');
+
+  let res;
+  try {
+    res = await API.result.getAdmin(_electionId);
+  } catch (err) {
+    Loader.hide();
+    Toast.error('Gagal mengekspor data. Periksa koneksi.');
+    return;
+  }
+
+  Loader.hide();
+
+  if (!res.success) {
+    Toast.error(res.message || 'Gagal mengambil data untuk ekspor.');
+    return;
+  }
+
+  const data = res.data || {};
+  const candidates = data.candidates || [];
+
+  if (!candidates.length) {
+    Toast.warning('Tidak ada data kandidat untuk diekspor.');
+    return;
+  }
+
+  // Baris kandidat
+  const candidateRows = candidates.map((c, i) => ({
+    peringkat:    i + 1,
+    no_urut:      c.orderNumber  || '',
+    nama_ketua:   c.name         || '',
+    kelas_ketua:  c.className    || '',
+    nama_wakil:   c.pairName     || '',
+    kelas_wakil:  c.pairClassName || '',
+    jumlah_suara: c.votes        || 0,
+    persentase:   (c.percentage  || 0) + '%',
   }));
-  Utils.exportCSV(rows, 'hasil-pemilihan.csv');
-  Toast.success('Hasil berhasil diekspor.');
+
+  // Row statistik di akhir
+  const stats = data.stats || {};
+  candidateRows.push({});  // baris kosong separator
+  candidateRows.push({
+    peringkat:    '---',
+    no_urut:      'STATISTIK',
+    nama_ketua:   'Total Suara: ' + (data.totalVotes || 0),
+    kelas_ketua:  'Total Pemilih: ' + (stats.totalVoters || 0),
+    nama_wakil:   'Sudah Memilih: ' + (stats.voted || 0),
+    kelas_wakil:  'Belum Memilih: ' + (stats.notVoted || 0),
+    jumlah_suara: '',
+    persentase:   'Partisipasi: ' + (stats.participationRate || 0) + '%',
+  });
+
+  const el    = document.getElementById('election-select');
+  const title = el?.options[el.selectedIndex]?.text || _electionId;
+  const fname = `hasil-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.csv`;
+
+  Utils.exportCSV(candidateRows, fname);
+  Toast.success(`Hasil pemilihan berhasil diekspor.`);
 }
 
-function showState(s) {
-  document.getElementById('loading-state').classList.toggle('hidden', s !== 'loading');
-  document.getElementById('empty-state').classList.toggle('hidden', s !== 'empty');
-  document.getElementById('content-state').classList.toggle('hidden', s !== 'content');
+// ── Show State ────────────────────────────────────────────────
+
+/**
+ * @param {string} s  - 'loading' | 'content' | 'empty' | 'error'
+ * @param {Object|string} [cfg] - konfigurasi empty/error
+ */
+function showState(s, cfg) {
+  ['loading', 'content', 'empty', 'error'].forEach(name => {
+    const el = document.getElementById(`${name}-state`);
+    if (el) el.classList.toggle('hidden', s !== name);
+  });
+
+  if (s === 'empty' && cfg) {
+    const config = typeof cfg === 'string' ? { title: '', msg: cfg } : cfg;
+    const titleEl = document.getElementById('empty-title');
+    const msgEl   = document.getElementById('empty-msg');
+    if (titleEl) titleEl.textContent = config.title || '';
+    if (msgEl)   msgEl.textContent   = config.msg   || '';
+  }
+
+  if (s === 'error' && cfg) {
+    const msg   = typeof cfg === 'string' ? cfg : (cfg.msg || '');
+    const errEl = document.getElementById('error-msg');
+    if (errEl) errEl.textContent = msg;
+  }
 }
 </script>
 </body>
