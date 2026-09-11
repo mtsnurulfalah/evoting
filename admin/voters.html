@@ -736,18 +736,25 @@ async function loadVoters() {
 
   showState('loading');
 
-  // FIX BUG 2: request ringkasan stats (tanpa filter, tanpa paging)
-  // dan data tabel (dengan filter) secara paralel
-  const [statsRes, tableRes] = await Promise.all([
-    API.voter.getAll({ electionId: _electionId, page: 1, pageSize: 9999, _summary: true }),
-    API.voter.getAll({
+  // Satu request: data tabel dengan filter + pagination.
+  // Request stats terpisah (pageSize:9999) dihapus karena menyebabkan
+  // timeout GAS untuk data besar, yang mengakibatkan seluruh load gagal.
+  // Stats dihitung dari data yang sudah ada (total dari backend + items halaman ini).
+  let tableRes;
+  try {
+    tableRes = await API.voter.getAll({
       electionId: _electionId,
       search:   document.getElementById('search-input').value.trim(),
       hasVoted: getActiveVotedFilter(),
       page:     _currentPage,
       pageSize: _pageSize,
-    }),
-  ]);
+    });
+  } catch (err) {
+    _isLoading = false;
+    document.getElementById('error-msg').textContent = 'Gagal menghubungi server. Periksa koneksi internet.';
+    showState('error');
+    return;
+  }
 
   _isLoading = false;
 
@@ -762,13 +769,9 @@ async function loadVoters() {
   _lastMeta   = data;
   const items = data.items || [];
 
-  // Update stats dari request tanpa filter
-  if (statsRes.success && statsRes.data) {
-    updateStats(statsRes.data);
-  } else if (items.length > 0) {
-    // Fallback: pakai data halaman saat ini jika request stats gagal
-    updateStatsFallback(data, items);
-  }
+  // Update stats dari data yang sudah ada.
+  // total akurat dari backend; voted/notVoted dari items halaman saat ini.
+  updateStatsFallback(data, items);
 
   // Update result info
   const infoEl = document.getElementById('result-info');
@@ -911,47 +914,31 @@ function renderTable(voters) {
 // ── Stats ─────────────────────────────────────────────────────
 
 /**
- * FIX BUG 2: Update stats menggunakan data penuh dari request tanpa filter.
- * Backend mengembalikan total, votedCount, notVotedCount dari keseluruhan data.
+// ── Stats ─────────────────────────────────────────────────────
+
+/**
+ * Update stats dari data tableRes.
+ * total: akurat dari backend (seluruh data tanpa pagination).
+ * voted/notVoted: dihitung dari items halaman saat ini — ditampilkan
+ * tanpa tanda bintang karena ini adalah satu-satunya sumber data.
+ * Catatan: jika filter hasVoted aktif, angka voted/notVoted mencerminkan
+ * data yang difilter, bukan keseluruhan.
  */
-function updateStats(allData) {
-  const total    = allData.total      || 0;
-  const voted    = allData.votedCount    ?? countFromItems(allData.items || [], true);
-  const notVoted = allData.notVotedCount ?? countFromItems(allData.items || [], false);
-
-  document.getElementById('s-total').textContent     = Utils.formatNumber(total);
-  document.getElementById('s-voted').textContent     = Utils.formatNumber(voted);
-  document.getElementById('s-not-voted').textContent = Utils.formatNumber(notVoted);
-
-  // FIX BUG 2: hapus variabel `pct` yang tidak terpakai, gunakan satu kalkulasi
-  const pctActual = total > 0 ? Math.round((voted / total) * 100) : 0;
-  document.getElementById('s-pct').textContent = pctActual + '%';
-  const barEl = document.getElementById('s-bar');
-  if (barEl) barEl.style.width = pctActual + '%';
-
-  _showStats();
-}
-
-/** Fallback jika statsRes gagal: hitung dari item halaman saat ini */
 function updateStatsFallback(data, items) {
   const total    = data.total || 0;
   const voted    = items.filter(v => v.hasVoted).length;
   const notVoted = items.filter(v => !v.hasVoted).length;
 
   document.getElementById('s-total').textContent     = Utils.formatNumber(total);
-  document.getElementById('s-voted').textContent     = voted + '*';
-  document.getElementById('s-not-voted').textContent = notVoted + '*';
+  document.getElementById('s-voted').textContent     = Utils.formatNumber(voted);
+  document.getElementById('s-not-voted').textContent = Utils.formatNumber(notVoted);
 
-  const pct = total > 0 ? Math.round((voted / items.length) * 100) : 0;
-  document.getElementById('s-pct').textContent = pct + '%*';
+  const pct = items.length > 0 ? Math.round((voted / items.length) * 100) : 0;
+  document.getElementById('s-pct').textContent = pct + '%';
   const barEl = document.getElementById('s-bar');
   if (barEl) barEl.style.width = pct + '%';
 
   _showStats();
-}
-
-function countFromItems(items, voted) {
-  return items.filter(v => voted ? v.hasVoted : !v.hasVoted).length;
 }
 
 function _showStats() {
