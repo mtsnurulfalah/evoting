@@ -296,6 +296,9 @@ async function handleLogin(e) {
   const usernameInput = document.getElementById('username');
   const passwordInput = document.getElementById('password');
 
+  // Guard double-submit: jika tombol sudah disabled (sedang loading), abaikan.
+  if (btn.disabled) return;
+
   const username = usernameInput.value.trim();
   const password = passwordInput.value; // jangan trim password
 
