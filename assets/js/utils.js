@@ -284,31 +284,32 @@ const Utils = (() => {
   }
 
   /**
-   * Konversi URL Google Drive ke format direct-image yang dapat di-embed.
+   * Normalisasi URL foto untuk dipakai sebagai src= pada tag <img>.
    *
-   * Format lama /uc?export=view dan lh3.googleusercontent.com/d/ tidak lagi
-   * bekerja sejak Google menghapus dukungan cookie third-party (Jan 2024).
-   * Format baru yang bekerja: drive.usercontent.google.com/download?id=FILE_ID&export=view&authuser=0
+   * - URL Cloudinary (res.cloudinary.com) → dikembalikan langsung
+   * - URL eksternal non-Drive lainnya     → dikembalikan langsung
+   * - URL Google Drive format lama        → dikonversi ke drive.usercontent.google.com
+   *   (untuk backward-compatibility dengan data lama di spreadsheet)
    *
-   * @param {string} url - URL foto dari database (berbagai format Drive)
-   * @returns {string} URL yang dapat dipakai sebagai src= pada tag <img>
+   * @param {string} url - URL foto dari database
+   * @returns {string} URL siap pakai sebagai src=, atau '' jika input kosong
    */
-  function buildDriveImgUrl(url) {
+  function buildImgUrl(url) {
     if (!url) return '';
 
-    // Sudah format baru yang benar — tidak perlu konversi
-    if (url.includes('drive.usercontent.google.com')) return url;
+    // Cloudinary URL — langsung pakai, tidak perlu konversi
+    if (url.includes('res.cloudinary.com')) return url;
 
-    // Bukan URL Drive sama sekali (URL eksternal biasa) — kembalikan apa adanya
+    // Bukan URL Drive — kembalikan apa adanya (URL eksternal, data URI, dll.)
     if (
       !url.includes('drive.google.com') &&
       !url.includes('googleusercontent.com')
     ) return url;
 
-    // Ekstrak File ID dari berbagai format Drive:
-    //   drive.google.com/uc?id=FILE_ID  atau  &id=FILE_ID
-    //   drive.google.com/file/d/FILE_ID/view
-    //   lh3.googleusercontent.com/d/FILE_ID  (format lama)
+    // Sudah format drive.usercontent — tidak perlu konversi
+    if (url.includes('drive.usercontent.google.com')) return url;
+
+    // Legacy Google Drive: ekstrak File ID dan konversi ke drive.usercontent
     let fileId = null;
 
     const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
@@ -319,10 +320,13 @@ const Utils = (() => {
       if (matchPath) fileId = matchPath[1];
     }
 
-    if (!fileId) return url; // format tidak dikenal, kembalikan apa adanya
+    if (!fileId) return url;
 
     return `https://drive.usercontent.google.com/download?id=${fileId}&export=view&authuser=0`;
   }
+
+  // Alias untuk backward-compatibility (tidak dipakai di kode baru)
+  const buildDriveImgUrl = buildImgUrl;
 
   // ── Debounce ─────────────────────────────────────────────
 
@@ -488,7 +492,7 @@ const Utils = (() => {
     truncate, capitalize, escapeHtml,
     $, $$, setLoading, show, hide, toggle, setText, setHtml, scrollTo,
     getFormData, fillForm, resetForm, showFieldError, clearFieldError,
-    readFileAsBase64, validateImageFile, buildDriveImgUrl,
+    readFileAsBase64, validateImageFile, buildImgUrl, buildDriveImgUrl,
     debounce, getQueryParam,
     statusBadgeHtml, roleBadgeHtml,
     parseCSV, skeletonTableRows, skeletonCard,
