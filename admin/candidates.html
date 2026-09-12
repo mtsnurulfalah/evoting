@@ -903,12 +903,30 @@ function openCandidateModal(id) {
 }
 
 // ── Photo upload ──────────────────────────────────────────────
+//
+// Alur baru (direct upload — tidak lewat GAS sebagai proxy):
+//   1. Minta signature ke GAS  → request JSON kecil, selesai <5 detik
+//   2. Upload file langsung dari browser ke Cloudinary → tidak dibatasi timeout GAS
+//   3. URL Cloudinary disimpan di hidden input; dikirim ke GAS saat form disimpan
+//
+// Retry otomatis hingga MAX_UPLOAD_ATTEMPTS kali sebelum menyerah.
+
+const _MAX_UPLOAD_ATTEMPTS = 3;
+const _RETRY_DELAY_MS      = 2000; // jeda antar percobaan
+
+/**
+ * Jeda non-blocking.
+ * @param {number} ms
+ */
+function _sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function previewAndUpload(type, input) {
   const file = input.files[0];
   if (!file) return;
 
-  // Validasi file
+  // Validasi file sisi klien
   const validation = Utils.validateImageFile(file, 5);
   if (!validation.valid) {
     Toast.error(validation.error);
@@ -916,8 +934,8 @@ async function previewAndUpload(type, input) {
     return;
   }
 
-  const previewId = type === 'main' ? 'preview-main'    : 'preview-pair';
-  const urlId     = type === 'main' ? 'f-photo-url'     : 'f-pair-photo-url';
+  const previewId = type === 'main' ? 'preview-main'      : 'preview-pair';
+  const urlId     = type === 'main' ? 'f-photo-url'       : 'f-pair-photo-url';
   const labelId   = type === 'main' ? 'upload-main-label' : 'upload-pair-label';
 
   const preview  = document.getElementById(previewId);
@@ -926,14 +944,14 @@ async function previewAndUpload(type, input) {
 
   if (!preview || !urlInput) return;
 
-  // Simpan URL lama (untuk rollback jika gagal)
+  // Simpan URL lama (untuk rollback jika semua percobaan gagal)
   const oldUrl = urlInput.value || '';
 
   // Set state uploading
   _uploadState[type] = 'uploading';
   if (labelEl) labelEl.textContent = 'Mengupload...';
 
-  // Tampilkan preview lokal + overlay spinner
+  // Tampilkan preview lokal + overlay spinner segera
   const localUrl = URL.createObjectURL(file);
   preview.innerHTML = `
     <img src="${localUrl}" alt="Preview">
@@ -941,21 +959,41 @@ async function previewAndUpload(type, input) {
       <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
     </div>`;
 
-  try {
-    const base64 = await Utils.readFileAsBase64(file);
-    const res    = await API.candidate.uploadPhoto({
-      filename: file.name,
-      mimeType: file.type,
-      base64,
-      oldUrl,
-    });
+  let lastError = null;
 
-    if (res.success && res.data && res.data.url) {
-      // Berhasil — simpan URL Drive, render preview dari URL Drive yang sudah dikonversi
-      urlInput.value = res.data.url;
-      URL.revokeObjectURL(localUrl); // bebaskan memori blob sementara
+  for (let attempt = 1; attempt <= _MAX_UPLOAD_ATTEMPTS; attempt++) {
+    try {
+      // ── Langkah 1: Minta signature dari GAS (request ringan) ──
+      if (labelEl) {
+        labelEl.textContent = attempt > 1
+          ? `Mencoba ulang (${attempt}/${_MAX_UPLOAD_ATTEMPTS})...`
+          : 'Mengupload...';
+      }
 
-      const displaySrc = Utils.buildImgUrl(res.data.url);
+      const sigRes = await API.candidate.getUploadSignature(oldUrl);
+      if (!sigRes.success || !sigRes.data) {
+        // Gagal ambil signature — tidak perlu retry (bukan error jaringan)
+        URL.revokeObjectURL(localUrl);
+        _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
+        _uploadState[type] = 'error';
+        Toast.error(sigRes.message || 'Gagal mendapatkan izin upload. Coba lagi.');
+        return;
+      }
+
+      // ── Langkah 2: Upload langsung dari browser ke Cloudinary ──
+      const cloudResult = await API.uploadToCloudinaryDirect(
+        file,
+        sigRes.data,
+        (pct) => {
+          if (labelEl) labelEl.textContent = `Mengupload ${pct}%...`;
+        }
+      );
+
+      // ── Berhasil ──────────────────────────────────────────────
+      urlInput.value = cloudResult.url;
+      URL.revokeObjectURL(localUrl);
+
+      const displaySrc = Utils.buildImgUrl(cloudResult.url);
       preview.innerHTML = `<img src="${Utils.escapeHtml(displaySrc)}" alt="Foto ter-upload"
         referrerpolicy="no-referrer"
         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`;
@@ -963,20 +1001,26 @@ async function previewAndUpload(type, input) {
       _uploadState[type] = 'done';
       if (labelEl) labelEl.textContent = 'Ganti Foto';
       Toast.success('Foto berhasil diupload.');
-    } else {
-      // Gagal upload — rollback ke placeholder & URL lama
-      URL.revokeObjectURL(localUrl);
-      _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
-      _uploadState[type] = 'error';
-      Toast.error(res.message || 'Gagal mengupload foto.');
+      return; // selesai, keluar dari loop retry
+
+    } catch (err) {
+      lastError = err;
+      console.warn(`[previewAndUpload] percobaan ${attempt}/${_MAX_UPLOAD_ATTEMPTS} gagal:`, err.message);
+
+      if (attempt < _MAX_UPLOAD_ATTEMPTS) {
+        // Update label agar admin tahu sedang retry
+        if (labelEl) labelEl.textContent = `Gagal, mencoba ulang...`;
+        await _sleep(_RETRY_DELAY_MS);
+      }
     }
-  } catch (err) {
-    console.error('[previewAndUpload] error:', err);
-    URL.revokeObjectURL(localUrl);
-    _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
-    _uploadState[type] = 'error';
-    Toast.error('Gagal mengupload foto. Periksa koneksi internet.');
   }
+
+  // ── Semua percobaan gagal ─────────────────────────────────
+  console.error('[previewAndUpload] semua percobaan gagal:', lastError);
+  URL.revokeObjectURL(localUrl);
+  _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
+  _uploadState[type] = 'error';
+  Toast.error('Gagal mengupload foto setelah beberapa percobaan. Periksa koneksi internet dan coba lagi.');
 }
 
 /**
