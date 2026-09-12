@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="referrer" content="no-referrer"/>
   <title>Hasil Pemilihan — eVoting OSIM</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -488,6 +489,7 @@ const ResultsPage = (() => {
             ${photoSrc
               ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="" loading="lazy"
                       class="w-full h-full object-cover object-top"
+                      referrerpolicy="no-referrer"
                       onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-xs\\'></i>'">`
               : '<i class="fa-solid fa-user text-gray-400 text-xs"></i>'}
           </div>
@@ -496,6 +498,7 @@ const ResultsPage = (() => {
                       -ml-2 border-2 border-white">
             <img src="${Utils.escapeHtml(pairSrc)}" alt="" loading="lazy"
                  class="w-full h-full object-cover object-top"
+                 referrerpolicy="no-referrer"
                  onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-400 text-xs\\'></i>'">
           </div>` : ''}
         </div>`;
