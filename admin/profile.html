@@ -752,6 +752,17 @@
   }
 
   // ── Photo upload ────────────────────────────────────────────
+  //
+  // Alur baru (direct upload — tidak lewat GAS sebagai proxy):
+  //   1. Minta signature ke GAS  → request JSON kecil, selesai <5 detik
+  //   2. Upload file langsung dari browser ke Cloudinary → bebas dari timeout GAS
+  //   3. Kirim secure_url ke GAS untuk disimpan ke sheet AdminUsers
+  //
+  // Retry otomatis hingga _MAX_PROFILE_UPLOAD_ATTEMPTS kali sebelum menyerah.
+
+  const _MAX_PROFILE_UPLOAD_ATTEMPTS = 3;
+  const _PROFILE_RETRY_DELAY_MS      = 2000;
+
   async function handlePhotoUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -767,7 +778,7 @@
 
     setAvatarUploading(true);
 
-    // Tampilkan preview lokal langsung
+    // Tampilkan preview lokal langsung agar terasa responsif
     const localUrl = URL.createObjectURL(file);
     const avatarEl = document.getElementById('profile-avatar-large');
     if (avatarEl) {
@@ -779,33 +790,55 @@
       avatarEl.appendChild(previewImg);
     }
 
-    try {
-      const oldUrl = Auth.getUserData().photoUrl || '';
-      const base64 = await Utils.readFileAsBase64(file);
-      const res    = await API.adminProfile.uploadPhoto({
-        filename: file.name,
-        mimeType: file.type,
-        base64,
-        oldUrl,
-      });
+    const oldUrl = Auth.getUserData().photoUrl || '';
+    let lastError = null;
 
-      if (res.success) {
-        Auth.updateProfilePhoto(res.data.url);
-        renderLargeAvatar(Auth.getUserData());
-        Topbar.refreshAvatar();
-        toggleRemoveBtn(true);
-        Toast.success('Foto profil berhasil diperbarui.');
-      } else {
-        // Rollback ke avatar sebelumnya
-        renderLargeAvatar(Auth.getUserData());
-        showPhotoError(res.message || 'Gagal mengupload foto. Coba lagi.');
+    try {
+      for (let attempt = 1; attempt <= _MAX_PROFILE_UPLOAD_ATTEMPTS; attempt++) {
+        try {
+          // ── Langkah 1: Minta signature dari GAS (request ringan) ──
+          const sigRes = await API.adminProfile.getUploadSignature(oldUrl);
+          if (!sigRes.success || !sigRes.data) {
+            // Gagal ambil signature — bukan error jaringan, langsung berhenti
+            renderLargeAvatar(Auth.getUserData());
+            showPhotoError(sigRes.message || 'Gagal mendapatkan izin upload. Coba lagi.');
+            return;
+          }
+
+          // ── Langkah 2: Upload file langsung dari browser ke Cloudinary ──
+          const cloudResult = await API.uploadToCloudinaryDirect(file, sigRes.data);
+
+          // ── Langkah 3: Simpan URL ke GAS / sheet AdminUsers ──
+          const saveRes = await API.adminProfile.savePhotoUrl(cloudResult.url, oldUrl);
+          if (!saveRes.success) {
+            // URL sudah masuk Cloudinary tapi GAS gagal simpan — tetap tampilkan
+            console.warn('[Profile] savePhotoUrl gagal:', saveRes.message);
+          }
+
+          // ── Berhasil ──────────────────────────────────────────────
+          Auth.updateProfilePhoto(cloudResult.url);
+          renderLargeAvatar(Auth.getUserData());
+          Topbar.refreshAvatar();
+          toggleRemoveBtn(true);
+          Toast.success('Foto profil berhasil diperbarui.');
+          return; // selesai, keluar dari loop retry
+
+        } catch (err) {
+          lastError = err;
+          console.warn(`[Profile] handlePhotoUpload percobaan ${attempt}/${_MAX_PROFILE_UPLOAD_ATTEMPTS} gagal:`, err.message);
+
+          if (attempt < _MAX_PROFILE_UPLOAD_ATTEMPTS) {
+            await new Promise(resolve => setTimeout(resolve, _PROFILE_RETRY_DELAY_MS));
+          }
+        }
       }
-    } catch (err) {
-      console.error('[Profile] handlePhotoUpload:', err);
+
+      // Semua percobaan gagal
+      console.error('[Profile] handlePhotoUpload semua percobaan gagal:', lastError);
       renderLargeAvatar(Auth.getUserData());
-      showPhotoError('Terjadi kesalahan saat mengupload foto.');
+      showPhotoError('Gagal mengupload foto setelah beberapa percobaan. Periksa koneksi internet dan coba lagi.');
+
     } finally {
-      // Revoke objectURL agar tidak memory leak
       URL.revokeObjectURL(localUrl);
       setAvatarUploading(false);
       e.target.value = '';
