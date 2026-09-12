@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="referrer" content="no-referrer"/>
   <title>Dashboard — eVoting OSIM Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -506,6 +507,7 @@ function renderVoteSummary(candidates, totalVotes) {
           ${photoSrc
             ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="" loading="lazy"
                     class="w-full h-full object-cover object-top"
+                    referrerpolicy="no-referrer"
                     onerror="this.parentElement.innerHTML='<span class=\\'text-xs font-bold text-gray-500\\'>${safeNum}</span>'">`
             : `<span class="text-xs font-bold text-gray-500">${safeNum}</span>`}
         </div>
