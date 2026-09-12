@@ -286,14 +286,9 @@ const Utils = (() => {
   /**
    * Konversi URL Google Drive ke format direct-image yang dapat di-embed.
    *
-   * URL /uc?export=view diblokir browser modern karena Google mengembalikan
-   * halaman interstitial bukan gambar langsung.
-   * Format lh3.googleusercontent.com/d/FILE_ID adalah direct image URL
-   * yang bekerja untuk file yang di-share "Anyone with the link".
-   *
-   * Fungsi ini juga menormalisasi lh3 URL yang sudah ada tapi mengandung
-   * suffix/query parameter (mis. =s400, =w800-h600, ?sz=400) yang bisa
-   * muncul dari API Drive dan tidak selalu valid untuk embed via <img>.
+   * Format lama /uc?export=view dan lh3.googleusercontent.com/d/ tidak lagi
+   * bekerja sejak Google menghapus dukungan cookie third-party (Jan 2024).
+   * Format baru yang bekerja: drive.usercontent.google.com/download?id=FILE_ID&export=view&authuser=0
    *
    * @param {string} url - URL foto dari database (berbagai format Drive)
    * @returns {string} URL yang dapat dipakai sebagai src= pada tag <img>
@@ -301,36 +296,32 @@ const Utils = (() => {
   function buildDriveImgUrl(url) {
     if (!url) return '';
 
-    // Ekstrak File ID dari semua format yang dikenal:
-    //   lh3.googleusercontent.com/d/FILE_ID  (mungkin ada suffix =s400 atau path tambahan)
-    //   drive.google.com/uc?id=FILE_ID
+    // Sudah format baru yang benar — tidak perlu konversi
+    if (url.includes('drive.usercontent.google.com')) return url;
+
+    // Bukan URL Drive sama sekali (URL eksternal biasa) — kembalikan apa adanya
+    if (
+      !url.includes('drive.google.com') &&
+      !url.includes('googleusercontent.com')
+    ) return url;
+
+    // Ekstrak File ID dari berbagai format Drive:
+    //   drive.google.com/uc?id=FILE_ID  atau  &id=FILE_ID
     //   drive.google.com/file/d/FILE_ID/view
+    //   lh3.googleusercontent.com/d/FILE_ID  (format lama)
     let fileId = null;
 
-    // Format lh3: ambil ID, lalu buang suffix (=s400, =w800, dll) dan query string
-    const matchLh3 = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
-    if (matchLh3) fileId = matchLh3[1];
+    const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (matchId) fileId = matchId[1];
 
-    // Format ?id= atau &id=
-    if (!fileId) {
-      const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-      if (matchId) fileId = matchId[1];
-    }
-
-    // Format /d/FILE_ID/ (drive.google.com/file/d/... atau /open?...)
     if (!fileId) {
       const matchPath = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
       if (matchPath) fileId = matchPath[1];
     }
 
-    // Bukan URL Drive sama sekali (URL eksternal biasa) — kembalikan apa adanya
-    if (!fileId) {
-      if (!url.includes('drive.google.com') && !url.includes('googleusercontent.com')) return url;
-      return url; // Drive URL tapi format tak dikenal
-    }
+    if (!fileId) return url; // format tidak dikenal, kembalikan apa adanya
 
-    // Selalu kembalikan format bersih tanpa suffix/query apapun
-    return `https://lh3.googleusercontent.com/d/${fileId}`;
+    return `https://drive.usercontent.google.com/download?id=${fileId}&export=view&authuser=0`;
   }
 
   // ── Debounce ─────────────────────────────────────────────
