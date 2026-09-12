@@ -450,7 +450,7 @@
     const initial     = (u.name || u.username || '?').charAt(0).toUpperCase();
 
     if (u.photoUrl) {
-      const photoUrl = Utils.buildDriveImgUrl(u.photoUrl);
+      const photoUrl = Utils.buildImgUrl(u.photoUrl);
       const img      = document.createElement('img');
       img.src     = photoUrl;
       img.className = 'w-full h-full object-cover object-top';
