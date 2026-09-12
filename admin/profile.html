@@ -557,7 +557,7 @@
     const el = document.getElementById('profile-avatar-large');
     if (!el) return;
 
-    const photoUrl   = data.photoUrl ? Utils.buildDriveImgUrl(data.photoUrl) : null;
+    const photoUrl   = data.photoUrl ? Utils.buildImgUrl(data.photoUrl) : null;
     const name       = data.name || data.username || '?';
     const initial    = name.charAt(0).toUpperCase();
     const colorClass = ROLE_AVATAR_CLASS[data.role] || 'bg-gray-400 text-white';
