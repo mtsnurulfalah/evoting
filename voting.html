@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="referrer" content="no-referrer"/>
   <title>Pilih Kandidat — eVoting OSIM</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -417,7 +418,8 @@ function candidateCardHtml(c) {
     ? `<img src="${Utils.escapeHtml(photoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.name)}"
              class="w-full h-36 sm:h-40 object-cover object-top rounded-lg mb-2"
-             loading="lazy">`
+             loading="lazy"
+             referrerpolicy="no-referrer">`
     : `<div class="w-full h-36 sm:h-40 bg-gray-100 rounded-lg mb-2
                    flex items-center justify-center" aria-hidden="true">
          <i class="fa-solid fa-user text-4xl text-gray-300"></i>
@@ -427,7 +429,8 @@ function candidateCardHtml(c) {
     ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.pairName || 'Calon Wakil')}"
              class="w-full h-36 sm:h-40 object-cover object-top rounded-lg mb-2"
-             loading="lazy">`
+             loading="lazy"
+             referrerpolicy="no-referrer">`
     : `<div class="w-full h-36 sm:h-40 bg-gray-100 rounded-lg mb-2
                    flex items-center justify-center" aria-hidden="true">
          <i class="fa-solid fa-user text-4xl text-gray-300"></i>
@@ -600,6 +603,7 @@ function showCandidateDetail(id) {
              alt="Foto ${Utils.escapeHtml(name)}"
              class="w-full h-44 object-cover object-top rounded-xl mb-2"
              loading="lazy"
+             referrerpolicy="no-referrer"
              data-fallback="1">`
     : `<div class="w-full h-44 bg-gray-100 rounded-xl mb-2
                    flex items-center justify-center" aria-hidden="true">
