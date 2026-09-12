@@ -470,8 +470,8 @@ const ResultsPage = (() => {
     resultEl.innerHTML = candidates.map((c, i) => {
       const pct      = parseFloat(c.percentage || 0); // FIX #5
       const isWinner = winner && !winner.isTied && winner.candidate && winner.candidate.id === c.id;
-      const photoSrc = Utils.buildDriveImgUrl(c.photoUrl);
-      const pairSrc  = Utils.buildDriveImgUrl(c.pairPhotoUrl);
+      const photoSrc = Utils.buildImgUrl(c.photoUrl);
+      const pairSrc  = Utils.buildImgUrl(c.pairPhotoUrl);
       const color    = CHART_COLORS[i % CHART_COLORS.length];
       const orderNum = Utils.escapeHtml(String(c.orderNumber || i + 1));
 
