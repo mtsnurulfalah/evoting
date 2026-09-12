@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="referrer" content="no-referrer"/>
   <title>Manajemen Kandidat — eVoting OSIM Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -554,6 +555,7 @@ function candidateCardHtml(c) {
         <div class="candidate-photo-col relative">
           ${photoSrc
             ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="${Utils.escapeHtml(c.name)}" loading="lazy"
+                 referrerpolicy="no-referrer"
                  onerror="this.parentElement.innerHTML='<div class=\\'candidate-photo-placeholder\\'><i class=\\'fa-solid fa-user text-3xl text-gray-300\\'></i></div><div class=\\'role-label\\'>Ketua</div>'">`
             : ''}
           <div class="candidate-photo-placeholder" ${photoSrc ? 'style="display:none"' : ''}>
@@ -566,6 +568,7 @@ function candidateCardHtml(c) {
         <div class="candidate-photo-col relative">
           ${pairPhotoSrc
             ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" alt="${Utils.escapeHtml(c.pairName || 'Wakil')}" loading="lazy"
+                 referrerpolicy="no-referrer"
                  onerror="this.parentElement.innerHTML='<div class=\\'candidate-photo-placeholder\\'><i class=\\'fa-solid fa-user text-3xl text-gray-300\\'></i></div><div class=\\'role-label\\'>Wakil</div>'">`
             : ''}
           <div class="candidate-photo-placeholder" ${pairPhotoSrc ? 'style="display:none"' : ''}>
@@ -704,6 +707,7 @@ function candidateFormHtml(data = {}) {
               <div class="photo-thumb" id="preview-main">
                 ${photoSrc
                   ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="Foto ketua"
+                       referrerpolicy="no-referrer"
                        onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`
                   : `<i class="fa-solid fa-user text-gray-300 text-xl"></i>`}
               </div>
@@ -753,6 +757,7 @@ function candidateFormHtml(data = {}) {
               <div class="photo-thumb" id="preview-pair">
                 ${pairPhotoSrc
                   ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" alt="Foto wakil"
+                       referrerpolicy="no-referrer"
                        onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`
                   : `<i class="fa-solid fa-user text-gray-300 text-xl"></i>`}
               </div>
@@ -952,6 +957,7 @@ async function previewAndUpload(type, input) {
 
       const displaySrc = Utils.buildDriveImgUrl(res.data.url);
       preview.innerHTML = `<img src="${Utils.escapeHtml(displaySrc)}" alt="Foto ter-upload"
+        referrerpolicy="no-referrer"
         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`;
 
       _uploadState[type] = 'done';
@@ -981,6 +987,7 @@ function _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input) {
   if (oldUrl) {
     const displaySrc = Utils.buildDriveImgUrl(oldUrl);
     preview.innerHTML = `<img src="${Utils.escapeHtml(displaySrc)}" alt="Foto"
+      referrerpolicy="no-referrer"
       onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`;
   } else {
     preview.innerHTML = `<i class="fa-solid fa-user text-gray-300 text-xl"></i>`;
