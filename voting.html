@@ -410,8 +410,8 @@ function renderCandidates() {
 // ── candidateCardHtml ─────────────────────────────────────────
 
 function candidateCardHtml(c) {
-  const photoSrc     = Utils.buildDriveImgUrl(c.photoUrl);
-  const pairPhotoSrc = Utils.buildDriveImgUrl(c.pairPhotoUrl);
+  const photoSrc     = Utils.buildImgUrl(c.photoUrl);
+  const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl);
 
   // Fix #17: responsive height h-36 sm:h-40
   const photoHtml = photoSrc
@@ -593,8 +593,8 @@ function showCandidateDetail(id) {
       programLines.map(l => `<li>${Utils.escapeHtml(l.trim())}</li>`).join('') + '</ul>'
     : '<p class="text-sm text-gray-400 italic">Belum tersedia.</p>';
 
-  const photoSrc     = Utils.buildDriveImgUrl(c.photoUrl);
-  const pairPhotoSrc = Utils.buildDriveImgUrl(c.pairPhotoUrl);
+  const photoSrc     = Utils.buildImgUrl(c.photoUrl);
+  const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl);
 
   // Fix #6: Tidak ada onerror inline dengan escaped quotes.
   // Gambar fallback ditangani via data-fallback + listener setelah modal dibuka.
