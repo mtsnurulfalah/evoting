@@ -665,8 +665,8 @@ function bindCardEvents(container) {
 
 function electionCardHtml(e) {
   const role      = Auth.getAdminRole();
-  const canEdit   = (role === 'superadmin' || role === 'admin');
-  const canDelete = (role === 'superadmin');
+  const canEdit   = (role === 'superadmin' || role === 'admin' || role === 'ketua_panitia');
+  const canDelete = (role === 'superadmin' || role === 'ketua_panitia');
 
   // Timeline progress calculation
   const now       = new Date();
