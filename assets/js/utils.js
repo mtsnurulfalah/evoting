@@ -291,24 +291,45 @@ const Utils = (() => {
    * Format lh3.googleusercontent.com/d/FILE_ID adalah direct image URL
    * yang bekerja untuk file yang di-share "Anyone with the link".
    *
+   * Fungsi ini juga menormalisasi lh3 URL yang sudah ada tapi mengandung
+   * suffix/query parameter (mis. =s400, =w800-h600, ?sz=400) yang bisa
+   * muncul dari API Drive dan tidak selalu valid untuk embed via <img>.
+   *
    * @param {string} url - URL foto dari database (berbagai format Drive)
    * @returns {string} URL yang dapat dipakai sebagai src= pada tag <img>
    */
   function buildDriveImgUrl(url) {
     if (!url) return '';
-    // Sudah format lh3 — tidak perlu konversi
-    if (url.includes('lh3.googleusercontent.com')) return url;
-    // Bukan URL Drive sama sekali (misal: URL eksternal biasa) — kembalikan apa adanya
-    if (!url.includes('drive.google.com') && !url.includes('googleusercontent.com')) return url;
-    // Ekstrak File ID dari berbagai format URL Drive
+
+    // Ekstrak File ID dari semua format yang dikenal:
+    //   lh3.googleusercontent.com/d/FILE_ID  (mungkin ada suffix =s400 atau path tambahan)
+    //   drive.google.com/uc?id=FILE_ID
+    //   drive.google.com/file/d/FILE_ID/view
     let fileId = null;
-    const matchId   = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (matchId) fileId = matchId[1];
+
+    // Format lh3: ambil ID, lalu buang suffix (=s400, =w800, dll) dan query string
+    const matchLh3 = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+    if (matchLh3) fileId = matchLh3[1];
+
+    // Format ?id= atau &id=
+    if (!fileId) {
+      const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (matchId) fileId = matchId[1];
+    }
+
+    // Format /d/FILE_ID/ (drive.google.com/file/d/... atau /open?...)
     if (!fileId) {
       const matchPath = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
       if (matchPath) fileId = matchPath[1];
     }
-    if (!fileId) return url; // tidak bisa di-parse, kembalikan apa adanya
+
+    // Bukan URL Drive sama sekali (URL eksternal biasa) — kembalikan apa adanya
+    if (!fileId) {
+      if (!url.includes('drive.google.com') && !url.includes('googleusercontent.com')) return url;
+      return url; // Drive URL tapi format tak dikenal
+    }
+
+    // Selalu kembalikan format bersih tanpa suffix/query apapun
     return `https://lh3.googleusercontent.com/d/${fileId}`;
   }
 
