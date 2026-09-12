@@ -494,7 +494,7 @@ function renderVoteSummary(candidates, totalVotes) {
   summaryEl.innerHTML = candidates.map((c, i) => {
     const pct      = parseFloat(c.percentage || 0);
     const color    = DASH_COLORS[i % DASH_COLORS.length];
-    const photoSrc = Utils.buildDriveImgUrl(c.photoUrl);
+    const photoSrc = Utils.buildImgUrl(c.photoUrl);
     // FIX #11: escapeHtml pada orderNumber untuk onerror inline HTML
     const safeNum  = Utils.escapeHtml(String(c.orderNumber || i + 1));
 
