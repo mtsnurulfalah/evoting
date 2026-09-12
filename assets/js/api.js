@@ -145,6 +145,73 @@ const API = (() => {
     setStatus: (id, status, isActive) => request('election.setStatus', { id, status, isActive }),
   };
 
+  // ── Cloudinary direct upload ──────────────────────────────
+  //
+  // Alur baru (menggantikan proxy upload lewat GAS):
+  //   1. Minta signature dari GAS  → request kecil, selesai <5 detik
+  //   2. Upload file langsung ke Cloudinary dari browser → tidak lewat GAS
+  //   3. Kirim secure_url ke GAS saat simpan data (bukan file binary)
+  //
+  // Keuntungan:
+  //   • Tidak ada lagi timeout/koneksi terputus akibat GAS menjadi proxy binary
+  //   • Upload progress bisa ditampilkan (XHR-based)
+  //   • GAS hanya melakukan komputasi ringan (sign + simpan URL)
+
+  /**
+   * Upload file langsung ke Cloudinary menggunakan signature dari GAS.
+   *
+   * @param {File}   file      - File object dari <input type="file">
+   * @param {Object} sigData   - Data signature dari GAS (timestamp, signature, apiKey, cloudName, folder)
+   * @param {Function} [onProgress] - Callback progress(0–100)
+   * @returns {Promise<{url: string, publicId: string}>}
+   */
+  async function uploadToCloudinaryDirect(file, sigData, onProgress) {
+    const endpoint = `https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`;
+
+    const formData = new FormData();
+    formData.append('file',      file);
+    formData.append('folder',    sigData.folder);
+    formData.append('timestamp', sigData.timestamp);
+    formData.append('api_key',   sigData.apiKey);
+    formData.append('signature', sigData.signature);
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      if (onProgress && xhr.upload) {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        });
+      }
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve({ url: data.secure_url, publicId: data.public_id });
+          } catch (e) {
+            reject(new Error('Respons Cloudinary tidak valid.'));
+          }
+        } else {
+          let errMsg = `Cloudinary error ${xhr.status}`;
+          try {
+            const errData = JSON.parse(xhr.responseText);
+            if (errData.error && errData.error.message) errMsg = errData.error.message;
+          } catch (_) {}
+          reject(new Error(errMsg));
+        }
+      });
+
+      xhr.addEventListener('error',   () => reject(new Error('Koneksi ke Cloudinary gagal.')));
+      xhr.addEventListener('timeout', () => reject(new Error('Upload ke Cloudinary timeout.')));
+      xhr.addEventListener('abort',   () => reject(new Error('Upload dibatalkan.')));
+
+      xhr.open('POST', endpoint);
+      xhr.timeout = 120000; // 2 menit — batas wajar untuk file hingga 5 MB
+      xhr.send(formData);
+    });
+  }
+
   // ── Candidate endpoints ──────────────────────────────────
 
   const candidate = {
@@ -154,6 +221,9 @@ const API = (() => {
     update: (data) => request('candidate.update', data),
     delete: (id) => request('candidate.delete', { id }),
     reorder: (orders) => request('candidate.reorder', { orders }),
+    /** Minta signature Cloudinary (request ringan ke GAS) */
+    getUploadSignature: (oldUrl = '') => request('candidate.getUploadSignature', { oldUrl }),
+    /** @deprecated Gunakan getUploadSignature + uploadToCloudinaryDirect */
     uploadPhoto: (data) => request('candidate.uploadPhoto', data),
   };
 
@@ -214,9 +284,14 @@ const API = (() => {
   // ── Admin Profile ─────────────────────────────────────────
 
   const adminProfile = {
-    changePassword: (data) => request('admin.changePassword', data),
-    updateProfile:  (data) => request('admin.updateProfile', data),
-    uploadPhoto:    (data) => request('admin.uploadProfilePhoto', data),
+    changePassword:   (data)   => request('admin.changePassword', data),
+    updateProfile:    (data)   => request('admin.updateProfile', data),
+    /** Minta signature Cloudinary untuk foto profil (request ringan ke GAS) */
+    getUploadSignature: (oldUrl = '') => request('admin.getUploadSignature', { oldUrl }),
+    /** Simpan URL foto yang sudah diupload langsung ke Cloudinary */
+    savePhotoUrl:     (url, oldUrl = '') => request('admin.savePhotoUrl', { url, oldUrl }),
+    /** @deprecated Gunakan getUploadSignature + uploadToCloudinaryDirect */
+    uploadPhoto:      (data)   => request('admin.uploadProfilePhoto', data),
   };
 
   // ── Admin Users (User Management) ────────────────────────
@@ -237,5 +312,5 @@ const API = (() => {
     return _pendingRequests > 0;
   }
 
-  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, adminUsers, accessPin, isPending };
+  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, adminUsers, accessPin, isPending, uploadToCloudinaryDirect };
 })();
