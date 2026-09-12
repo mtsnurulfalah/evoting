@@ -365,6 +365,18 @@ async function loadPage() {
 
 function renderCandidates() {
   const grid = document.getElementById('candidates-grid');
+
+  // Fix #6 / Fix race: pasang error listener di grid SEBELUM innerHTML di-set.
+  // Ini mencegah race condition di mana gambar bisa fail & fire 'error' sebelum
+  // listener terpasang (terjadi saat browser memproses src dari cache synchronously).
+  // data-errored guard mencegah infinite loop jika IMG_PLACEHOLDER itu sendiri gagal.
+  grid.addEventListener('error', e => {
+    if (e.target.tagName === 'IMG' && !e.target.dataset.errored) {
+      e.target.dataset.errored = '1';
+      e.target.src = IMG_PLACEHOLDER;
+    }
+  }, true /* capture phase agar tangkap error dari child img */);
+
   grid.innerHTML = _candidates.map(c => candidateCardHtml(c)).join('');
 
   // Fix #18: tampilkan jumlah kandidat di subtitle
@@ -392,13 +404,6 @@ function renderCandidates() {
       showCandidateDetail(btn.dataset.detailId);
     });
   });
-
-  // Fix #6: delegasi onerror untuk gambar dalam grid via 'error' event (bubbles di addEventListener)
-  grid.addEventListener('error', e => {
-    if (e.target.tagName === 'IMG') {
-      e.target.src = IMG_PLACEHOLDER;
-    }
-  }, true /* capture agar bubbles dari img */);
 }
 
 // ── candidateCardHtml ─────────────────────────────────────────
@@ -675,12 +680,11 @@ function showCandidateDetail(id) {
   });
 
   // Fix #6: error handler gambar di modal via DOM listener (bukan onerror inline)
+  // Gunakan IMG_PLACEHOLDER agar konsisten dengan grid, bukan div kosong.
+  // {once: true} sudah cukup untuk mencegah loop karena listener langsung dicabut setelah fired.
   modal.querySelectorAll('img[data-fallback]').forEach(img => {
     img.addEventListener('error', () => {
-      const ph = document.createElement('div');
-      ph.className = 'w-full h-44 bg-gray-100 rounded-xl mb-2 flex items-center justify-center';
-      ph.innerHTML = '<i class="fa-solid fa-user text-5xl text-gray-300" aria-hidden="true"></i>';
-      img.replaceWith(ph);
+      img.src = IMG_PLACEHOLDER;
     }, { once: true });
   });
 
