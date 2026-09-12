@@ -554,7 +554,7 @@ function candidateCardHtml(c) {
         <div class="candidate-photo-col relative">
           ${photoSrc
             ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="${Utils.escapeHtml(c.name)}" loading="lazy"
-                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                 onerror="this.parentElement.innerHTML='<div class=\\'candidate-photo-placeholder\\'><i class=\\'fa-solid fa-user text-3xl text-gray-300\\'></i></div><div class=\\'role-label\\'>Ketua</div>'">`
             : ''}
           <div class="candidate-photo-placeholder" ${photoSrc ? 'style="display:none"' : ''}>
             <i class="fa-solid fa-user text-3xl text-gray-300"></i>
@@ -566,7 +566,7 @@ function candidateCardHtml(c) {
         <div class="candidate-photo-col relative">
           ${pairPhotoSrc
             ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" alt="${Utils.escapeHtml(c.pairName || 'Wakil')}" loading="lazy"
-                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                 onerror="this.parentElement.innerHTML='<div class=\\'candidate-photo-placeholder\\'><i class=\\'fa-solid fa-user text-3xl text-gray-300\\'></i></div><div class=\\'role-label\\'>Wakil</div>'">`
             : ''}
           <div class="candidate-photo-placeholder" ${pairPhotoSrc ? 'style="display:none"' : ''}>
             <i class="fa-solid fa-user text-3xl text-gray-300"></i>
