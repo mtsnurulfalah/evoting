@@ -581,7 +581,7 @@ const Topbar = (() => {
    */
   function _renderAvatar(container, adminData) {
     const photoUrl = adminData.photoUrl
-      ? Utils.buildDriveImgUrl(adminData.photoUrl)
+      ? Utils.buildImgUrl(adminData.photoUrl)
       : null;
 
     // Bersihkan konten lama
