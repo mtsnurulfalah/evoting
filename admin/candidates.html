@@ -528,8 +528,8 @@ function renderCandidates() {
 }
 
 function candidateCardHtml(c) {
-  const photoSrc     = Utils.buildDriveImgUrl(c.photoUrl     || '');
-  const pairPhotoSrc = Utils.buildDriveImgUrl(c.pairPhotoUrl || '');
+  const photoSrc     = Utils.buildImgUrl(c.photoUrl     || '');
+  const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl || '');
   const cardClass    = c.isActive !== false ? 'cand-card' : 'cand-card card-inactive';
 
   return `
@@ -665,8 +665,8 @@ function updateCandidateCount() {
 // ── Modal Form ────────────────────────────────────────────────
 
 function candidateFormHtml(data = {}) {
-  const photoSrc     = Utils.buildDriveImgUrl(data.photoUrl     || '');
-  const pairPhotoSrc = Utils.buildDriveImgUrl(data.pairPhotoUrl || '');
+  const photoSrc     = Utils.buildImgUrl(data.photoUrl     || '');
+  const pairPhotoSrc = Utils.buildImgUrl(data.pairPhotoUrl || '');
 
   return `
     <div class="space-y-5">
@@ -955,7 +955,7 @@ async function previewAndUpload(type, input) {
       urlInput.value = res.data.url;
       URL.revokeObjectURL(localUrl); // bebaskan memori blob sementara
 
-      const displaySrc = Utils.buildDriveImgUrl(res.data.url);
+      const displaySrc = Utils.buildImgUrl(res.data.url);
       preview.innerHTML = `<img src="${Utils.escapeHtml(displaySrc)}" alt="Foto ter-upload"
         referrerpolicy="no-referrer"
         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`;
@@ -985,7 +985,7 @@ async function previewAndUpload(type, input) {
  */
 function _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input) {
   if (oldUrl) {
-    const displaySrc = Utils.buildDriveImgUrl(oldUrl);
+    const displaySrc = Utils.buildImgUrl(oldUrl);
     preview.innerHTML = `<img src="${Utils.escapeHtml(displaySrc)}" alt="Foto"
       referrerpolicy="no-referrer"
       onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`;
