@@ -1517,8 +1517,8 @@ async function confirmDeleteVoter(id, name) {
 }
 
 // ── Lazy-load SheetJS ─────────────────────────────────────────
-// Dimuat on-demand saat modal import pertama kali dibutuhkan.
-// Mencoba primary CDN (jsDelivr) dulu, fallback ke unpkg jika gagal.
+// Primary: file lokal (assets/js/xlsx.full.min.js) agar tidak
+// bergantung koneksi internet. Fallback ke CDN hanya jika lokal gagal.
 // Promise di-cache agar tidak double-load jika dipanggil berkali-kali.
 
 let _xlsxLoadPromise = null;
@@ -1532,20 +1532,22 @@ function loadXLSX() {
       const s   = document.createElement('script');
       s.src     = src;
       s.async   = true;
-      s.onload  = () => resolve(window.XLSX);
+      s.onload  = () => {
+        if (window.XLSX) resolve(window.XLSX);
+        else reject(new Error(`XLSX tidak terdefinisi setelah memuat: ${src}`));
+      };
       s.onerror = () => reject(new Error(`Gagal memuat: ${src}`));
       document.head.appendChild(s);
     });
   }
 
-  _xlsxLoadPromise = tryLoad(
-    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
-  ).catch(() =>
-    tryLoad('https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js')
-  ).catch(() => {
-    _xlsxLoadPromise = null; // izinkan retry
-    throw new Error('Library Excel tidak dapat dimuat. Periksa koneksi internet Anda.');
-  });
+  _xlsxLoadPromise = tryLoad('../assets/js/xlsx.full.min.js')
+    .catch(() => tryLoad('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'))
+    .catch(() => tryLoad('https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'))
+    .catch(() => {
+      _xlsxLoadPromise = null; // izinkan retry
+      throw new Error('Library Excel tidak dapat dimuat. Pastikan file assets/js/xlsx.full.min.js tersedia.');
+    });
 
   return _xlsxLoadPromise;
 }
