@@ -550,7 +550,6 @@
 <!-- ─────────────────────────────────────────────
      SCRIPTS
 ──────────────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script src="../assets/js/api.js"></script>
@@ -1517,7 +1516,39 @@ async function confirmDeleteVoter(id, name) {
   }
 }
 
-// ── Import Excel ──────────────────────────────────────────────
+// ── Lazy-load SheetJS ─────────────────────────────────────────
+// Dimuat on-demand saat modal import pertama kali dibutuhkan.
+// Mencoba primary CDN (jsDelivr) dulu, fallback ke unpkg jika gagal.
+// Promise di-cache agar tidak double-load jika dipanggil berkali-kali.
+
+let _xlsxLoadPromise = null;
+
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (_xlsxLoadPromise) return _xlsxLoadPromise;
+
+  function tryLoad(src) {
+    return new Promise((resolve, reject) => {
+      const s   = document.createElement('script');
+      s.src     = src;
+      s.async   = true;
+      s.onload  = () => resolve(window.XLSX);
+      s.onerror = () => reject(new Error(`Gagal memuat: ${src}`));
+      document.head.appendChild(s);
+    });
+  }
+
+  _xlsxLoadPromise = tryLoad(
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+  ).catch(() =>
+    tryLoad('https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js')
+  ).catch(() => {
+    _xlsxLoadPromise = null; // izinkan retry
+    throw new Error('Library Excel tidak dapat dimuat. Periksa koneksi internet Anda.');
+  });
+
+  return _xlsxLoadPromise;
+}
 
 function openImportModal() {
   if (!_electionId) {
@@ -1655,14 +1686,18 @@ function previewExcel(input) {
   const file = input.files[0];
   if (!file) return;
 
-  if (!window.XLSX) {
-    Toast.error('Library Excel belum dimuat. Coba refresh halaman.');
-    return;
+  // Tunjukkan loading singkat pada upload area selama library dimuat
+  const uploadArea = document.getElementById('excel-upload-area');
+  if (uploadArea) {
+    uploadArea.style.opacity = '0.6';
+    uploadArea.style.pointerEvents = 'none';
   }
 
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
+  loadXLSX().then(XLSX => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (uploadArea) { uploadArea.style.opacity = ''; uploadArea.style.pointerEvents = ''; }
+      try {
       const wb        = XLSX.read(e.target.result, { type: 'array', cellDates: false });
       const sheetName = wb.SheetNames[0];
       const ws        = wb.Sheets[sheetName];
@@ -1759,9 +1794,18 @@ function previewExcel(input) {
       console.error('[previewExcel] error:', err);
       Toast.error('Gagal membaca file Excel. Pastikan format .xlsx atau .xls dan tidak terpassword.');
     }
-  };
-  reader.onerror = () => Toast.error('Gagal membaca file.');
-  reader.readAsArrayBuffer(file);
+    };
+    reader.onerror = () => {
+      if (uploadArea) { uploadArea.style.opacity = ''; uploadArea.style.pointerEvents = ''; }
+      Toast.error('Gagal membaca file.');
+    };
+    reader.readAsArrayBuffer(file);
+  }).catch(err => {
+    if (uploadArea) { uploadArea.style.opacity = ''; uploadArea.style.pointerEvents = ''; }
+    // Reset file input agar user bisa coba lagi
+    if (input) input.value = '';
+    Toast.error(err.message || 'Library Excel tidak dapat dimuat. Periksa koneksi internet Anda.');
+  });
 }
 
 function showExcelError(html) {
@@ -1808,9 +1852,12 @@ async function doImport(btn) {
 
 // ── Download Template Excel ───────────────────────────────────
 
-function downloadExcelTemplate() {
-  if (!window.XLSX) {
-    Toast.error('Library Excel belum dimuat. Coba refresh halaman.');
+async function downloadExcelTemplate() {
+  let XLSX;
+  try {
+    XLSX = await loadXLSX();
+  } catch (err) {
+    Toast.error(err.message || 'Library Excel tidak dapat dimuat. Periksa koneksi internet Anda.');
     return;
   }
 
