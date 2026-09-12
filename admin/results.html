@@ -883,8 +883,8 @@ function renderCandidateRows(candidates, winner, totalVotes) {
 
   container.innerHTML = candidates.map((c, i) => {
     const isWinner  = winner && !winner.isTied && winner.candidate.id === c.id;
-    const photoSrc  = Utils.buildDriveImgUrl(c.photoUrl     || '');
-    const pairSrc   = Utils.buildDriveImgUrl(c.pairPhotoUrl || '');
+    const photoSrc  = Utils.buildImgUrl(c.photoUrl     || '');
+    const pairSrc   = Utils.buildImgUrl(c.pairPhotoUrl || '');
     const color     = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
     const pct       = c.percentage || 0;
     const barWidth  = totalVotes > 0 ? pct : 0;
