@@ -386,9 +386,20 @@ let _uploadState    = {        // status upload per slot
 
 // ── Init ─────────────────────────────────────────────────────
 (async () => {
-  if (!Auth.requireAdminPage()) return;
+  // Panitia tidak boleh mengakses halaman ini — redirect ke dashboard.
+  // Viewer boleh masuk tapi dalam mode readonly (tombol aksi disembunyikan).
+  if (!Auth.requireAdminPage(['superadmin', 'admin', 'ketua_panitia', 'viewer'])) return;
   Sidebar.init();
   Topbar.init();
+
+  const role     = Auth.getAdminRole();
+  const canWrite = (role === 'superadmin' || role === 'admin' || role === 'ketua_panitia');
+
+  // Sembunyikan tombol "Tambah Kandidat" di header untuk viewer (readonly)
+  if (!canWrite) {
+    const btnAdd = document.getElementById('btn-add');
+    if (btnAdd) btnAdd.classList.add('hidden');
+  }
 
   document.getElementById('btn-add').addEventListener('click', () => openCandidateModal());
   document.getElementById('btn-add-empty').addEventListener('click', () => openCandidateModal());
@@ -531,6 +542,8 @@ function candidateCardHtml(c) {
   const photoSrc     = Utils.buildImgUrl(c.photoUrl     || '');
   const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl || '');
   const cardClass    = c.isActive !== false ? 'cand-card' : 'cand-card card-inactive';
+  const role         = Auth.getAdminRole();
+  const canWrite     = (role === 'superadmin' || role === 'admin' || role === 'ketua_panitia');
 
   return `
     <div class="${cardClass}" data-id="${Utils.escapeHtml(c.id)}">
@@ -611,6 +624,7 @@ function candidateCardHtml(c) {
 
         <!-- Action buttons -->
         <div class="flex gap-2 mt-auto">
+          ${canWrite ? `
           <button class="btn btn-sm btn-outline flex-1 edit-btn gap-1.5"
             data-id="${Utils.escapeHtml(c.id)}"
             title="Edit kandidat ini">
@@ -622,6 +636,9 @@ function candidateCardHtml(c) {
             title="Hapus kandidat ini">
             <i class="fa-solid fa-trash text-xs"></i>
           </button>
+          ` : `
+          <span class="text-xs text-gray-400 italic">Hanya lihat</span>
+          `}
         </div>
 
       </div>
