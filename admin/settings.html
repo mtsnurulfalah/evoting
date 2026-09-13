@@ -377,7 +377,7 @@
 (async () => {
 
   // ── Guard ───────────────────────────────────────────────────
-  if (!Auth.requireAdminPage(['superadmin', 'admin', 'viewer'])) return;
+  if (!Auth.requireAdminPage(['superadmin'])) return;
   Sidebar.init();
   Topbar.init();
 
