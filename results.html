@@ -38,6 +38,12 @@
         <i class="fa-solid fa-rotate-right text-xs"></i>
         <span class="hidden sm:inline">Refresh</span>
       </button>
+      <!-- Link ke halaman kandidat -->
+      <a id="btn-view-candidates" href="/candidates.html"
+         class="btn btn-sm btn-secondary text-xs gap-1.5">
+        <i class="fa-solid fa-users text-xs"></i>
+        <span class="hidden sm:inline">Kandidat</span>
+      </a>
       <a href="/index.html" class="btn btn-sm btn-secondary text-xs gap-1.5">
         <i class="fa-solid fa-arrow-left text-xs"></i>
         <span class="hidden sm:inline">Kembali</span>
@@ -566,6 +572,15 @@ const ResultsPage = (() => {
 
 // ── Bootstrap ──────────────────────────────────────────────
 ResultsPage.init();
+
+// ── Sinkronkan electionId ke link Kandidat ─────────────────
+// Jika URL results.html mengandung ?electionId=..., teruskan ke candidates.html
+// agar tombol "Kandidat" langsung menampilkan kandidat pemilihan yang sama.
+(function syncCandidatesLink() {
+  const eid = Utils.getQueryParam('electionId');
+  const btn = document.getElementById('btn-view-candidates');
+  if (btn && eid) btn.href = '/candidates.html?electionId=' + encodeURIComponent(eid);
+})();
 </script>
 </body>
 </html>
