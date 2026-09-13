@@ -398,7 +398,9 @@ const Sidebar = (() => {
    */
   function buildNavHtml(role) {
     const items = getNavItems(role);
-    const showSettings    = (role === 'superadmin' || role === 'admin');
+    // Settings hanya untuk superadmin — sesuai backend (config.update hanya allow superadmin)
+    // dan Auth.canAccessSettings() yang mengembalikan true hanya untuk superadmin.
+    const showSettings    = (role === 'superadmin');
     const showUserMgmt    = (role === 'superadmin');
 
     let html = `<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">Menu Utama</p>`;
@@ -444,14 +446,18 @@ const Sidebar = (() => {
 
   function highlightActive() {
     const path = window.location.pathname;
+    // Ambil nama file halaman saat ini (mis. "voters.html")
+    const currentFile = path.split('/').pop() || '';
+
     document.querySelectorAll('.sidebar-link').forEach(link => {
       const href = link.getAttribute('href');
       if (!href) return;
-      const linkPath = href.replace(/^\.\.\//, '/admin/').replace(/^\.\//, '/admin/');
-      const active =
-        path === linkPath ||
-        path.endsWith(href) ||
-        (href !== '/admin/dashboard.html' && path.includes(href.replace('.html', '')));
+
+      // Ekstrak nama file dari href (mis. "./voters.html" → "voters.html")
+      const hrefFile = href.split('/').pop() || '';
+
+      // Link aktif hanya jika nama file cocok persis
+      const active = hrefFile && hrefFile === currentFile;
       if (active) link.classList.add('active');
     });
   }
