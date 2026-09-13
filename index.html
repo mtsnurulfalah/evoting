@@ -149,9 +149,16 @@
           <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
             <i class="fa-solid fa-calendar-check text-white text-sm"></i>
           </div>
-          <div class="min-w-0">
+          <div class="min-w-0 flex-1">
             <p class="font-semibold text-white truncate" id="election-title">Pemilihan berlangsung</p>
             <p class="text-white/70 text-xs mt-0.5 leading-relaxed" id="election-period"></p>
+            <a id="btn-view-candidates-active"
+               href="/candidates.html"
+               class="inline-flex items-center gap-1.5 mt-2 text-white/80 hover:text-white
+                      text-xs font-semibold underline underline-offset-2 transition-colors">
+              <i class="fa-solid fa-users fa-xs"></i>
+              Kenali Pasangan Calon
+            </a>
           </div>
         </div>
       </div>
@@ -163,9 +170,16 @@
           <div class="w-8 h-8 bg-yellow-300/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
             <i class="fa-solid fa-clock text-yellow-200 text-sm"></i>
           </div>
-          <div class="min-w-0">
+          <div class="min-w-0 flex-1">
             <p class="font-semibold">Pemilihan Akan Segera Dimulai</p>
             <p class="text-yellow-100/80 text-xs mt-0.5 leading-relaxed" id="upcoming-text"></p>
+            <a id="btn-view-candidates-upcoming"
+               href="/candidates.html"
+               class="inline-flex items-center gap-1.5 mt-2 text-yellow-200 hover:text-white
+                      text-xs font-semibold underline underline-offset-2 transition-colors">
+              <i class="fa-solid fa-users fa-xs"></i>
+              Kenali Pasangan Calon
+            </a>
           </div>
         </div>
       </div>
@@ -357,7 +371,7 @@
             <div class="flex items-start justify-center gap-2 text-xs text-gray-400">
               <i class="fa-solid fa-circle-question mt-0.5 flex-shrink-0 text-gray-300"></i>
               <p>
-                Lupa PIN atau ada kendala? Hubungi panitia pemilihan di sekolah Anda.
+                Lupa PIN atau ada kendala? Hubungi panitia pemilihan di madrasah/sekolah Anda.
               </p>
             </div>
             <a href="/results.html"
@@ -465,12 +479,22 @@ async function loadElectionInfo() {
         document.getElementById('election-period').textContent =
           start + ' s/d ' + end;
         elBanner.classList.remove('hidden');
+        // Teruskan electionId ke link "Kenali Pasangan Calon"
+        const btnActive = document.getElementById('btn-view-candidates-active');
+        if (btnActive && d.election.id) {
+          btnActive.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
+        }
 
       } else if (d.upcoming && d.election) {
         // Pemilihan akan datang
         document.getElementById('upcoming-text').textContent =
           'Dimulai pada ' + Utils.formatDateTime(d.election.startDate);
         upBanner.classList.remove('hidden');
+        // Teruskan electionId ke link "Kenali Pasangan Calon"
+        const btnUpcoming = document.getElementById('btn-view-candidates-upcoming');
+        if (btnUpcoming && d.election.id) {
+          btnUpcoming.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
+        }
 
       } else {
         // Tidak ada pemilihan aktif/upcoming
