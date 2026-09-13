@@ -223,7 +223,7 @@
 
   // ── Guard: redirect jika sudah login sebagai admin ──────
   if (Auth.isAdmin()) {
-    window.location.replace('./dashboard.html');
+    window.location.replace(Auth.isPanitia() ? './results.html' : './dashboard.html');
     return;
   }
 
@@ -336,7 +336,7 @@ async function handleLogin(e) {
         '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> Berhasil! Mengarahkan...';
 
       setTimeout(() => {
-        window.location.href = './dashboard.html';
+        window.location.href = Auth.isPanitia() ? './results.html' : './dashboard.html';
       }, 700);
 
     } else {
