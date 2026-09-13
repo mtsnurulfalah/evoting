@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="referrer" content="no-referrer"/>
+  <title>Pasangan Calon — eVoting OSIM</title>
+  <meta name="description" content="Kenali pasangan calon beserta visi, misi, program, dan biodata sebelum pemilihan berlangsung."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet" href="/assets/css/tailwind.css"/>
+  <style>
+    /* Animasi masuk kartu kandidat */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .candidate-card-anim {
+      animation: fadeSlideUp 0.4s ease-out both;
+    }
+
+    /* Stagger animasi untuk tiap kartu */
+    .candidate-card-anim:nth-child(1) { animation-delay: 0.05s; }
+    .candidate-card-anim:nth-child(2) { animation-delay: 0.12s; }
+    .candidate-card-anim:nth-child(3) { animation-delay: 0.19s; }
+    .candidate-card-anim:nth-child(4) { animation-delay: 0.26s; }
+    .candidate-card-anim:nth-child(5) { animation-delay: 0.33s; }
+
+    /* Photo container — rasio 3:4 agar konsisten */
+    .photo-wrap {
+      aspect-ratio: 3 / 4;
+      overflow: hidden;
+      border-radius: 0.75rem;
+      background: #f3f4f6;
+    }
+    .photo-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top;
+    }
+
+    /* Scrollable tab content di mobile */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Tab pill aktif */
+    .tab-pill.active {
+      background-color: #2563eb;
+      color: #ffffff;
+    }
+    .tab-pill {
+      transition: background-color 0.15s, color 0.15s;
+    }
+
+    /* Divider pasangan */
+    .pair-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+    }
+    .pair-divider::before,
+    .pair-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e5e7eb;
+    }
+
+    /* Countdown digit */
+    .countdown-digit {
+      min-width: 3rem;
+      text-align: center;
+    }
+
+    /* Bullet list untuk misi & program */
+    .prose-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .prose-list li {
+      display: flex;
+      gap: 0.625rem;
+      align-items: flex-start;
+      font-size: 0.875rem;
+      color: #374151;
+      line-height: 1.6;
+    }
+    .prose-list li::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #2563eb;
+      flex-shrink: 0;
+      margin-top: 0.45rem;
+    }
+
+    /* Badge nomor urut */
+    .order-badge {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 9999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-weight: 800;
+      font-size: 1.125rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 2px solid #bfdbfe;
+    }
+
+    /* Skeleton shimmer */
+    @keyframes shimmer {
+      0%   { background-position: -600px 0; }
+      100% { background-position:  600px 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, #f3f4f6 25%, #e9ecef 50%, #f3f4f6 75%);
+      background-size: 1200px 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 0.5rem;
+    }
+  </style>
+  <noscript>
+    <style>body { font-family: sans-serif; padding: 2rem; text-align: center; }</style>
+    <p>JavaScript diperlukan untuk menampilkan halaman ini.</p>
+  </noscript>
+</head>
+<body class="min-h-screen bg-gray-50">
+
+<div id="toast-container"></div>
+
+<!-- ── Topbar ───────────────────────────────────────────────── -->
+<header class="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+  <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+    <!-- Brand -->
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+           data-school-logo>
+        <i class="fa-solid fa-box-ballot text-white text-xs"></i>
+      </div>
+      <span class="text-sm font-semibold text-gray-700 truncate" data-app-name>eVoting OSIM</span>
+    </div>
+    <!-- Kembali -->
+    <a href="/index.html" class="btn btn-sm btn-secondary text-xs gap-1.5 flex-shrink-0">
+      <i class="fa-solid fa-arrow-left text-xs"></i>
+      <span class="hidden sm:inline">Kembali</span>
+    </a>
+  </div>
+</header>
+
+<!-- ── Main ─────────────────────────────────────────────────── -->
+<main class="max-w-5xl mx-auto px-4 py-6">
+
+  <!-- ── State: Loading ─────────────────────────────────────── -->
+  <div id="loading-state">
+
+    <!-- Skeleton hero -->
+    <div class="text-center py-8">
+      <div class="skeleton-shimmer h-5 w-48 mx-auto mb-3 rounded-full"></div>
+      <div class="skeleton-shimmer h-8 w-72 mx-auto mb-2"></div>
+      <div class="skeleton-shimmer h-4 w-56 mx-auto"></div>
+    </div>
+
+    <!-- Skeleton kartu -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+      <div class="card p-5 animate-pulse">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full skeleton-shimmer"></div>
+          <div class="skeleton-shimmer h-5 w-40 rounded"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="skeleton-shimmer rounded-xl" style="aspect-ratio:3/4"></div>
+          <div class="skeleton-shimmer rounded-xl" style="aspect-ratio:3/4"></div>
+        </div>
+        <div class="skeleton-shimmer h-4 w-full rounded mb-2"></div>
+        <div class="skeleton-shimmer h-4 w-3/4 rounded"></div>
+      </div>
+      <div class="card p-5 animate-pulse">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full skeleton-shimmer"></div>
+          <div class="skeleton-shimmer h-5 w-40 rounded"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="skeleton-shimmer rounded-xl" style="aspect-ratio:3/4"></div>
+          <div class="skeleton-shimmer rounded-xl" style="aspect-ratio:3/4"></div>
+        </div>
+        <div class="skeleton-shimmer h-4 w-full rounded mb-2"></div>
+        <div class="skeleton-shimmer h-4 w-3/4 rounded"></div>
+      </div>
+    </div>
+  </div><!-- /#loading-state -->
+
+  <!-- ── State: Error ────────────────────────────────────────── -->
+  <div id="error-state" class="hidden">
+    <div class="card max-w-md mx-auto p-10 text-center mt-8">
+      <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-triangle-exclamation text-2xl text-red-400"></i>
+      </div>
+      <h3 class="font-bold text-gray-800 mb-2">Gagal Memuat Data</h3>
+      <p class="text-gray-500 text-sm mb-5" id="error-message">
+        Terjadi kesalahan saat menghubungi server. Periksa koneksi internet Anda.
+      </p>
+      <button id="btn-retry" class="btn btn-primary btn-sm mx-auto gap-2">
+        <i class="fa-solid fa-rotate-right"></i> Coba Lagi
+      </button>
+    </div>
+  </div>
+
+  <!-- ── State: Tidak ada kandidat ──────────────────────────── -->
+  <div id="empty-state" class="hidden">
+    <div class="card max-w-md mx-auto p-10 text-center mt-8">
+      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-users text-2xl text-gray-400"></i>
+      </div>
+      <h3 class="font-bold text-gray-800 mb-2">Belum Ada Kandidat</h3>
+      <p class="text-gray-500 text-sm" id="empty-message">
+        Data pasangan calon belum tersedia untuk pemilihan ini.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── State: Konten ──────────────────────────────────────── -->
+  <div id="content-state" class="hidden">
+
+    <!-- Hero section -->
+    <div class="text-center pt-2 pb-6">
+      <!-- Badge status -->
+      <div class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold mb-4"
+           id="election-status-badge">
+        <i class="fa-solid fa-clock"></i>
+        <span>Pemilihan Akan Segera Dimulai</span>
+      </div>
+      <!-- Judul pemilihan -->
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 leading-tight mb-2"
+          id="election-title">Pemilihan</h1>
+      <p class="text-gray-500 text-sm leading-relaxed max-w-lg mx-auto"
+         id="election-description"></p>
+
+      <!-- Info periode -->
+      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 mt-3
+                  text-xs text-gray-500">
+        <span class="flex items-center gap-1.5">
+          <i class="fa-regular fa-calendar text-primary-500"></i>
+          <span id="election-period-text">—</span>
+        </span>
+        <span class="flex items-center gap-1.5" id="candidate-count-wrap">
+          <i class="fa-solid fa-users text-primary-500"></i>
+          <span id="candidate-count-text">— pasangan calon</span>
+        </span>
+      </div>
+
+      <!-- Countdown (hanya tampil jika election upcoming) -->
+      <div id="countdown-wrap" class="hidden mt-5">
+        <p class="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Pemilihan dimulai dalam</p>
+        <div class="inline-flex items-end gap-1 sm:gap-2">
+          <div class="countdown-digit">
+            <div class="bg-primary-600 text-white rounded-xl px-3 py-2 sm:px-4 sm:py-3
+                        text-xl sm:text-2xl font-extrabold tabular-nums leading-none"
+                 id="cd-days">00</div>
+            <p class="text-xs text-gray-400 mt-1">Hari</p>
+          </div>
+          <span class="text-primary-600 font-bold text-xl mb-3">:</span>
+          <div class="countdown-digit">
+            <div class="bg-primary-600 text-white rounded-xl px-3 py-2 sm:px-4 sm:py-3
+                        text-xl sm:text-2xl font-extrabold tabular-nums leading-none"
+                 id="cd-hours">00</div>
+            <p class="text-xs text-gray-400 mt-1">Jam</p>
+          </div>
+          <span class="text-primary-600 font-bold text-xl mb-3">:</span>
+          <div class="countdown-digit">
+            <div class="bg-primary-600 text-white rounded-xl px-3 py-2 sm:px-4 sm:py-3
+                        text-xl sm:text-2xl font-extrabold tabular-nums leading-none"
+                 id="cd-minutes">00</div>
+            <p class="text-xs text-gray-400 mt-1">Menit</p>
+          </div>
+          <span class="text-primary-600 font-bold text-xl mb-3">:</span>
+          <div class="countdown-digit">
+            <div class="bg-primary-600 text-white rounded-xl px-3 py-2 sm:px-4 sm:py-3
+                        text-xl sm:text-2xl font-extrabold tabular-nums leading-none"
+                 id="cd-seconds">00</div>
+            <p class="text-xs text-gray-400 mt-1">Detik</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /hero -->
+
+    <!-- Divider -->
+    <div class="border-t border-gray-200 mb-6"></div>
+
+    <!-- Heading daftar -->
+    <h2 class="text-base font-bold text-gray-700 mb-4 flex items-center gap-2">
+      <i class="fa-solid fa-id-badge text-primary-500"></i>
+      Daftar Pasangan Calon
+    </h2>
+
+    <!-- Grid kartu kandidat -->
+    <div id="candidates-grid"
+         class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    </div>
+
+    <!-- Footer note -->
+    <p class="text-center text-xs text-gray-400 mt-8 pb-4">
+      <i class="fa-solid fa-circle-info mr-1 text-blue-300"></i>
+      Data ditampilkan berdasarkan informasi resmi dari panitia pemilihan.
+    </p>
+
+  </div><!-- /#content-state -->
+
+</main>
+
+<!-- ── Modal Detail Kandidat ────────────────────────────────── -->
+<!-- Dirender secara dinamis via JS, placeholder di sini -->
+
+<!-- ── Scripts ───────────────────────────────────────────────── -->
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/utils.js"></script>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/assets/js/components.js"></script>
+<script>
+/* ============================================================
+   candidates.html — Halaman Publik Pasangan Calon
+   Menampilkan kandidat dari election berstatus upcoming/active.
+   Tidak memerlukan login.
+   ============================================================ */
+
+// ── Placeholder gambar kosong ──────────────────────────────
+const IMG_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='160'%3E" +
+  "%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E" +
+  "%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' " +
+  "font-size='48' fill='%23d1d5db'%3E%F0%9F%91%A4%3C/text%3E%3C/svg%3E";
+
+// ── State ──────────────────────────────────────────────────
+let _candidates    = [];
+let _election      = null;
+let _countdownTimer = null;
+let _isLoading     = false;
+
+// ── Helpers state ──────────────────────────────────────────
+function showState(state, msg) {
+  ['loading-state', 'error-state', 'empty-state', 'content-state'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+  const target = document.getElementById(state + '-state');
+  if (target) target.classList.remove('hidden');
+
+  if (state === 'error' && msg) {
+    const el = document.getElementById('error-message');
+    if (el) el.textContent = msg;
+  }
+  if (state === 'empty' && msg) {
+    const el = document.getElementById('empty-message');
+    if (el) el.textContent = msg;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────
+(async () => {
+  // Muat config aplikasi (nama app, logo sekolah, dsb.)
+  loadAppConfig();
+
+  document.getElementById('btn-retry').addEventListener('click', () => {
+    if (!_isLoading) loadPage();
+  });
+
+  // Delegasi error gambar di level document
+  document.addEventListener('error', e => {
+    if (e.target.tagName === 'IMG' && !e.target.dataset.errored) {
+      e.target.dataset.errored = '1';
+      e.target.src = IMG_PLACEHOLDER;
+    }
+  }, true);
+
+  loadPage();
+})();
+
+// ── loadPage ──────────────────────────────────────────────
+async function loadPage() {
+  if (_isLoading) return;
+  _isLoading = true;
+
+  // Hentikan countdown lama jika ada
+  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
+
+  showState('loading');
+
+  try {
+    const electionId = Utils.getQueryParam('electionId') || undefined;
+    const res = await API.candidate.getPublic(electionId);
+
+    if (!res.success) {
+      // Jika errorCode bukan jaringan, tampilkan empty state (tidak ada election tersedia)
+      const isNetErr = res.errorCode === 'NETWORK_ERROR' || res.errorCode === 'TIMEOUT_ERROR' ||
+                       res.errorCode === 'CONFIG_ERROR';
+      if (isNetErr) {
+        showState('error', res.message || 'Gagal menghubungi server.');
+      } else {
+        showState('empty', res.message || 'Tidak ada pemilihan yang tersedia saat ini.');
+      }
+      return;
+    }
+
+    _election   = res.data.election   || {};
+    _candidates = res.data.candidates || [];
+
+    if (_candidates.length === 0) {
+      showState('empty', 'Belum ada pasangan calon yang terdaftar untuk pemilihan ini.');
+      return;
+    }
+
+    renderPage();
+    showState('content');
+
+  } catch (err) {
+    console.error('[CandidatesPage] error:', err);
+    showState('error', 'Terjadi kesalahan tidak terduga. Silakan coba lagi.');
+  } finally {
+    _isLoading = false;
+  }
+}
+
+// ── renderPage ────────────────────────────────────────────
+function renderPage() {
+  renderHero();
+  renderCandidateCards();
+}
+
+// ── renderHero ────────────────────────────────────────────
+function renderHero() {
+  const e = _election;
+
+  // Judul & deskripsi
+  document.getElementById('election-title').textContent      = e.title       || 'Pemilihan';
+  document.getElementById('election-description').textContent = e.description || '';
+
+  // Periode
+  const startFmt = e.startDate ? Utils.formatDate(e.startDate) : '—';
+  const endFmt   = e.endDate   ? Utils.formatDate(e.endDate)   : '—';
+  document.getElementById('election-period-text').textContent =
+    startFmt === endFmt ? startFmt : startFmt + ' – ' + endFmt;
+
+  // Jumlah kandidat
+  const count = _candidates.length;
+  document.getElementById('candidate-count-text').textContent =
+    count + ' pasangan calon';
+
+  // Badge status
+  const badge  = document.getElementById('election-status-badge');
+  const status = e.status || 'upcoming';
+  if (status === 'active') {
+    badge.className = 'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold mb-4 bg-green-50 border border-green-200 text-green-700';
+    badge.innerHTML = '<i class="fa-solid fa-circle-dot animate-pulse"></i><span>Pemilihan Sedang Berlangsung</span>';
+  } else {
+    badge.className = 'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold mb-4 bg-yellow-50 border border-yellow-200 text-yellow-700';
+    badge.innerHTML = '<i class="fa-solid fa-clock"></i><span>Pemilihan Akan Segera Dimulai</span>';
+  }
+
+  // Countdown hanya untuk upcoming
+  if (status === 'upcoming' && e.startDate) {
+    document.getElementById('countdown-wrap').classList.remove('hidden');
+    updateCountdown(e.startDate);
+    _countdownTimer = setInterval(() => updateCountdown(e.startDate), 1000);
+  }
+}
+
+// ── updateCountdown ───────────────────────────────────────
+function updateCountdown(targetIso) {
+  const cd = Utils.getCountdown(targetIso);
+  const pad = n => String(n).padStart(2, '0');
+
+  document.getElementById('cd-days').textContent    = String(cd.days);
+  document.getElementById('cd-hours').textContent   = pad(cd.hours);
+  document.getElementById('cd-minutes').textContent = pad(cd.minutes);
+  document.getElementById('cd-seconds').textContent = pad(cd.seconds);
+
+  if (cd.expired) {
+    clearInterval(_countdownTimer);
+    _countdownTimer = null;
+    // Reload halaman agar status diperbarui
+    setTimeout(() => loadPage(), 2000);
+  }
+}
+
+// ── renderCandidateCards ──────────────────────────────────
+function renderCandidateCards() {
+  const grid = document.getElementById('candidates-grid');
+
+  grid.innerHTML = _candidates.map(c => candidateCardHtml(c)).join('');
+
+  // Pasang listener "Lihat Detail" pada setiap tombol
+  grid.querySelectorAll('[data-detail-id]').forEach(btn => {
+    btn.addEventListener('click', () => showDetailModal(btn.dataset.detailId));
+  });
+}
+
+// ── candidateCardHtml ─────────────────────────────────────
+function candidateCardHtml(c) {
+  const photoSrc     = Utils.buildImgUrl(c.photoUrl);
+  const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl);
+
+  const photoHtml = photoSrc
+    ? `<img src="${Utils.escapeHtml(photoSrc)}"
+             alt="Foto ${Utils.escapeHtml(c.name)}"
+             loading="lazy"
+             referrerpolicy="no-referrer">`
+    : `<div class="w-full h-full flex items-center justify-center" aria-hidden="true">
+         <i class="fa-solid fa-user text-5xl text-gray-300"></i>
+       </div>`;
+
+  const pairPhotoHtml = pairPhotoSrc
+    ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}"
+             alt="Foto ${Utils.escapeHtml(c.pairName || 'Calon Wakil')}"
+             loading="lazy"
+             referrerpolicy="no-referrer">`
+    : `<div class="w-full h-full flex items-center justify-center" aria-hidden="true">
+         <i class="fa-solid fa-user text-5xl text-gray-300"></i>
+       </div>`;
+
+  const visionPreview = c.vision
+    ? `<div class="mt-3 pt-3 border-t border-gray-100">
+         <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+           <i class="fa-solid fa-lightbulb text-yellow-400 mr-1" aria-hidden="true"></i>Visi
+         </p>
+         <p class="text-sm text-gray-600 leading-relaxed line-clamp-3">${Utils.escapeHtml(c.vision)}</p>
+       </div>`
+    : '';
+
+  return `
+    <article class="card p-5 candidate-card-anim"
+             aria-label="Pasangan Calon No. ${c.orderNumber}">
+
+      <!-- Header: nomor urut + nama -->
+      <div class="flex items-center gap-3 mb-4">
+        <div class="order-badge" aria-label="Nomor urut ${c.orderNumber}">${c.orderNumber}</div>
+        <div class="min-w-0">
+          <p class="text-xs font-bold text-primary-600 uppercase tracking-wide">Pasangan Calon</p>
+          <p class="text-xs text-gray-400">No. Urut ${c.orderNumber}</p>
+        </div>
+      </div>
+
+      <!-- Foto pasangan berdampingan -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <!-- Ketua -->
+        <div>
+          <div class="photo-wrap mb-2">${photoHtml}</div>
+          <p class="text-sm font-bold text-gray-800 text-center truncate leading-tight">
+            ${Utils.escapeHtml(c.name)}
+          </p>
+          <p class="text-xs text-center text-gray-400 truncate mt-0.5">
+            Calon Ketua &middot; ${Utils.escapeHtml(c.className || '')}
+          </p>
+        </div>
+        <!-- Wakil -->
+        <div>
+          <div class="photo-wrap mb-2">${pairPhotoHtml}</div>
+          <p class="text-sm font-bold text-gray-800 text-center truncate leading-tight">
+            ${Utils.escapeHtml(c.pairName || '—')}
+          </p>
+          <p class="text-xs text-center text-gray-400 truncate mt-0.5">
+            Calon Wakil &middot; ${Utils.escapeHtml(c.pairClassName || '')}
+          </p>
+        </div>
+      </div>
+
+      <!-- Preview visi -->
+      ${visionPreview}
+
+      <!-- Tombol detail -->
+      <button class="mt-4 w-full btn btn-sm btn-secondary gap-2 text-xs font-semibold"
+              data-detail-id="${Utils.escapeHtml(String(c.id))}"
+              aria-label="Lihat profil lengkap pasangan calon No. ${c.orderNumber}">
+        <i class="fa-solid fa-eye" aria-hidden="true"></i>
+        Lihat Profil Lengkap
+      </button>
+
+    </article>`;
+}
+
+// ── showDetailModal ───────────────────────────────────────
+function showDetailModal(id) {
+  const c = _candidates.find(x => String(x.id) === String(id));
+  if (!c) return;
+
+  const photoSrc     = Utils.buildImgUrl(c.photoUrl);
+  const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl);
+
+  // Helper: render foto atau placeholder
+  function photoEl(src, name, role, cls) {
+    const img = src
+      ? `<img src="${Utils.escapeHtml(src)}"
+               alt="Foto ${Utils.escapeHtml(name)}"
+               loading="lazy"
+               referrerpolicy="no-referrer"
+               class="${cls}">`
+      : `<div class="${cls} flex items-center justify-center bg-gray-100" aria-hidden="true">
+           <i class="fa-solid fa-user text-4xl text-gray-300"></i>
+         </div>`;
+    return img;
+  }
+
+  // Helper: render list bullet dari teks multi-baris
+  function toBulletList(text) {
+    if (!text) return '<p class="text-sm text-gray-400 italic">Belum diisi.</p>';
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return '<p class="text-sm text-gray-400 italic">Belum diisi.</p>';
+    return `<ul class="prose-list">${lines.map(l => `<li>${Utils.escapeHtml(l)}</li>`).join('')}</ul>`;
+  }
+
+  // Helper: render paragraf dari teks (untuk visi & info tambahan)
+  function toPara(text) {
+    if (!text) return '<p class="text-sm text-gray-400 italic">Belum diisi.</p>';
+    return `<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">${Utils.escapeHtml(text)}</p>`;
+  }
+
+  // ── Tab: Biodata ──────────────────────────────────────
+  const biodataHtml = `
+    <!-- Foto & nama dua kolom -->
+    <div class="grid grid-cols-2 gap-4 mb-5">
+      <div class="text-center">
+        ${photoEl(photoSrc, c.name, 'Ketua',
+          'w-full rounded-xl object-cover object-top')}
+        <div class="mt-2">
+          <p class="font-bold text-gray-800 text-sm">${Utils.escapeHtml(c.name)}</p>
+          <span class="inline-flex items-center gap-1 bg-primary-50 text-primary-700
+                       text-xs font-semibold rounded-full px-2 py-0.5 mt-1">
+            <i class="fa-solid fa-crown fa-xs"></i> Calon Ketua
+          </span>
+          ${c.className ? `<p class="text-xs text-gray-400 mt-1">${Utils.escapeHtml(c.className)}</p>` : ''}
+        </div>
+      </div>
+      <div class="text-center">
+        ${photoEl(pairPhotoSrc, c.pairName || 'Wakil', 'Wakil',
+          'w-full rounded-xl object-cover object-top')}
+        <div class="mt-2">
+          <p class="font-bold text-gray-800 text-sm">${Utils.escapeHtml(c.pairName || '—')}</p>
+          <span class="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700
+                       text-xs font-semibold rounded-full px-2 py-0.5 mt-1">
+            <i class="fa-solid fa-user-tie fa-xs"></i> Calon Wakil
+          </span>
+          ${c.pairClassName ? `<p class="text-xs text-gray-400 mt-1">${Utils.escapeHtml(c.pairClassName)}</p>` : ''}
+        </div>
+      </div>
+    </div>
+
+    ${c.additionalInfo ? `
+    <div class="border-t border-gray-100 pt-4">
+      <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+        <i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>Informasi Tambahan
+      </p>
+      ${toPara(c.additionalInfo)}
+    </div>` : ''}`;
+
+  // ── Tab: Visi & Misi ──────────────────────────────────
+  const visiMisiHtml = `
+    <div class="space-y-5">
+      <div>
+        <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+          <i class="fa-solid fa-lightbulb text-yellow-400 mr-1"></i>Visi
+        </p>
+        ${toPara(c.vision)}
+      </div>
+      <div>
+        <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+          <i class="fa-solid fa-bullseye text-red-400 mr-1"></i>Misi
+        </p>
+        ${toBulletList(c.mission)}
+      </div>
+    </div>`;
+
+  // ── Tab: Program Kerja ────────────────────────────────
+  const programHtml = `
+    <div>
+      <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+        <i class="fa-solid fa-list-check text-green-500 mr-1"></i>Program Kerja
+      </p>
+      ${toBulletList(c.programs)}
+    </div>`;
+
+  // ── Konten modal utama ────────────────────────────────
+  const bodyHtml = `
+    <!-- Judul pasangan -->
+    <div class="flex items-center gap-3 mb-5 pb-4 border-b border-gray-100">
+      <div class="order-badge">${c.orderNumber}</div>
+      <div>
+        <p class="font-extrabold text-gray-800 text-sm leading-tight">
+          ${Utils.escapeHtml(c.name)}
+          ${c.pairName ? `<span class="text-gray-400 font-normal"> &amp; </span>${Utils.escapeHtml(c.pairName)}` : ''}
+        </p>
+        <p class="text-xs text-primary-600 font-semibold mt-0.5">Pasangan Calon No. Urut ${c.orderNumber}</p>
+      </div>
+    </div>
+
+    <!-- Tab pills -->
+    <div class="flex gap-2 mb-5 overflow-x-auto pb-1" role="tablist" aria-label="Informasi kandidat">
+      <button class="tab-pill active flex-shrink-0 text-xs font-semibold px-4 py-1.5
+                     rounded-full border border-gray-200 focus:outline-none
+                     focus-visible:ring-2 focus-visible:ring-primary-400"
+              role="tab" aria-selected="true" data-tab="biodata">
+        <i class="fa-solid fa-id-card mr-1.5"></i>Biodata
+      </button>
+      <button class="tab-pill flex-shrink-0 text-xs font-semibold px-4 py-1.5
+                     rounded-full border border-gray-200 text-gray-600 bg-white
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+              role="tab" aria-selected="false" data-tab="visi-misi">
+        <i class="fa-solid fa-lightbulb mr-1.5"></i>Visi &amp; Misi
+      </button>
+      <button class="tab-pill flex-shrink-0 text-xs font-semibold px-4 py-1.5
+                     rounded-full border border-gray-200 text-gray-600 bg-white
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+              role="tab" aria-selected="false" data-tab="program">
+        <i class="fa-solid fa-list-check mr-1.5"></i>Program
+      </button>
+    </div>
+
+    <!-- Tab panels -->
+    <div id="tab-biodata"   class="tab-content active">${biodataHtml}</div>
+    <div id="tab-visi-misi" class="tab-content">${visiMisiHtml}</div>
+    <div id="tab-program"   class="tab-content">${programHtml}</div>`;
+
+  const modal = Modal.open({
+    id:     'modal-candidate-detail',
+    title:  'Profil Pasangan Calon',
+    body:   bodyHtml,
+    size:   'lg',
+    closable: true,
+  });
+
+  // ── Tab switching ─────────────────────────────────────
+  if (modal) {
+    modal.querySelectorAll('[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+
+        // Update pill aktif
+        modal.querySelectorAll('[data-tab]').forEach(b => {
+          const isActive = b.dataset.tab === tab;
+          b.classList.toggle('active', isActive);
+          b.classList.toggle('text-gray-600', !isActive);
+          b.classList.toggle('bg-white', !isActive);
+          b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        // Tampilkan panel yang sesuai
+        modal.querySelectorAll('.tab-content').forEach(panel => {
+          panel.classList.toggle('active', panel.id === 'tab-' + tab);
+        });
+      });
+    });
+  }
+}
+
+// ── loadAppConfig — isi brand name & logo ─────────────────
+async function loadAppConfig() {
+  const CACHE_KEY = 'evoting_config';
+  let cfg = null;
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const entry = JSON.parse(raw);
+      if (Date.now() < entry.expiresAt) cfg = entry.data;
+    }
+  } catch (_) {}
+
+  if (!cfg) {
+    try {
+      const res = await API.config.get();
+      if (res.success && res.data) {
+        cfg = res.data;
+        try {
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+            data: cfg,
+            expiresAt: Date.now() + 5 * 60 * 1000,
+          }));
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  if (!cfg) return;
+
+  const appName = cfg.APP_NAME || 'eVoting OSIM';
+  document.title = 'Pasangan Calon — ' + appName;
+  document.querySelectorAll('[data-app-name]').forEach(el => {
+    el.textContent = appName;
+  });
+  if (cfg.SCHOOL_NAME) {
+    document.querySelectorAll('[data-school-name]').forEach(el => {
+      el.textContent = cfg.SCHOOL_NAME;
+    });
+  }
+  if (cfg.SCHOOL_LOGO_URL) {
+    document.querySelectorAll('[data-school-logo]').forEach(wrap => {
+      wrap.innerHTML = `<img src="${Utils.escapeHtml(cfg.SCHOOL_LOGO_URL)}"
+                             alt="Logo ${Utils.escapeHtml(cfg.SCHOOL_NAME || '')}"
+                             class="w-full h-full object-cover"
+                             referrerpolicy="no-referrer">`;
+    });
+  }
+}
+</script>
+</body>
+</html>
