@@ -353,6 +353,176 @@
       opacity: 0.6;
       pointer-events: none;
     }
+
+    /* ── Class filter dropdown ── */
+    .class-filter-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    /* Badge jumlah kelas aktif */
+    .class-filter-badge {
+      display: none;
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      background: #6366f1;
+      color: #fff;
+      border-radius: 9999px;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 16px;
+      text-align: center;
+      pointer-events: none;
+    }
+    .class-filter-badge.visible {
+      display: block;
+    }
+    /* Dropdown panel */
+    .class-dropdown-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 100;
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+      min-width: 200px;
+      max-width: 260px;
+      overflow: hidden;
+    }
+    .class-dropdown-panel.open {
+      display: block;
+    }
+    /* Responsif: di layar sempit panel melebar ke kanan */
+    @media (max-width: 480px) {
+      .class-dropdown-panel {
+        left: auto;
+        right: 0;
+        min-width: 180px;
+        max-width: calc(100vw - 32px);
+      }
+    }
+    .class-dropdown-header {
+      padding: 8px 12px 6px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .class-dropdown-search {
+      flex: 1;
+      font-size: 11px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 4px 8px;
+      outline: none;
+      color: #374151;
+      background: #f9fafb;
+    }
+    .class-dropdown-search:focus {
+      border-color: #a5b4fc;
+      background: #fff;
+    }
+    .class-dropdown-list {
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+    .class-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      color: #374151;
+      transition: background 0.1s;
+      user-select: none;
+    }
+    .class-dropdown-item:hover {
+      background: #f9fafb;
+    }
+    .class-dropdown-item input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: #6366f1;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .class-dropdown-item.no-result {
+      color: #9ca3af;
+      font-style: italic;
+      cursor: default;
+    }
+    .class-dropdown-item.no-result:hover {
+      background: transparent;
+    }
+    .class-dropdown-footer {
+      padding: 6px 12px 8px;
+      border-top: 1px solid #f3f4f6;
+      display: flex;
+      gap: 6px;
+    }
+    .class-dropdown-footer button {
+      flex: 1;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .class-btn-select-all {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+    .class-btn-select-all:hover { background: #dbeafe; }
+    .class-btn-clear {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+    .class-btn-clear:hover { background: #e5e7eb; }
+    /* Tag filter aktif di toolbar */
+    .active-filter-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      border-radius: 9999px;
+      padding: 2px 8px 2px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .active-filter-tag button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #93c5fd;
+      padding: 0;
+      line-height: 1;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+    }
+    .active-filter-tag button:hover { color: #1d4ed8; }
+    /* Chips area di toolbar */
+    #active-class-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
   </style>
 </head>
 <body class="h-full bg-gray-50 flex">
@@ -479,7 +649,7 @@
               </button>
             </div>
           </div>
-          <!-- Row 2: Status filter + reset -->
+          <!-- Row 2: Status filter + class filter + reset -->
           <!-- BUG #18 FIX: overflow-x-auto pada container filter agar tidak overflow di mobile -->
           <div class="flex items-center gap-3 flex-wrap">
             <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1 flex-shrink-0 overflow-x-auto"
@@ -501,6 +671,50 @@
                 <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1" aria-hidden="true"></span>Sudah Memilih
               </button>
             </div>
+
+            <!-- Filter Kelas -->
+            <div class="class-filter-wrap" id="class-filter-wrap">
+              <button id="btn-class-filter"
+                      class="btn btn-outline btn-sm gap-1.5 text-xs relative"
+                      title="Filter berdasarkan kelas"
+                      aria-label="Filter berdasarkan kelas"
+                      aria-haspopup="listbox"
+                      aria-expanded="false"
+                      disabled>
+                <i class="fa-solid fa-chalkboard text-xs" aria-hidden="true"></i>
+                <span id="btn-class-filter-label">Kelas</span>
+                <i class="fa-solid fa-chevron-down text-xs opacity-60" id="class-filter-chevron" aria-hidden="true"></i>
+              </button>
+              <!-- Badge jumlah kelas dipilih -->
+              <span id="class-filter-badge" class="class-filter-badge" aria-hidden="true"></span>
+
+              <!-- Dropdown panel -->
+              <div id="class-dropdown-panel"
+                   class="class-dropdown-panel"
+                   role="listbox"
+                   aria-label="Pilih kelas untuk filter"
+                   aria-multiselectable="true">
+                <div class="class-dropdown-header">
+                  <input type="text"
+                         id="class-search-input"
+                         class="class-dropdown-search"
+                         placeholder="Cari kelas…"
+                         autocomplete="off"
+                         aria-label="Cari nama kelas"/>
+                </div>
+                <div class="class-dropdown-list" id="class-dropdown-list"
+                     role="group" aria-label="Daftar kelas">
+                  <!-- Diisi oleh JS -->
+                </div>
+                <div class="class-dropdown-footer">
+                  <button type="button" class="class-btn-select-all" id="btn-class-select-all"
+                          aria-label="Pilih semua kelas">Pilih Semua</button>
+                  <button type="button" class="class-btn-clear" id="btn-class-clear"
+                          aria-label="Hapus semua pilihan kelas">Hapus</button>
+                </div>
+              </div>
+            </div>
+
             <!-- BUG #24 FIX: aria-label lebih deskriptif -->
             <button id="btn-reset-filter"
                     class="btn btn-secondary btn-sm gap-1.5 text-xs flex-shrink-0"
@@ -557,10 +771,10 @@
 
         <!-- Content -->
         <div id="content-state" class="hidden">
-          <!-- BUG #16 FIX: hapus #result-info duplikat — info paginasi sudah ada di Pagination component -->
-          <!-- Toolbar strip: hanya untuk info kontekstual seperti filter aktif -->
+          <!-- Toolbar strip: info filter aktif + chips kelas -->
           <div class="toolbar-strip" id="toolbar-strip" aria-live="polite">
             <p class="text-xs text-gray-500" id="result-info">—</p>
+            <div id="active-class-chips"></div>
           </div>
 
           <!-- Table -->
@@ -705,6 +919,11 @@ let _isSubmitting     = false;
 let _parsedRows       = [];
 let _lastErrorSource  = null;  // 'elections' | 'voters' | null
 
+// Filter kelas: Set string nama kelas yang dipilih (kosong = semua kelas)
+let _selectedClasses  = new Set();
+// Cache daftar kelas unik dari election aktif (diisi setelah loadVoters pertama)
+let _availableClasses = [];
+
 // BUG #3 FIX: debounced search stabil, dibuat sekali
 const _debouncedSearch = Utils.debounce(() => { _currentPage = 1; loadVoters(); }, 400);
 
@@ -785,12 +1004,24 @@ let   _accessTimerId  = null;
     }
   });
 
-  // Election selector
   document.getElementById('election-select').addEventListener('change', e => {
-    _electionId  = e.target.value;
-    _currentPage = 1;
+    _electionId       = e.target.value;
+    _currentPage      = 1;
+    // Reset filter kelas & cache karena election berbeda memiliki kelas berbeda
+    _selectedClasses.clear();
+    _availableClasses = [];
+    updateClassFilterButton();
+    renderClassChips();
+    refreshClassDropdownList();
+    // Nonaktifkan tombol filter kelas sampai data dimuat
+    const classBtn = document.getElementById('btn-class-filter');
+    if (classBtn) classBtn.disabled = !_electionId;
+
     if (_electionId) {
       loadVoters();
+      // BUG 2+6 FIX: populate semua kelas tersedia di background, independen dari
+      // filter/search/pagination yg sedang aktif. Fetch pageSize besar tanpa filter.
+      populateAvailableClasses(_electionId);
     } else {
       showState('empty', { title: 'Pilih pemilihan', msg: 'Pilih pemilihan dari daftar di atas untuk mengelola pemilihnya.' });
       hideStats();
@@ -826,6 +1057,9 @@ let   _accessTimerId  = null;
       if (_electionId) loadVoters();
     });
   });
+
+  // Inisialisasi Class Filter dropdown
+  initClassFilterDropdown();
 
   await loadElectionOptions();
 })();
@@ -910,6 +1144,8 @@ async function loadElectionOptions() {
   if (elections.length === 1) {
     sel.value   = elections[0].id;
     _electionId = elections[0].id;
+    // BUG 2+6 FIX: populate kelas tersedia di background
+    populateAvailableClasses(_electionId);
     await loadVoters();
   } else {
     showState('empty', {
@@ -942,6 +1178,15 @@ async function loadVoters() {
     electionId: _electionId,
     search:     document.getElementById('search-input').value.trim(),
     hasVoted:   getActiveVotedFilter(),
+    // Jika satu kelas dipilih kirim nama kelas; jika beberapa kelas dipilih
+    // atau tidak ada → kirim '' agar backend tidak filter (kita filter sisi klien
+    // untuk multi-select karena backend hanya mendukung satu nilai className).
+    // Catatan: multi-kelas difilter di renderTable setelah data kembali
+    // HANYA ketika filter kelas aktif agar pagination tetap akurat.
+    // Untuk tetap akurat di semua skenario, kita kirim className ke backend
+    // hanya jika tepat satu kelas yang dipilih; jika multi-kelas, fallback
+    // ke filter lokal pasca-fetch (tradeoff: data sedikit lebih banyak dimuat).
+    className:  _selectedClasses.size === 1 ? [..._selectedClasses][0] : '',
     page:       _currentPage,
     pageSize:   _pageSize,
   };
@@ -990,31 +1235,68 @@ async function loadVoters() {
 
   const data  = tableRes.data || {};
   _lastMeta   = data;
-  const items = data.items || [];
+  let items   = data.items || [];
+
+  // ── Tambahkan kelas dari halaman ini ke cache jika belum ada ─────
+  // populateAvailableClasses() sudah menangani pengisian awal secara komprehensif.
+  // Ini hanya meng-merge kelas dari items halaman saat ini sebagai safety-net
+  // (misalnya jika populateAvailableClasses belum selesai saat halaman berubah).
+  if (_selectedClasses.size === 0) {
+    const newClasses = items
+      .map(v => (v.className || '').trim())
+      .filter(Boolean);
+    if (newClasses.length) {
+      const mergedSet = new Set([..._availableClasses, ...newClasses]);
+      const merged    = [...mergedSet].sort((a, b) =>
+        a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' })
+      );
+      if (merged.length !== _availableClasses.length) {
+        _availableClasses = merged;
+        refreshClassDropdownList();
+      }
+    }
+  }
+
+  // ── Filter lokal multi-kelas (>1 kelas dipilih) ───────────
+  // Ketika multi-kelas, backend mengembalikan semua data (className=''),
+  // kita filter secara lokal di sini agar akurat.
+  if (_selectedClasses.size > 1) {
+    const selected = new Set([..._selectedClasses].map(c => c.toLowerCase().trim()));
+    items = items.filter(v =>
+      selected.has((v.className || '').toLowerCase().trim())
+    );
+  }
 
   // BUG #2 & #20 FIX: tampilkan stats dengan disclaimer jika hanya dari halaman ini
   updateStats(data, items);
 
-  // BUG #16 FIX: result-info sekarang hanya menampilkan info filter aktif,
-  // info range data sudah ada di pagination component
+  // BUG #16 FIX: result-info hanya info filter aktif; range ada di pagination
   const infoEl = document.getElementById('result-info');
   if (infoEl) {
-    const total          = data.total || 0;
-    const isFiltered     = params.search || getActiveVotedFilter() !== '';
-    const filterLabel    = getActiveVotedFilter() === 'true'  ? ' · Filter: Sudah Memilih'
-                         : getActiveVotedFilter() === 'false' ? ' · Filter: Belum Memilih'
-                         : '';
-    infoEl.textContent   = total
-      ? `${Utils.formatNumber(total)} pemilih ditemukan${filterLabel}`
-      : isFiltered ? 'Tidak ada hasil untuk filter ini' : 'Tidak ada data';
+    const total       = data.total || 0;
+    const classActive = _selectedClasses.size > 0;
+    const parts       = [];
+    if (params.search)                           parts.push(`"${params.search}"`);
+    if (classActive)                             parts.push(buildClassFilterLabel());
+    if (getActiveVotedFilter() === 'true')       parts.push('Sudah Memilih');
+    else if (getActiveVotedFilter() === 'false') parts.push('Belum Memilih');
+
+    const displayTotal = (_selectedClasses.size > 1) ? items.length : total;
+    infoEl.textContent = displayTotal
+      ? `${Utils.formatNumber(displayTotal)} pemilih${parts.length ? ' · ' + parts.join(', ') : ''}`
+      : parts.length ? 'Tidak ada hasil untuk filter ini' : 'Tidak ada data';
   }
+
+  // Update chips kelas aktif di toolbar
+  renderClassChips();
 
   _isLoading = false; // BUG #4 FIX: set setelah semua logika selesai
 
   if (!items.length) {
     const isFiltered =
       document.getElementById('search-input').value.trim() ||
-      getActiveVotedFilter() !== '';
+      getActiveVotedFilter() !== '' ||
+      _selectedClasses.size > 0;
     showState('empty', {
       icon:       isFiltered ? 'fa-filter-slash' : 'fa-user-plus',
       iconBg:     isFiltered ? 'bg-gray-100'     : 'bg-primary-50',
@@ -1033,13 +1315,21 @@ async function loadVoters() {
   }
 
   renderTable(items);
+  // Aktifkan tombol filter kelas setelah data berhasil dimuat
+  const classBtn = document.getElementById('btn-class-filter');
+  if (classBtn) classBtn.disabled = false;
+
+  // BUG 1 FIX: Saat multi-kelas, backend mengembalikan data tanpa filter className
+  // (karena className='' dikirim), sehingga data.total/totalPages tidak akurat.
+  // Gunakan items.length + totalPages=1 agar pagination tidak menyesatkan.
+  const isMultiClassFilter = _selectedClasses.size > 1;
   Pagination.render(
     document.getElementById('pagination-container'),
     {
-      page:       data.page       || 1,
-      totalPages: data.totalPages || 1,
-      total:      data.total      || items.length,
-      pageSize:   data.pageSize   || _pageSize,
+      page:       isMultiClassFilter ? 1                  : (data.page       || 1),
+      totalPages: isMultiClassFilter ? 1                  : (data.totalPages || 1),
+      total:      isMultiClassFilter ? items.length       : (data.total      || items.length),
+      pageSize:   isMultiClassFilter ? items.length       : (data.pageSize   || _pageSize),
     },
     p => { _currentPage = p; loadVoters(); }
   );
@@ -1162,7 +1452,7 @@ function updateStats(data, items) {
   const total    = data.total || 0;
   const voted    = items.filter(v => v.hasVoted).length;
   const notVoted = items.filter(v => !v.hasVoted).length;
-  const isFiltered = getActiveVotedFilter() !== '';
+  const isFiltered  = getActiveVotedFilter() !== '' || _selectedClasses.size > 0;
   const isMultiPage = (data.totalPages || 1) > 1;
 
   document.getElementById('s-total').textContent = Utils.formatNumber(total);
@@ -1216,6 +1506,13 @@ function resetFilter() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
+
+  // Reset filter kelas
+  _selectedClasses.clear();
+  updateClassFilterButton();
+  renderClassChips();
+  // Refresh dropdown (isi kelas sudah ada di _availableClasses, tidak perlu fetch ulang)
+  refreshClassDropdownList();
 
   _currentPage = 1;
   if (_electionId) loadVoters();
@@ -2137,7 +2434,13 @@ async function exportVoters() {
   Loader.show('Mengekspor data pemilih...');
 
   try {
-    const res = await API.voter.getAll({ electionId: _electionId, pageSize: 9999 });
+    // Kirim className ke backend jika tepat satu kelas dipilih
+    const exportParams = {
+      electionId: _electionId,
+      pageSize:   9999,
+      className:  _selectedClasses.size === 1 ? [..._selectedClasses][0] : '',
+    };
+    const res = await API.voter.getAll(exportParams);
     Loader.hide();
 
     if (!res.success) {
@@ -2145,13 +2448,21 @@ async function exportVoters() {
       return;
     }
 
-    const items = res.data?.items || [];
+    let items = res.data?.items || [];
+
+    // Filter lokal untuk multi-kelas
+    if (_selectedClasses.size > 1) {
+      const selected = new Set([..._selectedClasses].map(c => c.toLowerCase().trim()));
+      items = items.filter(v =>
+        selected.has((v.className || '').toLowerCase().trim())
+      );
+    }
+
     if (!items.length) {
       Toast.warning('Tidak ada data pemilih untuk diekspor.');
       return;
     }
 
-    // BUG #6 FIX: sertakan kolom PIN di export
     const rows = items.map(v => ({
       nisn:         v.nisn       || '',
       nama:         v.name       || '',
@@ -2163,15 +2474,303 @@ async function exportVoters() {
       waktuMemilih: v.hasVoted   ? Utils.formatDateTime(v.votedAt) : '',
     }));
 
-    const elSel   = document.getElementById('election-select');
-    const elTitle = elSel?.options[elSel.selectedIndex]?.text || _electionId;
-    Utils.exportCSV(rows, `pemilih-${elTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.csv`);
+    const elSel     = document.getElementById('election-select');
+    const elTitle   = elSel?.options[elSel.selectedIndex]?.text || _electionId;
+    const classSuffix = _selectedClasses.size > 0
+      ? '-' + [..._selectedClasses].join('-').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      : '';
+    Utils.exportCSV(rows, `pemilih-${elTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}${classSuffix}.csv`);
     Toast.success(`${items.length} data pemilih berhasil diekspor.`);
   } catch (err) {
     Loader.hide();
     console.error('[exportVoters] error:', err);
     Toast.error('Terjadi kesalahan saat ekspor.');
   }
+}
+
+// ── Class Filter ──────────────────────────────────────────────
+
+/**
+ * BUG 2+6 FIX: Fetch semua kelas tersedia untuk election ini secara background.
+ * Dipanggil sekali saat election dipilih (bukan saat loadVoters biasa) agar
+ * dropdown kelas selalu menampilkan semua kelas yang ada, tidak peduli filter
+ * pencarian/status/halaman yang sedang aktif.
+ *
+ * Menggunakan pageSize besar tanpa filter untuk mendapat semua kelas.
+ * Tidak memblokir UI — berjalan paralel dengan loadVoters().
+ *
+ * @param {string} electionId - ID election yang sedang aktif
+ */
+async function populateAvailableClasses(electionId) {
+  if (!electionId) return;
+  try {
+    const res = await API.voter.getAll({
+      electionId,
+      pageSize: 9999,
+      page:     1,
+    });
+    // Batalkan jika election sudah berubah saat fetch berjalan
+    if (electionId !== _electionId) return;
+    if (!res.success || !res.data || !res.data.items) return;
+
+    const classes = res.data.items
+      .map(v => (v.className || '').trim())
+      .filter(Boolean);
+
+    const classSet    = new Set(classes);
+    _availableClasses = [...classSet].sort((a, b) =>
+      a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' })
+    );
+    refreshClassDropdownList();
+  } catch (_) {
+    // Gagal populate kelas — tidak critical, dropdown hanya tidak ada isi
+  }
+}
+
+/**
+ * Inisialisasi event handler dropdown filter kelas.
+ * Dipanggil sekali saat init().
+ */
+function initClassFilterDropdown() {
+  const btn      = document.getElementById('btn-class-filter');
+  const panel    = document.getElementById('class-dropdown-panel');
+  const searchEl = document.getElementById('class-search-input');
+
+  if (!btn || !panel) return;
+
+  // Toggle panel saat tombol diklik
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = panel.classList.contains('open');
+    closeClassDropdown();
+    if (!isOpen) openClassDropdown();
+  });
+
+  // Cegah klik di dalam panel menutup dropdown
+  panel.addEventListener('click', e => e.stopPropagation());
+
+  // Tutup saat klik di luar
+  document.addEventListener('click', () => closeClassDropdown());
+
+  // Escape menutup dropdown
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeClassDropdown();
+  });
+
+  // Cari kelas di dalam dropdown
+  if (searchEl) {
+    searchEl.addEventListener('input', () => {
+      refreshClassDropdownList(searchEl.value.trim());
+    });
+  }
+
+  // Tombol Pilih Semua
+  document.getElementById('btn-class-select-all')?.addEventListener('click', () => {
+    const q       = searchEl?.value.trim().toLowerCase() || '';
+    const visible = _availableClasses.filter(c =>
+      !q || c.toLowerCase().includes(q)
+    );
+    visible.forEach(c => _selectedClasses.add(c));
+    refreshClassDropdownList(searchEl?.value.trim());
+    updateClassFilterButton();
+    renderClassChips();
+    _currentPage = 1;
+    if (_electionId) loadVoters();
+  });
+
+  // Tombol Hapus
+  document.getElementById('btn-class-clear')?.addEventListener('click', () => {
+    _selectedClasses.clear();
+    refreshClassDropdownList(searchEl?.value.trim());
+    updateClassFilterButton();
+    renderClassChips();
+    _currentPage = 1;
+    if (_electionId) loadVoters();
+  });
+}
+
+function openClassDropdown() {
+  const btn   = document.getElementById('btn-class-filter');
+  const panel = document.getElementById('class-dropdown-panel');
+  if (!btn || !panel) return;
+  panel.classList.add('open');
+  btn.setAttribute('aria-expanded', 'true');
+  // Rotate chevron
+  const chev = document.getElementById('class-filter-chevron');
+  if (chev) chev.style.transform = 'rotate(180deg)';
+  // Reset search lalu fokus
+  const searchEl = document.getElementById('class-search-input');
+  if (searchEl) { searchEl.value = ''; searchEl.focus(); }
+  refreshClassDropdownList('');
+}
+
+function closeClassDropdown() {
+  const btn   = document.getElementById('btn-class-filter');
+  const panel = document.getElementById('class-dropdown-panel');
+  if (!panel) return;
+  panel.classList.remove('open');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  const chev = document.getElementById('class-filter-chevron');
+  if (chev) chev.style.transform = '';
+}
+
+/**
+ * Render ulang daftar item kelas di dalam dropdown.
+ * @param {string} [query] - Teks pencarian di dalam dropdown (opsional)
+ */
+function refreshClassDropdownList(query) {
+  const list = document.getElementById('class-dropdown-list');
+  if (!list) return;
+
+  const q = (query || '').toLowerCase().trim();
+  const visible = _availableClasses.filter(c => !q || c.toLowerCase().includes(q));
+
+  if (!visible.length) {
+    list.innerHTML = _availableClasses.length
+      ? `<div class="class-dropdown-item no-result" role="option" aria-disabled="true">
+           Tidak ada kelas yang cocok
+         </div>`
+      : `<div class="class-dropdown-item no-result" role="option" aria-disabled="true">
+           <i class="fa-solid fa-circle-info fa-xs mr-1"></i>
+           Pilih election terlebih dahulu
+         </div>`;
+    return;
+  }
+
+  list.innerHTML = visible.map((cls, idx) => {
+    const checked  = _selectedClasses.has(cls);
+    // BUG 4 FIX: tambahkan index agar ID unik meski nama kelas identik setelah sanitasi
+    const safeId   = 'cls-' + idx + '-' + cls.replace(/[^a-z0-9]/gi, '_');
+    const safeCls  = Utils.escapeHtml(cls);
+    return `
+      <div class="class-dropdown-item" role="option" aria-selected="${checked}" data-class="${safeCls}">
+        <input type="checkbox" id="${safeId}" ${checked ? 'checked' : ''}
+               aria-label="${safeCls}"
+               tabindex="-1"/>
+        <label for="${safeId}" class="flex-1 cursor-pointer">${safeCls}</label>
+      </div>`;
+  }).join('');
+
+  // Bind click handler pada setiap item
+  list.querySelectorAll('.class-dropdown-item[data-class]').forEach(item => {
+    item.addEventListener('click', e => {
+      // BUG 3 FIX: Cegah double-fire:
+      // - INPUT click: akan trigger change event yang sudah di-bind di bawah
+      // - LABEL click: akan trigger checkbox change event secara native
+      // Keduanya ditangani oleh handler change di bawah, jadi block di sini.
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL' ||
+          e.target.closest('label')) return;
+      const cls      = item.dataset.class;
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      if (_selectedClasses.has(cls)) {
+        _selectedClasses.delete(cls);
+        if (checkbox) checkbox.checked = false;
+        item.setAttribute('aria-selected', 'false');
+      } else {
+        _selectedClasses.add(cls);
+        if (checkbox) checkbox.checked = true;
+        item.setAttribute('aria-selected', 'true');
+      }
+      updateClassFilterButton();
+      renderClassChips();
+      _currentPage = 1;
+      if (_electionId) loadVoters();
+    });
+
+    // Bind langsung ke checkbox (klik kotak centang)
+    const cb = item.querySelector('input[type="checkbox"]');
+    if (cb) {
+      cb.addEventListener('change', () => {
+        const cls = item.dataset.class;
+        if (cb.checked) {
+          _selectedClasses.add(cls);
+          item.setAttribute('aria-selected', 'true');
+        } else {
+          _selectedClasses.delete(cls);
+          item.setAttribute('aria-selected', 'false');
+        }
+        updateClassFilterButton();
+        renderClassChips();
+        _currentPage = 1;
+        if (_electionId) loadVoters();
+      });
+    }
+  });
+}
+
+/**
+ * Perbarui label + badge tombol filter kelas sesuai seleksi aktif.
+ */
+function updateClassFilterButton() {
+  const badge  = document.getElementById('class-filter-badge');
+  const label  = document.getElementById('btn-class-filter-label');
+  const count  = _selectedClasses.size;
+
+  if (badge) {
+    badge.textContent = count > 0 ? String(count) : '';
+    badge.classList.toggle('visible', count > 0);
+  }
+  if (label) {
+    label.textContent = count === 1
+      ? [..._selectedClasses][0]   // tampilkan nama kelas jika hanya satu
+      : count > 1
+        ? `${count} Kelas`
+        : 'Kelas';
+  }
+}
+
+/**
+ * Render chips kelas aktif di toolbar (bawah tabel).
+ * Setiap chip punya tombol ✕ untuk hapus satu kelas.
+ */
+function renderClassChips() {
+  const container = document.getElementById('active-class-chips');
+  if (!container) return;
+
+  if (_selectedClasses.size === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = [..._selectedClasses]
+    .sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }))
+    .map(cls => {
+      const safe = Utils.escapeHtml(cls);
+      return `
+        <span class="active-filter-tag" role="status" aria-label="Filter kelas: ${safe}">
+          <i class="fa-solid fa-chalkboard fa-xs opacity-70" aria-hidden="true"></i>
+          ${safe}
+          <button type="button"
+                  data-remove-class="${safe}"
+                  aria-label="Hapus filter kelas ${safe}"
+                  title="Hapus filter kelas ${safe}">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </span>`;
+    }).join('');
+
+  // Bind tombol hapus satu kelas
+  container.querySelectorAll('[data-remove-class]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _selectedClasses.delete(btn.dataset.removeClass);
+      updateClassFilterButton();
+      renderClassChips();
+      refreshClassDropdownList(document.getElementById('class-search-input')?.value.trim());
+      _currentPage = 1;
+      if (_electionId) loadVoters();
+    });
+  });
+}
+
+/**
+ * Buat string label filter kelas untuk result-info.
+ * Contoh: "XII IPA 1" | "XII IPA 1, XII IPS 2" | "3 kelas"
+ */
+function buildClassFilterLabel() {
+  const count = _selectedClasses.size;
+  if (count === 0) return '';
+  if (count <= 2)  return [..._selectedClasses].sort().join(', ');
+  return `${count} kelas`;
 }
 
 // ── Show State ────────────────────────────────────────────────
