@@ -372,6 +372,7 @@ function showState(state, msg) {
 // ── Init ──────────────────────────────────────────────────
 (async () => {
   // Muat config aplikasi (nama app, logo sekolah, dsb.)
+  // loadAppConfig() berasal dari components.js — menangani cache, logo, semua elemen data-*.
   loadAppConfig();
 
   document.getElementById('btn-retry').addEventListener('click', () => {
@@ -470,9 +471,11 @@ function renderHero() {
     badge.innerHTML = '<i class="fa-solid fa-clock"></i><span>Pemilihan Akan Segera Dimulai</span>';
   }
 
-  // Countdown hanya untuk upcoming
+  // Countdown hanya untuk upcoming — reset dulu agar tidak muncul saat reload jadi active
+  const countdownWrap = document.getElementById('countdown-wrap');
+  countdownWrap.classList.add('hidden');
   if (status === 'upcoming' && e.startDate) {
-    document.getElementById('countdown-wrap').classList.remove('hidden');
+    countdownWrap.classList.remove('hidden');
     updateCountdown(e.startDate);
     _countdownTimer = setInterval(() => updateCountdown(e.startDate), 1000);
   }
@@ -600,17 +603,23 @@ function showDetailModal(id) {
   const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl);
 
   // Helper: render foto atau placeholder
+  // Foto di modal perlu tinggi eksplisit agar tidak collapse ke 0px.
+  // Gunakan aspect-ratio 3/4 via style inline (kompatibel semua browser modern).
   function photoEl(src, name, role, cls) {
-    const img = src
-      ? `<img src="${Utils.escapeHtml(src)}"
-               alt="Foto ${Utils.escapeHtml(name)}"
-               loading="lazy"
-               referrerpolicy="no-referrer"
-               class="${cls}">`
-      : `<div class="${cls} flex items-center justify-center bg-gray-100" aria-hidden="true">
-           <i class="fa-solid fa-user text-4xl text-gray-300"></i>
-         </div>`;
-    return img;
+    const wrapStyle = 'aspect-ratio:3/4; overflow:hidden; background:#f3f4f6;';
+    const imgCls    = 'w-full h-full object-cover object-top rounded-xl';
+    if (src) {
+      return `<div style="${wrapStyle}" class="rounded-xl">
+                <img src="${Utils.escapeHtml(src)}"
+                     alt="Foto ${Utils.escapeHtml(name)}"
+                     loading="lazy"
+                     referrerpolicy="no-referrer"
+                     class="${imgCls}">
+              </div>`;
+    }
+    return `<div style="${wrapStyle}" class="rounded-xl flex items-center justify-center" aria-hidden="true">
+              <i class="fa-solid fa-user text-4xl text-gray-300"></i>
+            </div>`;
   }
 
   // Helper: render list bullet dari teks multi-baris
@@ -632,8 +641,7 @@ function showDetailModal(id) {
     <!-- Foto & nama dua kolom -->
     <div class="grid grid-cols-2 gap-4 mb-5">
       <div class="text-center">
-        ${photoEl(photoSrc, c.name, 'Ketua',
-          'w-full rounded-xl object-cover object-top')}
+        ${photoEl(photoSrc, c.name)}
         <div class="mt-2">
           <p class="font-bold text-gray-800 text-sm">${Utils.escapeHtml(c.name)}</p>
           <span class="inline-flex items-center gap-1 bg-primary-50 text-primary-700
@@ -644,8 +652,7 @@ function showDetailModal(id) {
         </div>
       </div>
       <div class="text-center">
-        ${photoEl(pairPhotoSrc, c.pairName || 'Wakil', 'Wakil',
-          'w-full rounded-xl object-cover object-top')}
+        ${photoEl(pairPhotoSrc, c.pairName || 'Calon Wakil')}
         <div class="mt-2">
           <p class="font-bold text-gray-800 text-sm">${Utils.escapeHtml(c.pairName || '—')}</p>
           <span class="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700
@@ -764,54 +771,7 @@ function showDetailModal(id) {
   }
 }
 
-// ── loadAppConfig — isi brand name & logo ─────────────────
-async function loadAppConfig() {
-  const CACHE_KEY = 'evoting_config';
-  let cfg = null;
-  try {
-    const raw = sessionStorage.getItem(CACHE_KEY);
-    if (raw) {
-      const entry = JSON.parse(raw);
-      if (Date.now() < entry.expiresAt) cfg = entry.data;
-    }
-  } catch (_) {}
-
-  if (!cfg) {
-    try {
-      const res = await API.config.get();
-      if (res.success && res.data) {
-        cfg = res.data;
-        try {
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify({
-            data: cfg,
-            expiresAt: Date.now() + 5 * 60 * 1000,
-          }));
-        } catch (_) {}
-      }
-    } catch (_) {}
-  }
-
-  if (!cfg) return;
-
-  const appName = cfg.APP_NAME || 'eVoting OSIM';
-  document.title = 'Pasangan Calon — ' + appName;
-  document.querySelectorAll('[data-app-name]').forEach(el => {
-    el.textContent = appName;
-  });
-  if (cfg.SCHOOL_NAME) {
-    document.querySelectorAll('[data-school-name]').forEach(el => {
-      el.textContent = cfg.SCHOOL_NAME;
-    });
-  }
-  if (cfg.SCHOOL_LOGO_URL) {
-    document.querySelectorAll('[data-school-logo]').forEach(wrap => {
-      wrap.innerHTML = `<img src="${Utils.escapeHtml(cfg.SCHOOL_LOGO_URL)}"
-                             alt="Logo ${Utils.escapeHtml(cfg.SCHOOL_NAME || '')}"
-                             class="w-full h-full object-cover"
-                             referrerpolicy="no-referrer">`;
-    });
-  }
-}
+// ── (loadAppConfig disediakan oleh components.js) ─────────
 </script>
 </body>
 </html>
