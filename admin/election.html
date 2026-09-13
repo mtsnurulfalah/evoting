@@ -484,12 +484,25 @@ const STATUS_ORDER = ['draft', 'upcoming', 'active', 'ended'];
 
 // ── Inisialisasi ─────────────────────────────────────────────
 (async () => {
-  if (!Auth.requireAdminPage()) return;
+  // Panitia tidak boleh mengakses halaman ini — redirect ke dashboard.
+  // Viewer boleh masuk tapi dalam mode readonly (tombol aksi disembunyikan).
+  if (!Auth.requireAdminPage(['superadmin', 'admin', 'ketua_panitia', 'viewer'])) return;
   Sidebar.init();
   Topbar.init();
 
-  document.getElementById('btn-create').addEventListener('click', openCreateModal);
-  document.getElementById('btn-create-empty').addEventListener('click', openCreateModal);
+  const role     = Auth.getAdminRole();
+  const canWrite = (role === 'superadmin' || role === 'admin' || role === 'ketua_panitia');
+
+  // Sembunyikan tombol "Buat Pemilihan" untuk viewer (readonly)
+  if (!canWrite) {
+    const btnCreate      = document.getElementById('btn-create');
+    const btnCreateEmpty = document.getElementById('btn-create-empty');
+    if (btnCreate)      btnCreate.classList.add('hidden');
+    if (btnCreateEmpty) btnCreateEmpty.classList.add('hidden');
+  }
+
+  document.getElementById('btn-create')?.addEventListener('click', openCreateModal);
+  document.getElementById('btn-create-empty')?.addEventListener('click', openCreateModal);
   document.getElementById('btn-retry').addEventListener('click', loadElections);
   document.getElementById('btn-clear-filter').addEventListener('click', () => setFilter('all'));
 
