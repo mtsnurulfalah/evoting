@@ -360,9 +360,11 @@ const Utils = (() => {
   }
 
   const ROLE_BADGE = {
-    superadmin: { class: 'badge-purple', label: 'Super Admin' },
-    admin:      { class: 'badge-info',   label: 'Admin' },
-    viewer:     { class: 'badge-gray',   label: 'Viewer' },
+    superadmin:    { class: 'badge-purple',  label: 'Super Admin' },
+    admin:         { class: 'badge-info',    label: 'Admin' },
+    viewer:        { class: 'badge-gray',    label: 'Viewer' },
+    ketua_panitia: { class: 'badge-warning', label: 'Ketua Panitia' },
+    panitia:       { class: 'badge-success', label: 'Panitia' },
   };
 
   function roleBadgeHtml(role) {
