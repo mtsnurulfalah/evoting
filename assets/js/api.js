@@ -215,6 +215,8 @@ const API = (() => {
   // ── Candidate endpoints ──────────────────────────────────
 
   const candidate = {
+    /** Kandidat publik dari election upcoming/active — tanpa token */
+    getPublic: (electionId) => request('candidate.getPublic', electionId ? { electionId } : {}, { useToken: false }),
     getByElection: (electionId) => request('candidate.getByElection', { electionId }),
     getAll: (electionId) => request('candidate.getAll', { electionId }),
     create: (data) => request('candidate.create', data),
