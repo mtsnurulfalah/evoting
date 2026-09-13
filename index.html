@@ -374,12 +374,23 @@
                 Lupa PIN atau ada kendala? Hubungi panitia pemilihan di madrasah/sekolah Anda.
               </p>
             </div>
-            <a href="/results.html"
-               class="inline-flex items-center justify-center gap-1.5 text-xs text-primary-600
-                      hover:text-primary-700 font-medium transition-colors">
-              <i class="fa-solid fa-chart-bar fa-sm" aria-hidden="true"></i>
-              Lihat Hasil Pemilihan
-            </a>
+            <!-- Link publik: Kenali Kandidat + Lihat Hasil -->
+            <div class="flex items-center justify-center gap-4 flex-wrap">
+              <a id="btn-candidates-card"
+                 href="/candidates.html"
+                 class="inline-flex items-center justify-center gap-1.5 text-xs text-primary-600
+                        hover:text-primary-700 font-medium transition-colors">
+                <i class="fa-solid fa-users fa-sm" aria-hidden="true"></i>
+                Kenali Pasangan Calon
+              </a>
+              <span class="text-gray-200 select-none" aria-hidden="true">|</span>
+              <a href="/results.html"
+                 class="inline-flex items-center justify-center gap-1.5 text-xs text-primary-600
+                        hover:text-primary-700 font-medium transition-colors">
+                <i class="fa-solid fa-chart-bar fa-sm" aria-hidden="true"></i>
+                Lihat Hasil Pemilihan
+              </a>
+            </div>
           </div>
 
         </div><!-- /card-body -->
@@ -484,6 +495,11 @@ async function loadElectionInfo() {
         if (btnActive && d.election.id) {
           btnActive.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
         }
+        // Sinkronkan juga link di footer card login
+        const btnCard = document.getElementById('btn-candidates-card');
+        if (btnCard && d.election.id) {
+          btnCard.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
+        }
 
       } else if (d.upcoming && d.election) {
         // Pemilihan akan datang
@@ -494,6 +510,11 @@ async function loadElectionInfo() {
         const btnUpcoming = document.getElementById('btn-view-candidates-upcoming');
         if (btnUpcoming && d.election.id) {
           btnUpcoming.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
+        }
+        // Sinkronkan juga link di footer card login
+        const btnCardUp = document.getElementById('btn-candidates-card');
+        if (btnCardUp && d.election.id) {
+          btnCardUp.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
         }
 
       } else {
