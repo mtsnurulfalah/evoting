@@ -507,7 +507,7 @@
         </div>
 
         <!-- Candidate results card -->
-        <div class="result-card">
+        <div class="result-card" id="candidate-results-card">
           <div class="result-card-header">
             <div>
               <h3 class="text-sm font-bold text-gray-800">Perolehan Suara</h3>
@@ -604,6 +604,12 @@ let _lastData     = null;    // data terakhir yang dirender (untuk export)
   if (!Auth.requireAdminPage()) return;
   Sidebar.init();
   Topbar.init();
+
+  // Sembunyikan bagian Perolehan Suara untuk role Panitia
+  if (Auth.isPanitia()) {
+    const candidateCard = document.getElementById('candidate-results-card');
+    if (candidateCard) candidateCard.classList.add('hidden');
+  }
 
   document.getElementById('btn-refresh').addEventListener('click', () => loadResults());
   document.getElementById('btn-export-result').addEventListener('click', exportResults);
