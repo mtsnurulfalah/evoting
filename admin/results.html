@@ -862,7 +862,12 @@ function renderWinnerBanner(winner, stats, usePoints) {
   const box = document.getElementById('winner-box');
   if (!box) return;
 
-  if (!winner || (!winner.isTied && winner.candidate.votes === 0)) {
+  // Bug #5 fix: gunakan poin sebagai penentu "ada suara" jika usePoints aktif
+  const topScore = winner
+    ? (usePoints ? (winner.candidate.points || 0) : (winner.candidate.votes || 0))
+    : 0;
+
+  if (!winner || topScore === 0) {
     box.classList.add('hidden');
     return;
   }
