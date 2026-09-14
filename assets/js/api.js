@@ -313,13 +313,41 @@ const API = (() => {
       request('voter.importBulk', { electionId, voters, skipDuplicates }),
     resetVoteStatus: (payload) => request('voter.resetVoteStatus', payload),
     resetPin: (id, pin) => request('voter.resetPin', { id, pin }),
+    /**
+     * Cari data voter dari semua election berdasarkan NISN.
+     * Digunakan untuk preview sebelum assign.
+     * @param {string} nisn
+     */
+    lookupByNisn: (nisn) => request('voter.lookupByNisn', { nisn }),
+    /**
+     * Assign voter yang sudah ada ke satu atau lebih election baru.
+     * @param {string}   nisn
+     * @param {string[]} targetElectionIds
+     */
+    assignToElection: (nisn, targetElectionIds) =>
+      request('voter.assignToElection', { nisn, targetElectionIds }),
   };
 
   // ── Voting endpoints ─────────────────────────────────────
 
   const vote = {
-    submit: (candidateId) => request('vote.submit', { candidateId }),
+    /**
+     * Submit suara untuk satu election.
+     * @param {string} candidateId
+     * @param {string} [electionId] - Wajib untuk sesi multi-election
+     */
+    submit: (candidateId, electionId) => {
+      const payload = { candidateId };
+      if (electionId) payload.electionId = electionId;
+      return request('vote.submit', payload);
+    },
+    /** Status voting untuk single election (backward-compat) */
     checkStatus: () => request('vote.checkStatus'),
+    /**
+     * Status voting untuk semua elections dalam sesi (multi-election).
+     * Response: { elections: [{electionId, hasVoted, votedAt}], allVoted }
+     */
+    getMultiStatus: () => request('vote.getMultiStatus'),
   };
 
   // ── Result endpoints ─────────────────────────────────────
