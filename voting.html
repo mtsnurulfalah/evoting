@@ -14,7 +14,7 @@
   <style>
     body { overflow-x: hidden; }
 
-    /* Fix #10: Safe-area inset untuk iOS home indicator */
+    /* Safe-area inset untuk iOS home indicator */
     .mobile-submit-bar {
       padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     }
@@ -33,7 +33,7 @@
       box-shadow: 0 4px 16px rgba(37, 99, 235, 0.18);
     }
 
-    /* Skeleton shimmer untuk loading kandidat */
+    /* Skeleton shimmer */
     @keyframes shimmer {
       0%   { background-position: -600px 0; }
       100% { background-position: 600px 0; }
@@ -45,8 +45,8 @@
       border-radius: 0.75rem;
     }
 
-    /* Fix #12: auto-fit grid agar 1-2 kandidat tidak terlihat aneh */
-    #candidates-grid {
+    /* Kandidat grid — auto-fit */
+    .candidates-grid {
       display: grid;
       gap: 1rem;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
@@ -72,6 +72,55 @@
       from { transform: scale(0); opacity: 0; }
       to   { transform: scale(1); opacity: 1; }
     }
+
+    /* Election section separator */
+    .election-section + .election-section {
+      margin-top: 2.5rem;
+      padding-top: 2.5rem;
+      border-top: 2px dashed #e5e7eb;
+    }
+
+    /* Badge "Sudah Memilih" di header section */
+    .voted-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      border: 1px solid #bbf7d0;
+    }
+
+    /* Overlay kanditat sudah vote */
+    .voted-overlay {
+      position: relative;
+    }
+    .voted-overlay::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.65);
+      border-radius: inherit;
+      pointer-events: none;
+    }
+
+    /* Progress bar multi-election */
+    .progress-step {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: #e5e7eb;
+      transition: background 0.4s ease;
+    }
+    .progress-step.done {
+      background: #22c55e;
+    }
+    .progress-step.current {
+      background: #3b82f6;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-gray-50">
@@ -94,7 +143,6 @@
     </div>
 
     <div class="flex items-center gap-3 flex-shrink-0">
-      <!-- Nama voter — hanya di sm+ -->
       <div class="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 min-w-0">
         <i class="fa-solid fa-circle-user text-primary-500 flex-shrink-0"></i>
         <span id="voter-name" class="font-medium truncate max-w-32"></span>
@@ -109,13 +157,13 @@
 </header>
 
 <!-- ── Timer Bar ─────────────────────────────────────────── -->
-<!-- Fix #13: aria-live agar diumumkan screen reader -->
 <div id="timer-bar"
      class="bg-primary-700 text-white text-xs text-center py-2 hidden"
      role="status" aria-live="off" aria-atomic="true">
   <i class="fa-solid fa-clock mr-1.5" aria-hidden="true"></i>
-  Sisa waktu pemilihan:
-  <span id="timer-countdown" class="font-bold ml-1 tabular-nums"></span>
+  Sisa waktu:
+  <span id="timer-label" class="mr-1"></span>
+  <span id="timer-countdown" class="font-bold tabular-nums"></span>
 </div>
 
 <!-- ── Main Content ───────────────────────────────────────── -->
@@ -123,11 +171,10 @@
 
   <!-- ── Loading State ── -->
   <div id="loading-state">
-    <!-- Fix UX: skeleton cards + spinner lebih informatif dari spinner saja -->
     <div class="mb-6 text-center">
       <div class="inline-block w-8 h-8 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-3"
            style="border-width:3px"></div>
-      <p class="text-gray-500 text-sm">Memuat data kandidat...</p>
+      <p class="text-gray-500 text-sm">Memuat data pemilihan...</p>
     </div>
     <div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr))">
       <div class="skeleton-card h-72"></div>
@@ -137,19 +184,15 @@
   </div>
 
   <!-- ── Error State ── -->
-  <!-- Fix #15: tombol retry dengan guard supaya tidak di-spam -->
-  <!-- Fix #20: slot untuk tombol "Login Kembali" pada error session -->
   <div id="error-state" class="hidden">
     <div class="card max-w-sm mx-auto p-8 text-center">
       <i class="fa-solid fa-circle-xmark text-5xl text-red-400 mb-4" aria-hidden="true"></i>
       <h3 class="font-semibold text-gray-800 mb-2">Tidak Dapat Memuat</h3>
       <p id="error-text" class="text-gray-500 text-sm mb-5 leading-relaxed"></p>
       <div class="flex flex-col gap-2">
-        <!-- Ditampilkan hanya untuk error umum -->
         <button id="retry-btn" class="btn btn-primary w-full">
           <i class="fa-solid fa-rotate-right"></i> Coba Lagi
         </button>
-        <!-- Fix #20: ditampilkan saat session bermasalah -->
         <a id="relogin-btn" href="/index.html"
            class="btn btn-secondary w-full hidden">
           <i class="fa-solid fa-right-to-bracket"></i> Login Kembali
@@ -161,83 +204,37 @@
   <!-- ── Content State ── -->
   <div id="content-state" class="hidden">
 
-    <!-- Page header -->
-    <div class="mb-6 text-center">
-      <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200
-                  text-green-700 rounded-full px-4 py-1.5 text-xs font-semibold mb-3">
-        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse" aria-hidden="true"></span>
-        Pemilihan Sedang Berlangsung
+    <!-- Multi-election progress bar (tersembunyi untuk single election) -->
+    <div id="multi-progress" class="hidden mb-6">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm font-semibold text-gray-700">
+          <i class="fa-solid fa-list-check text-primary-500 mr-1.5" aria-hidden="true"></i>
+          Progress Pemilihan
+        </p>
+        <p class="text-xs text-gray-500" id="progress-label">0 dari 0 selesai</p>
       </div>
-      <h2 class="text-2xl font-bold text-gray-800" id="voting-title">Pilih Kandidat Anda</h2>
-      <!-- Fix #18: jumlah kandidat ditampilkan setelah data dimuat -->
-      <p class="text-gray-500 text-sm mt-1" id="voting-subtitle">
-        Pilih <strong>satu</strong> pasangan calon. Pilihan tidak dapat diubah setelah dikonfirmasi.
-      </p>
+      <div id="progress-steps" class="flex gap-1.5"></div>
     </div>
 
-    <!-- Fix #13: aria-live="polite" agar perubahan diumumkan screen reader -->
-    <div id="selection-info"
-         class="alert alert-info mb-5 hidden"
-         role="status"
-         aria-live="polite"
-         aria-atomic="true">
-      <i class="fa-solid fa-hand-pointer flex-shrink-0" aria-hidden="true"></i>
-      <span>
-        Anda telah memilih:
-        <strong id="selected-name" class="ml-1"></strong>.
-        Gulir ke bawah untuk konfirmasi.
-      </span>
-    </div>
+    <!-- Kontainer section per election — di-render via JS -->
+    <div id="elections-container"></div>
 
-    <!-- Fix #19: role="radiogroup" wrapper untuk aksesibilitas -->
-    <div id="candidates-grid"
-         role="radiogroup"
-         aria-label="Pilih pasangan calon"
-         class="mb-8">
-    </div>
-
-    <!-- ── Submit Section ── -->
-    <div id="submit-section" class="hidden">
-
-      <!-- Desktop inline card -->
-      <div class="hidden md:flex justify-center mb-8">
-        <div class="card p-6 w-full max-w-lg border-primary-200 bg-primary-50/40">
-          <div class="text-center mb-4">
-            <p class="text-xs font-semibold text-primary-600 uppercase tracking-wider mb-1">Pilihan Anda</p>
-            <p class="font-bold text-gray-900 text-lg leading-tight" id="submit-selected-name"></p>
-            <p class="text-sm text-gray-500 mt-0.5" id="submit-selected-pair"></p>
-          </div>
-          <div class="alert alert-warning mb-4 text-left">
-            <i class="fa-solid fa-triangle-exclamation flex-shrink-0 mt-0.5" aria-hidden="true"></i>
-            <span class="text-xs leading-relaxed">
-              Pastikan pilihan sudah benar. Suara <strong>tidak dapat diubah</strong> setelah dikonfirmasi.
-            </span>
-          </div>
-          <button id="submit-btn-desktop" class="btn btn-primary btn-lg w-full">
-            <i class="fa-solid fa-check-circle" aria-hidden="true"></i>
-            Konfirmasi &amp; Kirim Suara
-          </button>
+    <!-- ── Mobile sticky submit bar (dipakai bersama oleh semua section) ── -->
+    <div id="mobile-submit-bar"
+         class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200
+                shadow-xl z-20 mobile-submit-bar px-4 pt-3 hidden">
+      <div class="flex items-center gap-3 max-w-lg mx-auto">
+        <div class="flex-1 min-w-0">
+          <p class="text-xs text-gray-500 leading-none mb-0.5" id="mobile-bar-election"></p>
+          <p class="text-sm font-bold text-gray-800 truncate" id="mobile-bar-candidate"></p>
         </div>
+        <button id="submit-btn-mobile"
+                class="btn btn-primary flex-shrink-0 whitespace-nowrap">
+          <i class="fa-solid fa-check-circle" aria-hidden="true"></i>
+          Konfirmasi
+        </button>
       </div>
-
-      <!-- Fix #10: Mobile sticky bottom dengan safe-area inset -->
-      <!-- Fix #11: Teks tombol lebih jelas — "Konfirmasi Pilihan" -->
-      <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200
-                  shadow-xl z-20 mobile-submit-bar px-4 pt-3">
-        <div class="flex items-center gap-3 max-w-lg mx-auto">
-          <div class="flex-1 min-w-0">
-            <p class="text-xs text-gray-500 leading-none mb-0.5">Pilihan Anda:</p>
-            <p class="text-sm font-bold text-gray-800 truncate" id="submit-selected-name-mobile"></p>
-          </div>
-          <button id="submit-btn-mobile"
-                  class="btn btn-primary flex-shrink-0 whitespace-nowrap">
-            <i class="fa-solid fa-check-circle" aria-hidden="true"></i>
-            Konfirmasi Pilihan
-          </button>
-        </div>
-      </div>
-
-    </div><!-- /#submit-section -->
+    </div>
 
   </div><!-- /#content-state -->
 
@@ -250,24 +247,27 @@
 <script src="/assets/js/components.js"></script>
 <script>
 /* ============================================================
-   Halaman Voting — voting.html
-   Semua bug #1–#20 diperbaiki. Lihat komentar Fix #N.
+   voting.html — Multi-election support
+   Satu sesi voter bisa mencakup beberapa election aktif.
+   Setiap election ditampilkan dalam section terpisah.
+   Submit dilakukan independen per election.
+   Redirect ke success.html hanya setelah SEMUA election selesai.
    ============================================================ */
 
-// ── State ────────────────────────────────────────────────────
-let _candidates    = [];
-let _selectedId    = null;
-let _election      = null;
-let _timerInterval = null;
-let _isSubmitting  = false;
-let _isLoading     = false;   // Fix #15: guard anti-spam retry
-
-// Fix #7: Placeholder gambar kosong — didefinisikan sekali di top-level
+// ── Placeholder gambar kosong ────────────────────────────────
 const IMG_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E" +
   "%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E" +
   "%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' " +
   "font-size='40' fill='%23d1d5db'%3E%F0%9F%91%A4%3C/text%3E%3C/svg%3E";
+
+// ── State global ─────────────────────────────────────────────
+let _elections      = [];   // Array data election dari session
+let _sectionStates  = {};   // { [electionId]: { candidates, selectedId, isSubmitting, hasVoted } }
+let _timerInterval  = null;
+let _isLoading      = false;
+// electionId yang sedang aktif di mobile bar
+let _mobileActiveElectionId = null;
 
 // ── Init ─────────────────────────────────────────────────────
 (async () => {
@@ -283,12 +283,12 @@ const IMG_PLACEHOLDER =
 
   loadPage();
 
-  // Fix #1: Listener submit tombol DIPINDAH KE SINI (bukan di renderCandidates)
-  // Keduanya hanya didaftarkan SEKALI, tidak berulang setiap loadPage().
-  document.getElementById('submit-btn-desktop').addEventListener('click', handleSubmitVote);
-  document.getElementById('submit-btn-mobile').addEventListener('click', handleSubmitVote);
+  // Mobile bar submit — satu tombol untuk semua election
+  document.getElementById('submit-btn-mobile').addEventListener('click', () => {
+    if (_mobileActiveElectionId) handleSubmitVote(_mobileActiveElectionId);
+  });
 
-  // Fix #15: Retry button listener juga hanya sekali
+  // Retry
   document.getElementById('retry-btn').addEventListener('click', () => {
     if (!_isLoading) loadPage();
   });
@@ -298,128 +298,353 @@ const IMG_PLACEHOLDER =
     const ok = await Utils.confirm('Keluar dari halaman pemilihan?', 'Konfirmasi Keluar');
     if (ok) Auth.logoutVoter();
   });
+
+  // Resize: recalculate padding
+  window.addEventListener('resize', () => {
+    if (!document.getElementById('mobile-submit-bar').classList.contains('hidden')) {
+      _updateMainPadding(true);
+    }
+  });
 })();
 
 // ── loadPage ─────────────────────────────────────────────────
 
 async function loadPage() {
-  if (_isLoading) return;   // Fix #15: cegah multiple parallel loads
+  if (_isLoading) return;
   _isLoading = true;
 
-  // Fix #3: Reset state pilihan sebelum re-render
-  _resetSelectionState();
+  // Reset state agar retry tidak mewarisi data iterasi sebelumnya
+  _elections     = [];
+  _sectionStates = {};
+  _mobileActiveElectionId = null;
 
   showState('loading');
   hideReloginBtn();
 
   try {
-    // Cek status vote terbaru dari server
-    const statusRes = await API.vote.checkStatus();
-    if (statusRes.success && statusRes.data && statusRes.data.hasVoted) {
-      Auth.markAsVoted();
-      window.location.replace('/success.html');
-      return;
+    // Ambil status vote terbaru dari server
+    const statusRes = await API.vote.getMultiStatus();
+    if (statusRes.success && statusRes.data) {
+      const { allVoted, elections: statusElections } = statusRes.data;
+
+      if (allVoted) {
+        Auth.markAsVoted();
+        window.location.replace('/success.html');
+        return;   // _isLoading di-reset oleh finally
+      }
+
+      // Sinkronisasi status hasVoted dari server ke session storage
+      if (Array.isArray(statusElections)) {
+        statusElections.forEach(e => {
+          if (e.hasVoted) Auth.markElectionVoted(e.electionId);
+        });
+      }
     }
 
-    // Ambil data election dari session
-    const electionData = Auth.getElectionData();
-    if (!electionData) {
-      // Fix #20: error session → tampilkan tombol Login Kembali, bukan hanya Coba Lagi
+    // Ambil data elections dari session
+    _elections = Auth.getElectionsData();
+    if (!_elections || _elections.length === 0) {
       showState('error', 'Sesi pemilihan tidak ditemukan. Silakan login kembali.');
       showReloginBtn();
       return;
     }
-    _election = electionData;
 
-    // Isi header
-    document.getElementById('header-election-title').textContent = electionData.title || '';
-    document.getElementById('voting-title').textContent = electionData.title || 'Pilih Kandidat Anda';
-    document.title = (electionData.title || 'Pemilihan') + ' — eVoting OSIM';
+    // Hanya tampilkan elections yang belum divote
+    // (yang sudah divote akan ditampilkan sebagai "sudah memilih")
+    const electionIds = _elections.map(e => e.id || e.electionId).filter(Boolean);
 
-    // Mulai countdown
-    if (electionData.endDate) startCountdown(electionData.endDate);
-
-    // Muat kandidat
-    const res = await API.candidate.getByElection(electionData.id);
-    if (!res.success) {
-      showState('error', res.message || 'Gagal memuat kandidat.');
-      return;
+    // Update header — jika single election tampilkan judulnya
+    if (_elections.length === 1) {
+      const el = _elections[0];
+      document.getElementById('header-election-title').textContent = el.title || '';
+      document.title = (el.title || 'Pemilihan') + ' — eVoting OSIM';
+      if (el.endDate) startCountdown(el.endDate, el.title);
+    } else {
+      document.getElementById('header-election-title').textContent =
+        _elections.length + ' pemilihan aktif';
+      document.title = 'Pilih Kandidat — eVoting OSIM';
+      // Timer untuk election dengan endDate paling awal
+      const earliest = _elections
+        .filter(e => e.endDate)
+        .sort((a, b) => new Date(a.endDate) - new Date(b.endDate))[0];
+      if (earliest) startCountdown(earliest.endDate, earliest.title);
     }
 
-    _candidates = res.data || [];
-    if (_candidates.length === 0) {
-      showState('error', 'Belum ada kandidat yang tersedia untuk pemilihan ini.');
-      return;
-    }
+    // Inisialisasi state per election
+    _elections.forEach(el => {
+      const elId = el.id || el.electionId;
+      _sectionStates[elId] = {
+        candidates:   [],
+        selectedId:   null,
+        isSubmitting: false,
+        hasVoted:     !!el.hasVoted,
+      };
+    });
 
-    renderCandidates();
+    // Render skeleton sections dulu
+    renderElectionSections();
     showState('content');
+    renderMultiProgress();
+
+    // Load kandidat untuk semua elections secara paralel
+    const candidateLoads = electionIds.map(elId =>
+      API.candidate.getByElection(elId)
+        .then(res => ({ elId, res }))
+        .catch(err => ({ elId, res: { success: false, message: err.message } }))
+    );
+
+    const results = await Promise.all(candidateLoads);
+
+    let anySuccess = false;
+    results.forEach(({ elId, res }) => {
+      if (res.success) {
+        _sectionStates[elId].candidates = res.data || [];
+        anySuccess = true;
+      } else {
+        _sectionStates[elId].loadError = res.message || 'Gagal memuat kandidat.';
+      }
+      renderCandidatesForSection(elId);
+    });
+
+    if (!anySuccess && results.length > 0) {
+      showState('error', 'Gagal memuat data kandidat. Silakan coba lagi.');
+      return;
+    }
 
   } catch (_err) {
     showState('error', 'Gagal menghubungi server. Periksa koneksi Anda dan coba lagi.');
   } finally {
-    _isLoading = false;  // Fix #15: selalu reset flag, termasuk jika throw
+    _isLoading = false;
   }
 }
 
-// ── Render Candidates ─────────────────────────────────────────
+// ── renderElectionSections ────────────────────────────────────
+// Render satu section per election (header + grid skeleton)
 
-function renderCandidates() {
-  const grid = document.getElementById('candidates-grid');
+function renderElectionSections() {
+  const container = document.getElementById('elections-container');
+  container.innerHTML = '';
 
-  // Fix #6 / Fix race: pasang error listener di grid SEBELUM innerHTML di-set.
-  // Ini mencegah race condition di mana gambar bisa fail & fire 'error' sebelum
-  // listener terpasang (terjadi saat browser memproses src dari cache synchronously).
-  // data-errored guard mencegah infinite loop jika IMG_PLACEHOLDER itu sendiri gagal.
+  _elections.forEach((el, idx) => {
+    const elId    = el.id || el.electionId;
+    const state   = _sectionStates[elId];
+    const isMulti = _elections.length > 1;
+
+    const section = document.createElement('div');
+    section.className = 'election-section';
+    section.id        = 'section-' + elId;
+    section.innerHTML = `
+      <!-- Section header -->
+      <div class="mb-5">
+        ${isMulti ? `
+        <div class="flex items-center gap-2 mb-1">
+          <span class="inline-flex items-center justify-center w-6 h-6
+                       bg-primary-100 text-primary-700 text-xs font-bold rounded-full">
+            ${idx + 1}
+          </span>
+          <span class="text-xs font-semibold text-primary-600 uppercase tracking-wide">
+            Pemilihan ${idx + 1} dari ${_elections.length}
+          </span>
+          ${state.hasVoted
+            ? '<span class="voted-badge"><i class="fa-solid fa-check-circle fa-xs" aria-hidden="true"></i> Sudah Memilih</span>'
+            : ''}
+        </div>` : ''}
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-xl font-bold text-gray-800 leading-tight" id="title-${elId}">
+              ${Utils.escapeHtml(el.title || 'Pemilihan')}
+            </h2>
+            ${el.description
+              ? `<p class="text-gray-500 text-sm mt-1 leading-relaxed">
+                   ${Utils.escapeHtml(el.description)}
+                 </p>`
+              : ''}
+          </div>
+          ${isMulti && el.endDate
+            ? `<div class="flex-shrink-0 text-right">
+                 <p class="text-xs text-gray-400">Berakhir</p>
+                 <p class="text-xs font-semibold text-gray-600">
+                   ${Utils.formatDateTime(el.endDate)}
+                 </p>
+               </div>`
+            : ''}
+        </div>
+
+        <!-- Badge aktif + selection info -->
+        <div class="flex flex-wrap items-center gap-2 mt-3">
+          <div class="inline-flex items-center gap-2 bg-green-50 border border-green-200
+                      text-green-700 rounded-full px-4 py-1.5 text-xs font-semibold">
+            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse" aria-hidden="true"></span>
+            Sedang Berlangsung
+          </div>
+        </div>
+
+        <!-- Info pilihan yang sudah dipilih (hidden sampai ada pilihan) -->
+        <div id="selection-info-${elId}"
+             class="alert alert-info mt-3 hidden"
+             role="status" aria-live="polite" aria-atomic="true">
+          <i class="fa-solid fa-hand-pointer flex-shrink-0" aria-hidden="true"></i>
+          <span>
+            Anda memilih:
+            <strong id="selected-name-${elId}" class="ml-1"></strong>.
+            Gulir ke bawah untuk konfirmasi.
+          </span>
+        </div>
+      </div>
+
+      <!-- Candidates grid -->
+      <div id="grid-${elId}"
+           role="radiogroup"
+           aria-label="Pilih pasangan calon untuk ${Utils.escapeHtml(el.title || 'pemilihan ini')}"
+           class="candidates-grid mb-4">
+        <!-- Skeleton -->
+        <div class="skeleton-card h-72"></div>
+        <div class="skeleton-card h-72"></div>
+        <div class="skeleton-card h-72 hidden sm:block"></div>
+      </div>
+
+      <!-- Submit section (desktop inline card) -->
+      <div id="submit-section-${elId}" class="hidden">
+        <div class="hidden md:flex justify-center mb-8">
+          <div class="card p-6 w-full max-w-lg border-primary-200 bg-primary-50/40">
+            <div class="text-center mb-4">
+              <p class="text-xs font-semibold text-primary-600 uppercase tracking-wider mb-1">
+                Pilihan Anda${isMulti ? ' · ' + Utils.escapeHtml(el.title || '') : ''}
+              </p>
+              <p class="font-bold text-gray-900 text-lg leading-tight"
+                 id="submit-name-${elId}"></p>
+              <p class="text-sm text-gray-500 mt-0.5" id="submit-pair-${elId}"></p>
+            </div>
+            <div class="alert alert-warning mb-4 text-left">
+              <i class="fa-solid fa-triangle-exclamation flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+              <span class="text-xs leading-relaxed">
+                Pastikan pilihan sudah benar.
+                Suara <strong>tidak dapat diubah</strong> setelah dikonfirmasi.
+              </span>
+            </div>
+            <button id="submit-btn-desktop-${elId}"
+                    class="btn btn-primary btn-lg w-full"
+                    data-election-id="${elId}">
+              <i class="fa-solid fa-check-circle" aria-hidden="true"></i>
+              Konfirmasi &amp; Kirim Suara
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Voted overlay (tampil jika election ini sudah divote) -->
+      <div id="voted-section-${elId}" class="${state.hasVoted ? '' : 'hidden'}">
+        <div class="card bg-green-50 border-green-200 p-5 text-center">
+          <i class="fa-solid fa-circle-check text-4xl text-green-500 mb-3" aria-hidden="true"></i>
+          <p class="font-semibold text-green-800">Suara Anda untuk pemilihan ini telah tercatat.</p>
+          <p class="text-sm text-green-600 mt-1">Terima kasih telah berpartisipasi.</p>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(section);
+
+    // Attach listener desktop submit
+    const desktopBtn = section.querySelector(`#submit-btn-desktop-${elId}`);
+    if (desktopBtn) {
+      desktopBtn.addEventListener('click', () => handleSubmitVote(elId));
+    }
+  });
+}
+
+// ── renderCandidatesForSection ────────────────────────────────
+
+function renderCandidatesForSection(elId) {
+  const state = _sectionStates[elId];
+  const grid  = document.getElementById('grid-' + elId);
+  if (!grid) return;
+
+  // Error memuat kandidat
+  if (state.loadError) {
+    grid.innerHTML = `
+      <div class="col-span-full">
+        <div class="alert alert-error">
+          <i class="fa-solid fa-circle-xmark flex-shrink-0" aria-hidden="true"></i>
+          <span>${Utils.escapeHtml(state.loadError)}</span>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Jika election sudah divote, tampilkan placeholder
+  if (state.hasVoted) {
+    grid.innerHTML = '';
+    return;
+  }
+
+  const candidates = state.candidates;
+
+  if (candidates.length === 0) {
+    grid.innerHTML = `
+      <div class="col-span-full text-center py-8 text-gray-400">
+        <i class="fa-solid fa-users-slash text-3xl mb-2" aria-hidden="true"></i>
+        <p class="text-sm">Belum ada kandidat yang tersedia.</p>
+      </div>`;
+    return;
+  }
+
+  // Pasang error listener sebelum innerHTML
   grid.addEventListener('error', e => {
     if (e.target.tagName === 'IMG' && !e.target.dataset.errored) {
       e.target.dataset.errored = '1';
       e.target.src = IMG_PLACEHOLDER;
     }
-  }, true /* capture phase agar tangkap error dari child img */);
+  }, true);
 
-  grid.innerHTML = _candidates.map(c => candidateCardHtml(c)).join('');
+  grid.innerHTML = candidates.map(c => candidateCardHtml(c, elId)).join('');
 
-  // Fix #18: tampilkan jumlah kandidat di subtitle
-  const count = _candidates.length;
-  document.getElementById('voting-subtitle').innerHTML =
-    `Tersedia <strong>${count} pasangan calon</strong>. ` +
-    `Pilih <strong>satu</strong> untuk Anda pilih. ` +
-    `Pilihan tidak dapat diubah setelah dikonfirmasi.`;
+  // Update subtitle
+  const titleEl = document.getElementById('title-' + elId);
+  const subtitleId = 'subtitle-' + elId;
+  let subtitleEl = document.getElementById(subtitleId);
+  if (!subtitleEl && titleEl) {
+    subtitleEl = document.createElement('p');
+    subtitleEl.id = subtitleId;
+    subtitleEl.className = 'text-gray-500 text-sm mt-1';
+    titleEl.parentNode.insertBefore(subtitleEl, titleEl.nextSibling);
+  }
+  if (subtitleEl) {
+    subtitleEl.innerHTML =
+      `Tersedia <strong>${candidates.length} pasangan calon</strong>. ` +
+      `Pilih <strong>satu</strong>. Pilihan tidak dapat diubah setelah dikonfirmasi.`;
+  }
 
-  // Listener kartu kandidat (pilih dengan klik / keyboard)
+  // Click listener kartu
   grid.querySelectorAll('.candidate-card').forEach(card => {
-    card.addEventListener('click', () => selectCandidate(card.dataset.id));
+    card.addEventListener('click', () => selectCandidate(elId, card.dataset.id));
     card.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        selectCandidate(card.dataset.id);
+        selectCandidate(elId, card.dataset.id);
       }
     });
   });
 
-  // Fix #6: pakai listener delegasi, bukan onclick inline — hindari masalah escaping
+  // Detail listener
   grid.querySelectorAll('[data-detail-id]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      showCandidateDetail(btn.dataset.detailId);
+      showCandidateDetail(elId, btn.dataset.detailId);
     });
   });
 }
 
 // ── candidateCardHtml ─────────────────────────────────────────
 
-function candidateCardHtml(c) {
+function candidateCardHtml(c, elId) {
   const photoSrc     = Utils.buildImgUrl(c.photoUrl);
   const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl);
 
-  // Fix #17: responsive height h-36 sm:h-40
   const photoHtml = photoSrc
     ? `<img src="${Utils.escapeHtml(photoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.name)}"
              class="w-full h-36 sm:h-40 object-cover object-top rounded-lg mb-2"
-             loading="lazy"
-             referrerpolicy="no-referrer">`
+             loading="lazy" referrerpolicy="no-referrer">`
     : `<div class="w-full h-36 sm:h-40 bg-gray-100 rounded-lg mb-2
                    flex items-center justify-center" aria-hidden="true">
          <i class="fa-solid fa-user text-4xl text-gray-300"></i>
@@ -429,8 +654,7 @@ function candidateCardHtml(c) {
     ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.pairName || 'Calon Wakil')}"
              class="w-full h-36 sm:h-40 object-cover object-top rounded-lg mb-2"
-             loading="lazy"
-             referrerpolicy="no-referrer">`
+             loading="lazy" referrerpolicy="no-referrer">`
     : `<div class="w-full h-36 sm:h-40 bg-gray-100 rounded-lg mb-2
                    flex items-center justify-center" aria-hidden="true">
          <i class="fa-solid fa-user text-4xl text-gray-300"></i>
@@ -449,12 +673,12 @@ function candidateCardHtml(c) {
     <div class="candidate-card card p-4 cursor-pointer border-2 border-transparent
                 hover:border-primary-300 hover:shadow-md select-none"
          data-id="${Utils.escapeHtml(String(c.id))}"
+         data-election-id="${Utils.escapeHtml(String(elId))}"
          tabindex="0"
          role="radio"
          aria-checked="false"
          aria-label="Pasangan Calon No. ${c.orderNumber}: ${Utils.escapeHtml(c.name)}${c.pairName ? ' dan ' + Utils.escapeHtml(c.pairName) : ''}">
 
-      <!-- Header kartu: nomor urut + check indicator -->
       <div class="flex items-center gap-3 mb-3">
         <div class="candidate-number w-10 h-10 rounded-full bg-gray-100 text-gray-700
                     font-bold text-lg flex items-center justify-center flex-shrink-0
@@ -465,13 +689,11 @@ function candidateCardHtml(c) {
           <p class="text-xs font-bold text-primary-600 uppercase tracking-wide">Pasangan Calon</p>
           <p class="text-xs text-gray-400">No. Urut ${c.orderNumber}</p>
         </div>
-        <!-- Check indicator — tersembunyi sampai dipilih -->
         <div class="selected-check hidden flex-shrink-0" aria-hidden="true">
           <i class="fa-solid fa-circle-check text-primary-600 text-xl"></i>
         </div>
       </div>
 
-      <!-- Foto pasangan -->
       <div class="grid grid-cols-2 gap-2 mb-1">
         <div>
           ${photoHtml}
@@ -495,7 +717,6 @@ function candidateCardHtml(c) {
 
       ${visionHtml}
 
-      <!-- Fix #6: pakai data-detail-id, bukan onclick inline -->
       <button class="mt-3 text-xs text-primary-600 hover:text-primary-700 font-semibold
                      flex items-center gap-1 focus:outline-none focus-visible:underline"
               data-detail-id="${Utils.escapeHtml(String(c.id))}"
@@ -507,25 +728,30 @@ function candidateCardHtml(c) {
 
 // ── selectCandidate ───────────────────────────────────────────
 
-function selectCandidate(id) {
-  if (_selectedId === id) return;
-  _selectedId = id;
+function selectCandidate(elId, candidateId) {
+  const state = _sectionStates[elId];
+  if (!state || state.hasVoted) return;
+  if (state.selectedId === candidateId) return;
 
-  // Update semua kartu
-  document.querySelectorAll('.candidate-card').forEach(card => {
-    const isSelected = card.dataset.id === id;
+  state.selectedId = candidateId;
+
+  // Update semua kartu dalam section ini
+  const grid = document.getElementById('grid-' + elId);
+  if (!grid) return;
+
+  grid.querySelectorAll('.candidate-card').forEach(card => {
+    const isSelected = card.dataset.id === candidateId;
     card.classList.toggle('selected', isSelected);
     card.setAttribute('aria-checked', isSelected ? 'true' : 'false');
     const check = card.querySelector('.selected-check');
-    if (check) check.classList.toggle('hidden', !isSelected);
-    // Animasi pop pada check icon
-    if (isSelected && check) {
-      check.classList.remove('selected-check');
-      // Re-trigger animasi
-      void check.offsetWidth;
-      check.classList.add('selected-check');
+    if (check) {
+      check.classList.toggle('hidden', !isSelected);
+      if (isSelected) {
+        check.classList.remove('selected-check');
+        void check.offsetWidth;
+        check.classList.add('selected-check');
+      }
     }
-    // Nomor badge warna saat terpilih
     const numBadge = card.querySelector('.candidate-number');
     if (numBadge) {
       numBadge.classList.toggle('bg-primary-600', isSelected);
@@ -535,60 +761,111 @@ function selectCandidate(id) {
     }
   });
 
-  const candidate = _candidates.find(c => String(c.id) === String(id));
+  const candidate = state.candidates.find(c => String(c.id) === String(candidateId));
   if (!candidate) return;
 
   const fullName = candidate.name + (candidate.pairName ? ' & ' + candidate.pairName : '');
 
   // Selection info bar
-  document.getElementById('selected-name').textContent = fullName;
-  document.getElementById('selection-info').classList.remove('hidden');
+  const selInfo = document.getElementById('selection-info-' + elId);
+  const selName = document.getElementById('selected-name-' + elId);
+  if (selInfo && selName) {
+    selName.textContent = fullName;
+    selInfo.classList.remove('hidden');
+  }
 
-  // Submit section
-  document.getElementById('submit-selected-name').textContent = fullName;
-  document.getElementById('submit-selected-name-mobile').textContent = fullName;
-  const pairText = 'No. Urut ' + candidate.orderNumber +
-    (candidate.className ? ' · ' + candidate.className : '');
-  document.getElementById('submit-selected-pair').textContent = pairText;
+  // Desktop submit section
+  const submitSection = document.getElementById('submit-section-' + elId);
+  const submitName    = document.getElementById('submit-name-' + elId);
+  const submitPair    = document.getElementById('submit-pair-' + elId);
+  if (submitSection && submitName) {
+    submitName.textContent = fullName;
+    if (submitPair) {
+      submitPair.textContent = 'No. Urut ' + candidate.orderNumber +
+        (candidate.className ? ' · ' + candidate.className : '');
+    }
+    submitSection.classList.remove('hidden');
+  }
 
-  _setSubmitSectionVisible(true);
+  // Mobile bar — tampilkan dan set aktif ke election ini
+  _mobileActiveElectionId = elId;
+  const mobileBar = document.getElementById('mobile-submit-bar');
+  const mobileBarElection   = document.getElementById('mobile-bar-election');
+  const mobileBarCandidate  = document.getElementById('mobile-bar-candidate');
+  if (mobileBar) {
+    if (mobileBarElection) {
+      const el = _elections.find(e => (e.id || e.electionId) === elId);
+      mobileBarElection.textContent = _elections.length > 1 ? (el ? el.title : '') : 'Pilihan Anda:';
+    }
+    if (mobileBarCandidate) mobileBarCandidate.textContent = fullName;
+    mobileBar.classList.remove('hidden');
+    _updateMainPadding(true);
+  }
 }
 
-// Fix #2: sentralisasi show/hide submit-section + padding mobile
-function _setSubmitSectionVisible(visible) {
-  const section = document.getElementById('submit-section');
-  const main    = document.getElementById('main-content');
-  section.classList.toggle('hidden', !visible);
-  // Fix #2: selalu sesuaikan padding bottom dengan keberadaan floating bar
-  if (visible && window.innerWidth < 768) {
+// ── _updateMainPadding ────────────────────────────────────────
+
+function _updateMainPadding(hasMobileBar) {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  if (hasMobileBar && window.innerWidth < 768) {
     main.style.paddingBottom = '88px';
   } else {
     main.style.paddingBottom = '';
   }
 }
 
-// Fix #3: Reset semua UI pilihan ke kondisi awal
-function _resetSelectionState() {
-  _selectedId = null;
-  document.getElementById('selection-info').classList.add('hidden');
-  document.getElementById('selected-name').textContent = '';
-  _setSubmitSectionVisible(false);
+// ── renderMultiProgress ───────────────────────────────────────
+
+function renderMultiProgress() {
+  if (_elections.length <= 1) return;
+
+  const multiProgress = document.getElementById('multi-progress');
+  const progressSteps = document.getElementById('progress-steps');
+  const progressLabel = document.getElementById('progress-label');
+  if (!multiProgress || !progressSteps) return;
+
+  multiProgress.classList.remove('hidden');
+
+  // Hitung progress
+  const doneCount = _elections.filter(e => {
+    const elId = e.id || e.electionId;
+    return _sectionStates[elId] && _sectionStates[elId].hasVoted;
+  }).length;
+
+  if (progressLabel) {
+    progressLabel.textContent = doneCount + ' dari ' + _elections.length + ' selesai';
+  }
+
+  progressSteps.innerHTML = _elections.map((e, idx) => {
+    const elId   = e.id || e.electionId;
+    const state  = _sectionStates[elId];
+    const isDone = state && state.hasVoted;
+    const isCurrent = !isDone && idx === _elections.findIndex(el => {
+      const id = el.id || el.electionId;
+      return _sectionStates[id] && !_sectionStates[id].hasVoted;
+    });
+    return `<div class="progress-step ${isDone ? 'done' : isCurrent ? 'current' : ''}"
+                 title="${Utils.escapeHtml(e.title || 'Pemilihan ' + (idx+1))}"></div>`;
+  }).join('');
 }
 
 // ── showCandidateDetail ───────────────────────────────────────
 
-function showCandidateDetail(id) {
-  const c = _candidates.find(c => String(c.id) === String(id));
+function showCandidateDetail(elId, candidateId) {
+  const state = _sectionStates[elId];
+  if (!state) return;
+  const c = state.candidates.find(c => String(c.id) === String(candidateId));
   if (!c) return;
 
   const missionLines = (c.mission || '').split('\n').filter(l => l.trim());
-  const missionHtml = missionLines.length
+  const missionHtml  = missionLines.length
     ? '<ul class="list-disc list-inside text-sm text-gray-600 space-y-1 leading-relaxed">' +
       missionLines.map(l => `<li>${Utils.escapeHtml(l.trim())}</li>`).join('') + '</ul>'
     : '<p class="text-sm text-gray-400 italic">Belum tersedia.</p>';
 
   const programLines = (c.programs || '').split('\n').filter(l => l.trim());
-  const programHtml = programLines.length
+  const programHtml  = programLines.length
     ? '<ul class="list-disc list-inside text-sm text-gray-600 space-y-1 leading-relaxed">' +
       programLines.map(l => `<li>${Utils.escapeHtml(l.trim())}</li>`).join('') + '</ul>'
     : '<p class="text-sm text-gray-400 italic">Belum tersedia.</p>';
@@ -596,15 +873,11 @@ function showCandidateDetail(id) {
   const photoSrc     = Utils.buildImgUrl(c.photoUrl);
   const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl);
 
-  // Fix #6: Tidak ada onerror inline dengan escaped quotes.
-  // Gambar fallback ditangani via data-fallback + listener setelah modal dibuka.
-  const makePhotoHtml = (src, name, role, cls) => src
+  const makePhotoHtml = (src, name) => src
     ? `<img src="${Utils.escapeHtml(src)}"
              alt="Foto ${Utils.escapeHtml(name)}"
              class="w-full h-44 object-cover object-top rounded-xl mb-2"
-             loading="lazy"
-             referrerpolicy="no-referrer"
-             data-fallback="1">`
+             loading="lazy" referrerpolicy="no-referrer" data-fallback="1">`
     : `<div class="w-full h-44 bg-gray-100 rounded-xl mb-2
                    flex items-center justify-center" aria-hidden="true">
          <i class="fa-solid fa-user text-5xl text-gray-300"></i>
@@ -612,8 +885,6 @@ function showCandidateDetail(id) {
 
   const bodyHtml = `
     <div class="space-y-5">
-
-      <!-- Badge nomor urut -->
       <div class="flex items-center justify-center gap-2">
         <span class="inline-flex items-center gap-1.5 bg-primary-100 text-primary-700
                      text-xs font-bold px-3 py-1 rounded-full">
@@ -621,22 +892,18 @@ function showCandidateDetail(id) {
           No. Urut ${c.orderNumber}
         </span>
       </div>
-
-      <!-- Foto -->
       <div class="grid grid-cols-2 gap-3">
         <div class="text-center">
-          ${makePhotoHtml(photoSrc, c.name, 'Calon Ketua')}
+          ${makePhotoHtml(photoSrc, c.name)}
           <p class="font-semibold text-sm text-gray-800">${Utils.escapeHtml(c.name)}</p>
           <p class="text-xs text-gray-500">Calon Ketua &middot; ${Utils.escapeHtml(c.className || '')}</p>
         </div>
         <div class="text-center">
-          ${makePhotoHtml(pairPhotoSrc, c.pairName || 'Calon Wakil', 'Calon Wakil')}
+          ${makePhotoHtml(pairPhotoSrc, c.pairName || 'Calon Wakil')}
           <p class="font-semibold text-sm text-gray-800">${Utils.escapeHtml(c.pairName || '-')}</p>
           <p class="text-xs text-gray-500">Calon Wakil &middot; ${Utils.escapeHtml(c.pairClassName || '')}</p>
         </div>
       </div>
-
-      <!-- Visi -->
       <div>
         <h4 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
           <i class="fa-solid fa-lightbulb text-yellow-500" aria-hidden="true"></i> Visi
@@ -645,23 +912,18 @@ function showCandidateDetail(id) {
           ${Utils.escapeHtml(c.vision || 'Belum tersedia.')}
         </p>
       </div>
-
-      <!-- Misi -->
       <div>
         <h4 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
           <i class="fa-solid fa-bullseye text-red-500" aria-hidden="true"></i> Misi
         </h4>
         ${missionHtml}
       </div>
-
-      <!-- Program kerja -->
       <div>
         <h4 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
           <i class="fa-solid fa-list-check text-blue-500" aria-hidden="true"></i> Program Kerja
         </h4>
         ${programHtml}
       </div>
-
       ${c.additionalInfo ? `
       <div>
         <h4 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
@@ -669,57 +931,62 @@ function showCandidateDetail(id) {
         </h4>
         <p class="text-sm text-gray-600 leading-relaxed">${Utils.escapeHtml(c.additionalInfo)}</p>
       </div>` : ''}
-
     </div>`;
 
+  const el     = _elections.find(e => (e.id || e.electionId) === elId);
+  const elTitle = el ? el.title : '';
+
   const modal = Modal.open({
-    id:    'modal-detail',
+    id:    'modal-detail-' + elId,
     title: `Paslon No. ${c.orderNumber} — ${Utils.escapeHtml(c.name)}`,
     body:  bodyHtml,
     size:  'lg',
     actions: [
-      { label: 'Tutup',                         class: 'btn-secondary', action: 'close'  },
+      { label: 'Tutup',                             class: 'btn-secondary', action: 'close'  },
       { label: `Pilih Paslon No. ${c.orderNumber}`, class: 'btn-primary',   action: 'select' },
     ],
   });
 
-  // Fix #6: error handler gambar di modal via DOM listener (bukan onerror inline)
-  // Gunakan IMG_PLACEHOLDER agar konsisten dengan grid, bukan div kosong.
-  // {once: true} sudah cukup untuk mencegah loop karena listener langsung dicabut setelah fired.
   modal.querySelectorAll('img[data-fallback]').forEach(img => {
-    img.addEventListener('error', () => {
-      img.src = IMG_PLACEHOLDER;
-    }, { once: true });
+    img.addEventListener('error', () => { img.src = IMG_PLACEHOLDER; }, { once: true });
   });
 
   modal.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', () => {
       const act = btn.dataset.action;
       Modal.close();
-      if (act === 'select') selectCandidate(id);
+      if (act === 'select') selectCandidate(elId, candidateId);
     });
   });
 }
 
 // ── handleSubmitVote ──────────────────────────────────────────
 
-async function handleSubmitVote() {
-  if (_isSubmitting) return;
-  if (!_selectedId) {
+async function handleSubmitVote(elId) {
+  const state = _sectionStates[elId];
+  if (!state || state.isSubmitting || state.hasVoted) return;
+  if (!state.selectedId) {
     Toast.warning('Pilih kandidat terlebih dahulu.');
     return;
   }
 
-  const candidate = _candidates.find(c => String(c.id) === String(_selectedId));
+  const candidate = state.candidates.find(c => String(c.id) === String(state.selectedId));
   if (!candidate) return;
 
+  const el       = _elections.find(e => (e.id || e.electionId) === elId);
+  const elTitle  = el ? el.title : 'pemilihan ini';
   const fullName = candidate.name + (candidate.pairName ? ' & ' + candidate.pairName : '');
+
+  const multiNote = _elections.length > 1
+    ? `\n\nℹ️ Setelah konfirmasi, Anda masih bisa memilih di pemilihan lainnya.`
+    : '';
 
   Modal.confirm(
     'Konfirmasi Pilihan Anda',
-    `Anda memilih Paslon No. ${candidate.orderNumber}: "${fullName}".\n\n` +
-    `Pilihan tidak dapat diubah setelah dikonfirmasi. Lanjutkan?`,
-    submitVoteConfirmed,
+    `Pemilihan: "${elTitle}"\n` +
+    `Pilihan: Paslon No. ${candidate.orderNumber} — "${fullName}".\n\n` +
+    `Pilihan tidak dapat diubah setelah dikonfirmasi. Lanjutkan?` + multiNote,
+    () => submitVoteConfirmed(elId),
     null,
     false
   );
@@ -727,32 +994,104 @@ async function handleSubmitVote() {
 
 // ── submitVoteConfirmed ───────────────────────────────────────
 
-async function submitVoteConfirmed() {
-  if (_isSubmitting) return;
-  _isSubmitting = true;
+async function submitVoteConfirmed(elId) {
+  const state = _sectionStates[elId];
+  if (!state || state.isSubmitting) return;
 
-  const btnD = document.getElementById('submit-btn-desktop');
-  const btnM = document.getElementById('submit-btn-mobile');
-  Utils.setLoading(btnD, true, 'Mengirim...');
-  Utils.setLoading(btnM, true, 'Mengirim...');
+  state.isSubmitting = true;
 
-  // Fix #5: gunakan try/finally agar _isSubmitting SELALU di-reset
-  // kecuali saat redirect (return setelah replace tidak perlu reset)
+  // Disable tombol submit section ini
+  const desktopBtn = document.getElementById('submit-btn-desktop-' + elId);
+  if (desktopBtn) Utils.setLoading(desktopBtn, true, 'Mengirim...');
+  const mobileBtn = document.getElementById('submit-btn-mobile');
+  if (mobileBtn && _mobileActiveElectionId === elId) Utils.setLoading(mobileBtn, true, 'Mengirim...');
+
   try {
-    const res = await API.vote.submit(_selectedId);
+    const res = await API.vote.submit(state.selectedId, elId);
 
     if (res.success) {
-      Auth.markAsVoted();
-      if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+      // Update state lokal — set sebelum redirect agar tidak ada double-submit
+      state.hasVoted = true;
+
+      // Update session storage
+      Auth.markElectionVoted(elId);
+
+      // Simpan hasil vote untuk success.html (ambil yang terakhir jika multi)
       sessionStorage.setItem('ev_vote_result', JSON.stringify(res.data));
-      window.location.replace('/success.html');
-      // Tidak reset _isSubmitting — redirect sedang berjalan
+
+      // Sembunyikan submit section
+      const submitSection = document.getElementById('submit-section-' + elId);
+      if (submitSection) submitSection.classList.add('hidden');
+
+      // Tampilkan voted overlay
+      const votedSection = document.getElementById('voted-section-' + elId);
+      if (votedSection) votedSection.classList.remove('hidden');
+
+      // Sembunyikan kartu kandidat (sudah tidak bisa dipilih lagi)
+      const grid = document.getElementById('grid-' + elId);
+      if (grid) grid.innerHTML = '';
+
+      // Sembunyikan selection info
+      const selInfo = document.getElementById('selection-info-' + elId);
+      if (selInfo) selInfo.classList.add('hidden');
+
+      // Update badge di section header
+      _updateSectionVotedBadge(elId);
+
+      // Update progress bar
+      renderMultiProgress();
+
+      // Cek apakah semua elections sudah divote
+      const allDone = _elections.every(e => {
+        const id = e.id || e.electionId;
+        return _sectionStates[id] && _sectionStates[id].hasVoted;
+      });
+
+      if (allDone || res.data.allVoted) {
+        // Semua selesai → redirect ke success
+        Auth.markAsVoted();
+        if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+        setTimeout(() => window.location.replace('/success.html'), 1200);
+        // Tidak reset isSubmitting — redirect sedang berjalan, tombol sengaja disabled
+        return;
+      }
+
+      // Masih ada elections lain — bersihkan mobile bar jika perlu
+      if (_mobileActiveElectionId === elId) {
+        _mobileActiveElectionId = null;
+        document.getElementById('mobile-submit-bar').classList.add('hidden');
+        _updateMainPadding(false);
+      }
+
+      // Sukses toast
+      const el = _elections.find(e => (e.id || e.electionId) === elId);
+      const remaining = _elections.filter(e => {
+        const id = e.id || e.electionId;
+        return !(_sectionStates[id] && _sectionStates[id].hasVoted);
+      }).length;
+      Toast.success(
+        `Suara untuk "${el ? el.title : 'pemilihan ini'}" berhasil dicatat.` +
+        (remaining > 0 ? ` Lanjutkan ke ${remaining} pemilihan berikutnya.` : ''),
+        5000
+      );
+
+      // Scroll ke section berikutnya yang belum vote
+      const nextEl = _elections.find(e => {
+        const id = e.id || e.electionId;
+        return !(_sectionStates[id] && _sectionStates[id].hasVoted);
+      });
+      if (nextEl) {
+        const nextId = nextEl.id || nextEl.electionId;
+        const nextSection = document.getElementById('section-' + nextId);
+        if (nextSection) {
+          setTimeout(() => nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400);
+        }
+      }
+
       return;
     }
 
-    // Gagal
-    Utils.setLoading(btnD, false);
-    Utils.setLoading(btnM, false);
+    // Gagal — re-enable tombol dan tampilkan error
     Modal.alert(
       'Gagal Mengirim Suara',
       res.message || 'Terjadi kesalahan. Silakan coba lagi.',
@@ -760,33 +1099,70 @@ async function submitVoteConfirmed() {
       'error'
     );
 
-    // Edge case: sudah vote (race condition) → redirect ke sukses
+    // Race condition: sudah vote di server tapi state lokal belum tahu
     if (res.errorCode === 'ALREADY_VOTED') {
-      if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
-      setTimeout(() => window.location.replace('/success.html'), 2000);
+      state.hasVoted = true;
+      Auth.markElectionVoted(elId);
+      renderMultiProgress();
+      const allDone2 = _elections.every(e => {
+        const id = e.id || e.electionId;
+        return _sectionStates[id] && _sectionStates[id].hasVoted;
+      });
+      if (allDone2) {
+        Auth.markAsVoted();
+        setTimeout(() => window.location.replace('/success.html'), 2000);
+        return;
+      }
     }
 
   } catch (_err) {
-    Utils.setLoading(btnD, false);
-    Utils.setLoading(btnM, false);
     Toast.error('Gagal menghubungi server. Silakan coba lagi.');
   } finally {
-    // Fix #5: reset flag kecuali jika sudah redirect
-    if (!Auth.getUserData()?.hasVoted) {
-      _isSubmitting = false;
+    // Reset isSubmitting dan loading state kecuali saat redirect (state.hasVoted=true & allDone)
+    // Cek: jika hasVoted=true dan allVoted maka tombol sengaja tetap disabled.
+    const allDoneCheck = _elections.every(e => {
+      const id = e.id || e.electionId;
+      return _sectionStates[id] && _sectionStates[id].hasVoted;
+    });
+    if (!allDoneCheck) {
+      state.isSubmitting = false;
+      if (desktopBtn) Utils.setLoading(desktopBtn, false);
+      if (mobileBtn && _mobileActiveElectionId === elId) Utils.setLoading(mobileBtn, false);
     }
   }
 }
 
+// ── _updateSectionVotedBadge ──────────────────────────────────
+
+function _updateSectionVotedBadge(elId) {
+  if (_elections.length <= 1) return;
+  const section = document.getElementById('section-' + elId);
+  if (!section) return;
+  // Cari container badge di baris pertama header section
+  const badgeContainer = section.querySelector('.flex.items-center.gap-2.mb-1');
+  if (!badgeContainer) return;
+  // Hapus badge lama jika ada
+  const oldBadge = badgeContainer.querySelector('.voted-badge');
+  if (oldBadge) oldBadge.remove();
+  // Tambah badge baru
+  const badge = document.createElement('span');
+  badge.className = 'voted-badge';
+  badge.innerHTML = '<i class="fa-solid fa-check-circle fa-xs" aria-hidden="true"></i> Sudah Memilih';
+  badgeContainer.appendChild(badge);
+}
+
 // ── startCountdown ────────────────────────────────────────────
 
-function startCountdown(endDateIso) {
-  // Hentikan timer sebelumnya jika ada
+function startCountdown(endDateIso, electionTitle) {
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
 
-  const bar = document.getElementById('timer-bar');
-  const el  = document.getElementById('timer-countdown');
+  const bar      = document.getElementById('timer-bar');
+  const labelEl  = document.getElementById('timer-label');
+  const countEl  = document.getElementById('timer-countdown');
   bar.classList.remove('hidden');
+  if (labelEl && electionTitle && _elections.length > 1) {
+    labelEl.textContent = Utils.escapeHtml(electionTitle) + ':';
+  }
 
   function tick() {
     const cd = Utils.getCountdown(endDateIso);
@@ -794,38 +1170,48 @@ function startCountdown(endDateIso) {
     if (cd.expired) {
       clearInterval(_timerInterval);
       _timerInterval = null;
+      countEl.textContent = 'Pemilihan telah berakhir';
+      bar.style.backgroundColor = '#dc2626';
 
-      el.textContent = 'Pemilihan telah berakhir';
-      // Fix #4: null guard — elemen mungkin belum ada saat timer expire
-      const btnD = document.getElementById('submit-btn-desktop');
-      const btnM = document.getElementById('submit-btn-mobile');
-      if (btnD) btnD.setAttribute('disabled', true);
-      if (btnM) btnM.setAttribute('disabled', true);
+      // Hanya disable tombol submit untuk election yang waktunya habis ini,
+      // bukan semua tombol — elections lain mungkin masih aktif.
+      // Identifikasi election berdasarkan endDate yang sesuai.
+      const expiredElIds = _elections
+        .filter(e => e.endDate && endDateIso === e.endDate)
+        .map(e => e.id || e.electionId);
 
-      // Fix #16: timer bar merah saat expired
-      bar.style.backgroundColor = '#dc2626'; // red-600
-      bar.style.transition = 'background-color 0.5s ease';
+      if (expiredElIds.length > 0) {
+        expiredElIds.forEach(eid => {
+          const desktopBtn = document.getElementById('submit-btn-desktop-' + eid);
+          if (desktopBtn) desktopBtn.setAttribute('disabled', 'true');
+        });
+        // Disable mobile bar jika election aktifnya adalah yang expired
+        if (expiredElIds.includes(_mobileActiveElectionId)) {
+          const mobileBtn = document.getElementById('submit-btn-mobile');
+          if (mobileBtn) mobileBtn.setAttribute('disabled', 'true');
+        }
+      } else {
+        // Fallback: tidak bisa identifikasi → disable semua
+        document.querySelectorAll('[id^="submit-btn-desktop-"], #submit-btn-mobile')
+          .forEach(btn => btn.setAttribute('disabled', 'true'));
+      }
 
       Toast.warning('Waktu pemilihan telah berakhir. Halaman akan diperbarui.', 0);
       setTimeout(() => window.location.reload(), 5000);
       return;
     }
 
-    // Fix #8: label yang jelas (hr / jam / mnt / dtk)
     const parts = [];
-    if (cd.days    > 0) parts.push(`${cd.days} hr`);
-    if (cd.hours   > 0 || cd.days > 0) parts.push(`${String(cd.hours).padStart(2,'0')} jam`);
+    if (cd.days  > 0) parts.push(`${cd.days} hr`);
+    if (cd.hours > 0 || cd.days > 0) parts.push(`${String(cd.hours).padStart(2,'0')} jam`);
     parts.push(`${String(cd.minutes).padStart(2,'0')} mnt`);
     parts.push(`${String(cd.seconds).padStart(2,'0')} dtk`);
-    el.textContent = parts.join(' ');
+    countEl.textContent = parts.join(' ');
 
-    // Fix #16: warna amber < 5 menit, merah saat expired
-    const totalSeconds = cd.days * 86400 + cd.hours * 3600 + cd.minutes * 60 + cd.seconds;
-    if (totalSeconds <= 300 && totalSeconds > 0) {
-      // < 5 menit: amber
-      bar.style.backgroundColor = '#d97706'; // amber-600
-    } else if (totalSeconds > 300) {
-      // Normal: primary
+    const totalSec = cd.days*86400 + cd.hours*3600 + cd.minutes*60 + cd.seconds;
+    if (totalSec <= 300 && totalSec > 0) {
+      bar.style.backgroundColor = '#d97706';
+    } else if (totalSec > 300) {
       bar.style.backgroundColor = '';
     }
   }
@@ -838,14 +1224,13 @@ function startCountdown(endDateIso) {
 
 function showState(state, errorMsg) {
   document.getElementById('loading-state').classList.toggle('hidden', state !== 'loading');
-  document.getElementById('error-state').classList.toggle('hidden', state !== 'error');
+  document.getElementById('error-state').classList.toggle('hidden',   state !== 'error');
   document.getElementById('content-state').classList.toggle('hidden', state !== 'content');
   if (state === 'error' && errorMsg !== undefined) {
     document.getElementById('error-text').textContent = errorMsg;
   }
 }
 
-// Fix #20: helper show/hide tombol relogin
 function showReloginBtn() {
   document.getElementById('retry-btn').classList.add('hidden');
   document.getElementById('relogin-btn').classList.remove('hidden');
@@ -854,13 +1239,6 @@ function hideReloginBtn() {
   document.getElementById('retry-btn').classList.remove('hidden');
   document.getElementById('relogin-btn').classList.add('hidden');
 }
-
-// Fix #2: Update padding saat window di-resize melewati breakpoint md
-window.addEventListener('resize', () => {
-  const submitSection = document.getElementById('submit-section');
-  if (!submitSection || submitSection.classList.contains('hidden')) return;
-  _setSubmitSectionVisible(true); // recalculate padding
-});
 </script>
 </body>
 </html>
