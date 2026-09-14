@@ -147,7 +147,7 @@ const API = (() => {
 
   // ── Cloudinary direct upload ──────────────────────────────
   //
-  // Alur baru (menggantikan proxy upload lewat GAS):
+  // Alur (menggantikan proxy upload lewat GAS):
   //   1. Minta signature dari GAS  → request kecil, selesai <5 detik
   //   2. Upload file langsung ke Cloudinary dari browser → tidak lewat GAS
   //   3. Kirim secure_url ke GAS saat simpan data (bukan file binary)
@@ -156,16 +156,35 @@ const API = (() => {
   //   • Tidak ada lagi timeout/koneksi terputus akibat GAS menjadi proxy binary
   //   • Upload progress bisa ditampilkan (XHR-based)
   //   • GAS hanya melakukan komputasi ringan (sign + simpan URL)
+  //   • Upload bisa di-cancel saat modal ditutup
+
+  /**
+   * Hitung timeout upload adaptif berdasarkan ukuran file dan estimasi kecepatan.
+   * Asumsi minimum 50 KB/s (koneksi lambat), dengan floor 30 detik dan ceiling 3 menit.
+   *
+   * @param {number} fileSize - ukuran file dalam bytes
+   * @returns {number} timeout dalam milidetik
+   */
+  function _calcUploadTimeout(fileSize) {
+    const MIN_MS  = 30_000;   // minimal 30 detik
+    const MAX_MS  = 180_000;  // maksimal 3 menit
+    const SPEED   = 50_000;   // estimasi 50 KB/s (jaringan lambat)
+    const estimated = Math.ceil((fileSize / SPEED) * 1000) + 15_000; // + 15 detik buffer
+    return Math.min(Math.max(estimated, MIN_MS), MAX_MS);
+  }
 
   /**
    * Upload file langsung ke Cloudinary menggunakan signature dari GAS.
+   * Mendukung abort via AbortSignal untuk cancel saat modal ditutup.
    *
-   * @param {File}   file      - File object dari <input type="file">
-   * @param {Object} sigData   - Data signature dari GAS (timestamp, signature, apiKey, cloudName, folder)
-   * @param {Function} [onProgress] - Callback progress(0–100)
+   * @param {File}     file           - File object dari <input type="file">
+   * @param {Object}   sigData        - Data signature dari GAS
+   *   (timestamp, signature, apiKey, cloudName, folder, transformation?)
+   * @param {Function} [onProgress]   - Callback progress(0–100)
+   * @param {AbortSignal} [abortSignal] - Signal untuk membatalkan upload
    * @returns {Promise<{url: string, publicId: string}>}
    */
-  async function uploadToCloudinaryDirect(file, sigData, onProgress) {
+  async function uploadToCloudinaryDirect(file, sigData, onProgress, abortSignal) {
     const endpoint = `https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`;
 
     const formData = new FormData();
@@ -175,8 +194,25 @@ const API = (() => {
     formData.append('api_key',   sigData.apiKey);
     formData.append('signature', sigData.signature);
 
+    // Sertakan eager transformation jika backend memberikannya (auto resize + kompresi)
+    if (sigData.eager) {
+      formData.append('eager', sigData.eager);
+    }
+
+    // Timeout adaptif: makin besar file, makin panjang timeout
+    const timeoutMs = _calcUploadTimeout(file.size);
+
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+
+      // ── Tangani abort dari luar (misal modal ditutup) ──
+      if (abortSignal) {
+        if (abortSignal.aborted) {
+          reject(new Error('Upload dibatalkan.'));
+          return;
+        }
+        abortSignal.addEventListener('abort', () => xhr.abort(), { once: true });
+      }
 
       if (onProgress && xhr.upload) {
         xhr.upload.addEventListener('progress', (e) => {
@@ -189,25 +225,25 @@ const API = (() => {
           try {
             const data = JSON.parse(xhr.responseText);
             resolve({ url: data.secure_url, publicId: data.public_id });
-          } catch (e) {
+          } catch {
             reject(new Error('Respons Cloudinary tidak valid.'));
           }
         } else {
           let errMsg = `Cloudinary error ${xhr.status}`;
           try {
             const errData = JSON.parse(xhr.responseText);
-            if (errData.error && errData.error.message) errMsg = errData.error.message;
+            if (errData.error?.message) errMsg = errData.error.message;
           } catch (_) {}
           reject(new Error(errMsg));
         }
       });
 
-      xhr.addEventListener('error',   () => reject(new Error('Koneksi ke Cloudinary gagal.')));
-      xhr.addEventListener('timeout', () => reject(new Error('Upload ke Cloudinary timeout.')));
+      xhr.addEventListener('error',   () => reject(new Error('Koneksi ke Cloudinary gagal. Periksa jaringan Anda.')));
+      xhr.addEventListener('timeout', () => reject(new Error(`Upload timeout (>${Math.round(timeoutMs / 1000)}s). File mungkin terlalu besar atau jaringan lambat.`)));
       xhr.addEventListener('abort',   () => reject(new Error('Upload dibatalkan.')));
 
       xhr.open('POST', endpoint);
-      xhr.timeout = 120000; // 2 menit — batas wajar untuk file hingga 5 MB
+      xhr.timeout = timeoutMs;
       xhr.send(formData);
     });
   }
@@ -234,6 +270,7 @@ const API = (() => {
   const voter = {
     getAll: (params) => request('voter.getAll', params || {}),
     getById: (id) => request('voter.getById', { id }),
+    getClasses: (electionId) => request('voter.getClasses', electionId ? { electionId } : {}),
     create: (data) => request('voter.create', data),
     update: (data) => request('voter.update', data),
     delete: (id) => request('voter.delete', { id }),
