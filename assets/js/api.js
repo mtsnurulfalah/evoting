@@ -256,67 +256,30 @@ const API = (() => {
   }
 
   /**
-   * Upload file langsung ke Cloudinary menggunakan UNSIGNED upload preset.
-   * Tidak memerlukan signature maupun roundtrip ke GAS — upload langsung dari browser.
+   * Upload foto kandidat ke Google Drive via GAS.
+   * Frontend mengirim file sebagai base64, GAS menyimpan ke Drive dan
+   * mengembalikan thumbnail URL yang bisa langsung dipakai sebagai src=.
    *
-   * Prasyarat: buat unsigned upload preset di Cloudinary Dashboard
-   *   Settings → Upload → Upload presets → Add upload preset → Signing mode: Unsigned
+   * Alur:
+   *   1. Frontend baca file → compress → base64
+   *   2. Kirim ke GAS action `candidate.uploadPhotoDrive`
+   *   3. GAS simpan ke Drive, set permission Anyone can view
+   *   4. GAS return { fileId, url } — url = lh3.googleusercontent.com/d/{id}
+   *   5. Frontend simpan url ke hidden input, kirim saat form submit
    *
-   * @param {File}     file         - File object dari <input type="file">
-   * @param {string}   cloudName    - Nama cloud Cloudinary (window.CLOUDINARY_CLOUD_NAME)
-   * @param {string}   uploadPreset - Nama unsigned preset (window.CLOUDINARY_UPLOAD_PRESET)
-   * @param {Function} [onProgress] - Callback progress(0–100)
-   * @param {AbortSignal} [abortSignal] - Signal untuk membatalkan upload
-   * @returns {Promise<{url: string, publicId: string}>}
+   * @param {string} base64    - Base64 string (tanpa prefix data:...)
+   * @param {string} mimeType  - MIME type: image/jpeg, image/png, image/webp
+   * @param {string} filename  - Nama file asli
+   * @param {string} [oldUrl]  - URL foto lama (untuk dihapus dari Drive)
+   * @returns {Promise<Object>} Response GAS: { success, data: { fileId, url } }
    */
-  async function uploadToCloudinaryUnsigned(file, cloudName, uploadPreset, onProgress, abortSignal) {
-    const endpoint = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-    const timeoutMs = _calcUploadTimeout(file.size);
-
-    const formData = new FormData();
-    formData.append('file',          file);
-    formData.append('upload_preset', uploadPreset);
-
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      if (abortSignal) {
-        if (abortSignal.aborted) { reject(new Error('Upload dibatalkan.')); return; }
-        abortSignal.addEventListener('abort', () => xhr.abort(), { once: true });
-      }
-
-      if (onProgress && xhr.upload) {
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-        });
-      }
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            resolve({ url: data.secure_url, publicId: data.public_id });
-          } catch {
-            reject(new Error('Respons Cloudinary tidak valid.'));
-          }
-        } else {
-          let errMsg = `Cloudinary error ${xhr.status}`;
-          try {
-            const errData = JSON.parse(xhr.responseText);
-            if (errData.error?.message) errMsg = errData.error.message;
-          } catch (_) {}
-          reject(new Error(errMsg));
-        }
-      });
-
-      xhr.addEventListener('error',   () => reject(new Error('Koneksi ke Cloudinary gagal. Periksa jaringan Anda.')));
-      xhr.addEventListener('timeout', () => reject(new Error(`Upload timeout (>${Math.round(timeoutMs / 1000)}s). File mungkin terlalu besar atau jaringan lambat.`)));
-      xhr.addEventListener('abort',   () => reject(new Error('Upload dibatalkan.')));
-
-      xhr.open('POST', endpoint);
-      xhr.timeout = timeoutMs;
-      xhr.send(formData);
-    });
+  function uploadPhotoDrive(base64, mimeType, filename, oldUrl) {
+    return request('candidate.uploadPhotoDrive', {
+      base64,
+      mimeType,
+      filename,
+      oldUrl: oldUrl || '',
+    }, { timeoutMs: 120000 }); // 2 menit — DriveApp bisa lambat
   }
 
   const candidate = {
@@ -328,9 +291,12 @@ const API = (() => {
     update: (data) => request('candidate.update', data),
     delete: (id) => request('candidate.delete', { id }),
     reorder: (orders) => request('candidate.reorder', { orders }),
-    /** Minta signature Cloudinary (request ringan ke GAS) */
+    /** Upload foto ke Google Drive via GAS (pengganti Cloudinary) */
+    uploadPhotoDrive: (base64, mimeType, filename, oldUrl) =>
+      uploadPhotoDrive(base64, mimeType, filename, oldUrl),
+    /** @deprecated */
     getUploadSignature: (oldUrl = '') => request('candidate.getUploadSignature', { oldUrl }),
-    /** @deprecated Gunakan getUploadSignature + uploadToCloudinaryDirect */
+    /** @deprecated */
     uploadPhoto: (data) => request('candidate.uploadPhoto', data),
   };
 
@@ -420,5 +386,5 @@ const API = (() => {
     return _pendingRequests > 0;
   }
 
-  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, adminUsers, accessPin, isPending, uploadToCloudinaryDirect, uploadToCloudinaryUnsigned };
+  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, adminUsers, accessPin, isPending, uploadToCloudinaryDirect, uploadPhotoDrive };
 })();
