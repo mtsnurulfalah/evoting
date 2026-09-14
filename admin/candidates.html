@@ -927,14 +927,16 @@ function openCandidateModal(id) {
 
 // ── Photo upload ──────────────────────────────────────────────
 //
-// Alur (direct upload — tidak lewat GAS sebagai proxy):
+// Alur baru (Google Drive via GAS):
 //   1. Kompres gambar di browser (Canvas) → kurangi ukuran sebelum kirim
-//   2. Minta signature ke GAS → request JSON kecil, selesai <5 detik
-//   3. Upload file langsung dari browser ke Cloudinary (AbortSignal)
-//   4. URL Cloudinary disimpan di hidden input; dikirim ke GAS saat form disimpan
+//   2. Baca file sebagai base64
+//   3. Kirim base64 ke GAS action `candidate.uploadPhotoDrive`
+//   4. GAS simpan ke Drive, return thumbnailUrl (lh3.googleusercontent.com/d/{id})
+//   5. URL disimpan di hidden input; dikirim ke GAS saat form submit
 //
-// Retry dengan exponential backoff: jeda 2s → 4s → 8s (maks 3 percobaan).
-// Upload bisa di-cancel saat modal ditutup — tidak ada XHR menggantung.
+// Retry dengan exponential backoff: jeda 3s → 6s (maks 3 percobaan).
+// GAS Upload Drive tidak bisa di-cancel mid-flight karena pakai request(),
+// tapi _uploadAbort tetap dipakai sebagai flag "modal sudah ditutup".
 
 const _MAX_UPLOAD_ATTEMPTS = 3;
 
@@ -943,7 +945,7 @@ function _sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/** Batalkan semua upload aktif (dipanggil saat modal ditutup/dibuka ulang). */
+/** Batalkan upload aktif — set flag abort agar loop retry berhenti. */
 function _cancelActiveUploads() {
   ['main', 'pair'].forEach(type => {
     if (_uploadAbort[type]) {
@@ -955,53 +957,58 @@ function _cancelActiveUploads() {
 
 /**
  * Kompres gambar menggunakan Canvas API sebelum upload.
- * Mengecilkan dimensi ke maks maxW×maxH dan menurunkan kualitas JPEG.
- * Jika file sudah kecil (< threshold), dikembalikan apa adanya.
+ * Penting untuk menjaga payload base64 tetap kecil (GAS punya batas 50MB/request
+ * tapi koneksi lambat membuat payload besar tidak praktis).
  *
  * @param {File}   file    - File gambar asli
- * @param {number} maxW    - Lebar maksimal (default 1200px)
- * @param {number} maxH    - Tinggi maksimal (default 1500px)
- * @param {number} quality - Kualitas JPEG 0–1 (default 0.82)
- * @returns {Promise<File>} File terkompresi (atau asli jika sudah kecil)
+ * @param {number} maxW    - Lebar maksimal px (default 1000)
+ * @param {number} maxH    - Tinggi maksimal px (default 1200)
+ * @param {number} quality - Kualitas JPEG 0–1 (default 0.80)
+ * @returns {Promise<{blob: Blob, mimeType: string, filename: string}>}
  */
-function _compressImage(file, maxW = 1200, maxH = 1500, quality = 0.82) {
-  // Skip kompresi untuk file yang sudah kecil (< 300 KB) — tidak perlu
-  if (file.size < 300 * 1024) return Promise.resolve(file);
-
+function _compressImage(file, maxW = 1000, maxH = 1200, quality = 0.80) {
   return new Promise((resolve) => {
-    const img = new Image();
+    const img    = new Image();
     const blobUrl = URL.createObjectURL(file);
 
     img.onload = () => {
       URL.revokeObjectURL(blobUrl);
 
       let { width, height } = img;
-
-      // Hitung dimensi baru dengan mempertahankan aspect ratio
-      const ratio = Math.min(maxW / width, maxH / height, 1); // 1 = jangan perbesar
+      const ratio = Math.min(maxW / width, maxH / height, 1);
       width  = Math.round(width  * ratio);
       height = Math.round(height * ratio);
 
       const canvas = document.createElement('canvas');
       canvas.width  = width;
       canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
 
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Pilih output format: pertahankan PNG jika aslinya PNG dan kecil,
-      // gunakan JPEG untuk foto (lebih kecil dari PNG untuk foto realistis)
-      const outType = (file.type === 'image/png' && file.size < 1 * 1024 * 1024)
-        ? 'image/png'
-        : 'image/jpeg';
+      // Selalu output JPEG untuk foto (ukuran paling kecil)
+      // kecuali PNG transparan yang sudah sangat kecil
+      const outType = (file.type === 'image/png' && file.size < 200 * 1024)
+        ? 'image/png' : 'image/jpeg';
 
       canvas.toBlob(
         (blob) => {
-          if (!blob) { resolve(file); return; } // fallback ke asli jika canvas gagal
-          // Jika hasil kompresi lebih besar dari asli, pakai asli
-          if (blob.size >= file.size) { resolve(file); return; }
-          const compressed = new File([blob], file.name, { type: outType, lastModified: Date.now() });
-          resolve(compressed);
+          if (!blob || blob.size >= file.size) {
+            // Fallback: pakai file asli jika kompresi tidak menguntungkan
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const b64 = e.target.result.split(',')[1];
+              resolve({ b64, mimeType: file.type, filename: file.name });
+            };
+            reader.readAsDataURL(file);
+            return;
+          }
+          const ext      = outType === 'image/png' ? 'png' : 'jpg';
+          const filename = file.name.replace(/\.[^.]+$/, '') + '.' + ext;
+          const reader   = new FileReader();
+          reader.onload  = (e) => {
+            const b64 = e.target.result.split(',')[1];
+            resolve({ b64, mimeType: outType, filename });
+          };
+          reader.readAsDataURL(blob);
         },
         outType,
         quality,
@@ -1010,7 +1017,13 @@ function _compressImage(file, maxW = 1200, maxH = 1500, quality = 0.82) {
 
     img.onerror = () => {
       URL.revokeObjectURL(blobUrl);
-      resolve(file); // fallback ke asli
+      // Fallback: kirim file asli tanpa kompresi
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const b64 = e.target.result.split(',')[1];
+        resolve({ b64, mimeType: file.type, filename: file.name });
+      };
+      reader.readAsDataURL(file);
     };
 
     img.src = blobUrl;
@@ -1018,17 +1031,14 @@ function _compressImage(file, maxW = 1200, maxH = 1500, quality = 0.82) {
 }
 
 /**
- * Render progress bar di dalam photo-thumb.
- * @param {HTMLElement} preview  - Elemen .photo-thumb
- * @param {string}      localUrl - Object URL untuk preview lokal
- * @param {number}      pct      - 0–100
+ * Render spinner + persentase di dalam photo-thumb selama upload.
  */
-function _renderUploadProgress(preview, localUrl, pct) {
+function _renderUploadProgress(preview, localUrl, label) {
   preview.innerHTML = `
-    <img src="${localUrl}" alt="Preview" style="opacity:.65">
-    <div class="photo-thumb-spinner" style="flex-direction:column;gap:4px">
+    <img src="${localUrl}" alt="Preview" style="opacity:.6">
+    <div class="photo-thumb-spinner" style="flex-direction:column;gap:3px">
       <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-      ${pct > 0 ? `<span style="font-size:9px;color:#fff;font-weight:700;line-height:1">${pct}%</span>` : ''}
+      <span style="font-size:9px;color:#fff;font-weight:700;line-height:1;text-align:center">${Utils.escapeHtml(label)}</span>
     </div>`;
 }
 
@@ -1051,58 +1061,60 @@ async function previewAndUpload(type, input) {
   const preview  = document.getElementById(previewId);
   const urlInput = document.getElementById(urlId);
   const labelEl  = document.getElementById(labelId);
-
   if (!preview || !urlInput) return;
 
-  // Batalkan upload sebelumnya untuk slot ini (jika ada)
+  // Batalkan upload sebelumnya untuk slot ini
   if (_uploadAbort[type]) {
     try { _uploadAbort[type].abort(); } catch (_) {}
   }
+  const abortCtrl       = new AbortController();
+  _uploadAbort[type]    = abortCtrl;
 
-  // Simpan URL lama untuk rollback
   const oldUrl = urlInput.value || '';
-
-  // Set state uploading
   _uploadState[type] = 'uploading';
-  if (labelEl) labelEl.textContent = 'Memproses...';
 
   // Tampilkan preview lokal segera
   const localUrl = URL.createObjectURL(file);
-  _renderUploadProgress(preview, localUrl, 0);
+  _renderUploadProgress(preview, localUrl, '...');
+  if (labelEl) labelEl.textContent = 'Memproses...';
 
-  // ── Kompresi gambar sebelum upload ──────────────────────────
-  let fileToUpload = file;
+  // ── Kompres + encode base64 ──────────────────────────────
+  let compressed;
   try {
-    fileToUpload = await _compressImage(file);
-    const saved = file.size - fileToUpload.size;
-    if (saved > 10 * 1024) {
-      console.info(`[upload] Kompresi: ${(file.size/1024).toFixed(0)}KB → ${(fileToUpload.size/1024).toFixed(0)}KB`);
-    }
+    compressed = await _compressImage(file);
+    console.info(`[upload] ${(file.size/1024).toFixed(0)}KB → ${(compressed.b64.length * 0.75 / 1024).toFixed(0)}KB (est.)`);
   } catch {
-    fileToUpload = file;
+    // Fallback: baca asli
+    try {
+      const b64 = await Utils.readFileAsBase64(file);
+      compressed = { b64, mimeType: file.type, filename: file.name };
+    } catch (readErr) {
+      URL.revokeObjectURL(localUrl);
+      _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
+      _uploadState[type] = 'error';
+      _uploadAbort[type] = null;
+      Toast.error('Gagal membaca file gambar. Coba pilih ulang.');
+      return;
+    }
   }
 
-  // Ambil konfigurasi Cloudinary dari config.js
-  const cloudName    = window.CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = window.CLOUDINARY_UPLOAD_PRESET;
-
-  if (!cloudName || !uploadPreset
-      || cloudName === 'YOUR_CLOUD_NAME') {
+  // Batalkan jika modal sudah ditutup selama kompresi
+  if (abortCtrl.signal.aborted) {
     URL.revokeObjectURL(localUrl);
-    _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
-    _uploadState[type] = 'error';
-    Toast.error('Konfigurasi upload belum diset. Hubungi administrator.');
     return;
   }
 
   let lastError = null;
 
   for (let attempt = 1; attempt <= _MAX_UPLOAD_ATTEMPTS; attempt++) {
-    const abortCtrl = new AbortController();
-    _uploadAbort[type] = abortCtrl;
+    // Cek apakah modal sudah ditutup
+    if (abortCtrl.signal.aborted || !document.getElementById(previewId)) {
+      URL.revokeObjectURL(localUrl);
+      return;
+    }
 
-    // Exponential backoff: attempt=1 gagal → tunggu 2s, attempt=2 gagal → tunggu 4s
-    const retryDelayMs = Math.min(2000 * (2 ** (attempt - 1)), 8000);
+    // Exponential backoff: 3s → 6s
+    const retryDelayMs = Math.min(3000 * (2 ** (attempt - 1)), 12000);
 
     try {
       if (labelEl) {
@@ -1110,26 +1122,43 @@ async function previewAndUpload(type, input) {
           ? `Mencoba ulang ${attempt}/${_MAX_UPLOAD_ATTEMPTS}...`
           : 'Mengupload...';
       }
+      _renderUploadProgress(preview, localUrl, attempt > 1 ? `Coba ${attempt}` : 'Upload...');
 
-      // ── Upload langsung ke Cloudinary (tanpa signature / tanpa GAS) ──
-      const cloudResult = await API.uploadToCloudinaryUnsigned(
-        fileToUpload,
-        cloudName,
-        uploadPreset,
-        (pct) => {
-          _renderUploadProgress(preview, localUrl, pct);
-          if (labelEl) labelEl.textContent = `Mengupload ${pct}%...`;
-        },
-        abortCtrl.signal,
+      // ── Kirim ke GAS → Drive ─────────────────────────────
+      const res = await API.candidate.uploadPhotoDrive(
+        compressed.b64,
+        compressed.mimeType,
+        compressed.filename,
+        oldUrl,
       );
 
-      // ── Berhasil ──────────────────────────────────────────────
+      // Cek abort setelah request selesai
+      if (abortCtrl.signal.aborted) {
+        URL.revokeObjectURL(localUrl);
+        return;
+      }
+
+      if (!res.success || !res.data?.url) {
+        // Error dari GAS (bukan network) — tetap bisa di-retry jika retryable
+        const isRetryable = res._isRetryable || res.errorCode === 'NETWORK_ERROR' || res.errorCode === 'TIMEOUT_ERROR';
+        if (isRetryable && attempt < _MAX_UPLOAD_ATTEMPTS) {
+          throw new Error(res.message || 'Server error.');
+        }
+        // Error final (folder tidak ada, format salah, dll) — jangan retry
+        URL.revokeObjectURL(localUrl);
+        _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
+        _uploadState[type] = 'error';
+        _uploadAbort[type] = null;
+        Toast.error(res.message || 'Gagal menyimpan foto. Coba lagi.');
+        return;
+      }
+
+      // ── Berhasil ──────────────────────────────────────────
       URL.revokeObjectURL(localUrl);
-      urlInput.value = cloudResult.url;
+      urlInput.value = res.data.url;
       _uploadAbort[type] = null;
 
-      const displaySrc = Utils.buildImgUrl(cloudResult.url);
-      preview.innerHTML = `<img src="${Utils.escapeHtml(displaySrc)}" alt="Foto ter-upload"
+      preview.innerHTML = `<img src="${Utils.escapeHtml(res.data.url)}" alt="Foto ter-upload"
         referrerpolicy="no-referrer"
         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xl\\'></i>'">`;
 
@@ -1139,26 +1168,13 @@ async function previewAndUpload(type, input) {
       return;
 
     } catch (err) {
-      // Di-cancel (modal ditutup) — berhenti tanpa pesan error
-      if (err.message === 'Upload dibatalkan.' || abortCtrl.signal.aborted) {
-        URL.revokeObjectURL(localUrl);
-        _uploadState[type] = 'none';
-        _uploadAbort[type] = null;
-        return;
-      }
-
       lastError = err;
       console.warn(`[upload] percobaan ${attempt}/${_MAX_UPLOAD_ATTEMPTS} gagal:`, err.message);
 
-      if (attempt < _MAX_UPLOAD_ATTEMPTS) {
-        if (labelEl) labelEl.textContent = `Gagal, coba lagi ${retryDelayMs / 1000}s...`;
-        _renderUploadProgress(preview, localUrl, 0);
+      if (attempt < _MAX_UPLOAD_ATTEMPTS && !abortCtrl.signal.aborted) {
+        if (labelEl) labelEl.textContent = `Gagal, ulang ${retryDelayMs / 1000}s...`;
+        _renderUploadProgress(preview, localUrl, 'Retry...');
         await _sleep(retryDelayMs);
-        // Pastikan modal belum ditutup selama sleep
-        if (!document.getElementById(previewId)) {
-          URL.revokeObjectURL(localUrl);
-          return;
-        }
       }
     }
   }
@@ -1169,14 +1185,9 @@ async function previewAndUpload(type, input) {
   _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
   _uploadState[type] = 'error';
   _uploadAbort[type] = null;
-
-  const _isConnErr = lastError?.message?.includes('Cloudinary')
-    || lastError?.message?.includes('timeout')
-    || lastError?.message?.includes('Timeout');
-  Toast.error(
-    _isConnErr
-      ? `Koneksi ke Cloudinary gagal setelah ${_MAX_UPLOAD_ATTEMPTS}x. Periksa internet dan coba lagi.`
-      : (lastError?.message ? `Upload gagal: ${lastError.message}` : 'Gagal mengupload foto. Coba lagi.')
+  Toast.error(lastError?.message
+    ? `Upload gagal: ${lastError.message}`
+    : `Upload gagal setelah ${_MAX_UPLOAD_ATTEMPTS}x percobaan. Periksa koneksi dan coba lagi.`
   );
 }
 /**
