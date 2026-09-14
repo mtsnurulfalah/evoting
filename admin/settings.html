@@ -630,11 +630,20 @@
     } catch (_) { return {}; }
   }
 
-  /** Bangun JSON CLASS_POINTS dari input di tabel */
+  /**
+   * Bangun JSON CLASS_POINTS dari input di tabel.
+   * Jika _cpClasses kosong (tabel belum dimuat), kembalikan nilai
+   * tersimpan dari _configData agar tidak menimpa data yang sudah ada.
+   */
   function buildClassPointsJson() {
+    // Bug #6 fix: jangan hasilkan '{}' kosong jika tabel belum dimuat
+    if (_cpClasses.length === 0) {
+      return _configData['CLASS_POINTS'] || '{}';
+    }
     const result = {};
-    _cpClasses.forEach(cls => {
-      const input = document.querySelector(`input[data-class="${CSS.escape(cls)}"]`);
+    _cpClasses.forEach((cls, idx) => {
+      // Bug #3 fix: gunakan data-idx numerik, bukan CSS.escape pada nama kelas
+      const input = document.querySelector(`#cp-tbody input[data-idx="${idx}"]`);
       if (!input) return;
       const val = parseFloat(input.value);
       result[cls] = (!isNaN(val) && val >= 1) ? val : 1;
@@ -663,36 +672,56 @@
 
     if (countLabel) countLabel.textContent = `${classes.length} kelas ditemukan`;
 
-    tbody.innerHTML = classes.map(cls => {
-      const saved  = savedPoints[cls];
-      const val    = (saved !== undefined && !isNaN(parseFloat(saved))) ? parseFloat(saved) : 1;
-      const safeId = cls.replace(/"/g, '&quot;');
+    // Bug #3 fix: gunakan data-idx numerik sebagai selector, bukan CSS.escape nama kelas
+    // Nama kelas ditampilkan via textContent (safe), bukan attr (tidak perlu escape quote)
+    tbody.innerHTML = classes.map((cls, idx) => {
+      const saved = savedPoints[cls];
+      const val   = (saved !== undefined && !isNaN(parseFloat(saved))) ? parseFloat(saved) : 1;
       return `
         <tr class="hover:bg-gray-50 transition-colors">
-          <td class="px-4 py-2.5 text-sm font-medium text-gray-700">${Utils.escapeHtml(cls)}</td>
+          <td class="px-4 py-2.5 text-sm font-medium text-gray-700 cp-class-name-cell"></td>
           <td class="px-4 py-2.5 text-right">
             <input type="number"
                    class="form-input text-right text-sm w-28 tabular-nums"
-                   data-class="${safeId}"
+                   data-idx="${idx}"
                    value="${val}"
                    min="1"
                    max="9999"
                    step="1"
-                   aria-label="Poin per suara untuk kelas ${safeId}"
                    ${!superAdmin ? 'disabled' : ''}/>
           </td>
         </tr>`;
     }).join('');
 
-    // Dirty tracker untuk input poin
+    // Bug #3 fix: isi nama kelas via textContent (aman untuk semua karakter)
+    tbody.querySelectorAll('.cp-class-name-cell').forEach((cell, idx) => {
+      cell.textContent = classes[idx] || '';
+    });
+
+    // Bug #7 fix: pasang dirty listener langsung di input baru ini
+    // sehingga tidak bergantung pada bindDirtyTrackers yang berjalan sebelum tabel ada
     if (superAdmin) {
-      tbody.querySelectorAll('input[data-class]').forEach(inp => {
+      tbody.querySelectorAll('input[data-idx]').forEach(inp => {
         inp.addEventListener('input', () => {
           _configData['CLASS_POINTS'] = buildClassPointsJson();
           setDirty(true);
         });
       });
     }
+  }
+
+  /**
+   * Restore tampilan tabel poin ke nilai dari object savedPoints.
+   * Dipanggil oleh discardChanges. Bug #4 fix.
+   */
+  function restoreClassPointsTable(savedPoints) {
+    if (_cpClasses.length === 0) return; // tabel belum dimuat, tidak perlu restore
+    _cpClasses.forEach((cls, idx) => {
+      const input = document.querySelector(`#cp-tbody input[data-idx="${idx}"]`);
+      if (!input) return;
+      const saved = savedPoints[cls];
+      input.value = (saved !== undefined && !isNaN(parseFloat(saved))) ? parseFloat(saved) : 1;
+    });
   }
 
   /** Muat daftar kelas dari server */
@@ -735,6 +764,8 @@
     const classes     = (res.data && res.data.classes) || [];
     const savedPoints = parseClassPoints(_configData['CLASS_POINTS']);
     renderClassPointsTable(classes, savedPoints);
+    // Bug #7 fix: pastikan tidak memicu dirty setelah render awal
+    // (render hanya mengisi nilai, bukan perubahan dari user)
   }
 
   /** Isi dropdown election di kartu poin per kelas */
@@ -752,9 +783,12 @@
     const active = res.data.find(e => e.status === 'active') || res.data[0];
     if (active) {
       sel.value = active.id;
-      // Otomatis load jika sudah ada config CLASS_POINTS
+      // Bug #7 fix: hanya auto-load kelas jika sudah ada CLASS_POINTS tersimpan
+      // agar tidak trigger setDirty secara tidak sengaja setelah halaman dimuat
       if (_configData['CLASS_POINTS'] && _configData['CLASS_POINTS'] !== '{}') {
         await loadClassesForPoints();
+        // Pastikan dirty state tidak aktif setelah auto-load awal
+        setDirty(false);
       }
     }
   }
@@ -987,6 +1021,9 @@
     setToggle('toggle-login-birthplace', restoredFields.birthPlace);
     setToggle('toggle-login-birthdate',  restoredFields.birthDate);
 
+    // Bug #4 fix: restore tampilan tabel poin kelas ke nilai snapshot
+    restoreClassPointsTable(parseClassPoints(_configData['CLASS_POINTS']));
+
     // Hapus error state form
     ['s-app-name', 's-school-logo'].forEach(id => {
       const errEl = document.getElementById(id + '-error');
@@ -1086,7 +1123,7 @@
   document.getElementById('btn-reset-points')?.addEventListener('click', () => {
     if (!superAdmin) return;
     // Reset semua input poin ke 1
-    document.querySelectorAll('#cp-tbody input[data-class]').forEach(inp => {
+    document.querySelectorAll('#cp-tbody input[data-idx]').forEach(inp => {
       inp.value = 1;
     });
     _configData['CLASS_POINTS'] = buildClassPointsJson();
