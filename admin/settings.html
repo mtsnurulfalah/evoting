@@ -243,6 +243,94 @@
           </div>
         </div>
 
+        <!-- ── Field Login Pemilih ───────────────────────────── -->
+        <div class="card" id="card-login-fields">
+          <div class="card-header" id="card-login-fields-header">
+            <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-list-check text-indigo-500 text-xs" aria-hidden="true"></i>
+              </span>
+              Field Login Pemilih
+            </h3>
+          </div>
+          <div class="card-body space-y-0 divide-y divide-gray-100">
+
+            <p class="text-xs text-gray-500 pb-3 leading-relaxed">
+              Pilih data apa saja yang harus diisi pemilih saat login.
+              <strong>NISN</strong> dan <strong>PIN</strong> selalu wajib dan tidak dapat dinonaktifkan.
+            </p>
+
+            <!-- NISN — selalu aktif, non-editable -->
+            <div class="flex items-center justify-between gap-4 py-3.5">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-700 leading-snug flex items-center gap-2">
+                  NISN
+                  <span class="badge badge-primary text-xs py-0.5">Wajib</span>
+                </p>
+                <p class="text-xs text-gray-400 mt-0.5">Nomor Induk Siswa Nasional (10 digit)</p>
+              </div>
+              <button class="toggle-btn flex-shrink-0"
+                      role="switch"
+                      aria-checked="true"
+                      aria-disabled="true"
+                      tabindex="-1"
+                      aria-label="NISN selalu aktif">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <!-- Tempat Lahir -->
+            <div class="flex items-center justify-between gap-4 py-3.5">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-700 leading-snug">Tempat Lahir</p>
+                <p class="text-xs text-gray-400 mt-0.5">Kota/kabupaten tempat lahir pemilih</p>
+              </div>
+              <button id="toggle-login-birthplace"
+                      class="toggle-btn flex-shrink-0"
+                      role="switch"
+                      aria-checked="true"
+                      aria-label="Aktifkan field Tempat Lahir">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <!-- Tanggal Lahir -->
+            <div class="flex items-center justify-between gap-4 py-3.5">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-700 leading-snug">Tanggal Lahir</p>
+                <p class="text-xs text-gray-400 mt-0.5">Tanggal lahir pemilih sebagai verifikasi identitas</p>
+              </div>
+              <button id="toggle-login-birthdate"
+                      class="toggle-btn flex-shrink-0"
+                      role="switch"
+                      aria-checked="true"
+                      aria-label="Aktifkan field Tanggal Lahir">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <!-- PIN — selalu aktif, non-editable -->
+            <div class="flex items-center justify-between gap-4 py-3.5">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-700 leading-snug flex items-center gap-2">
+                  PIN Pemilih
+                  <span class="badge badge-primary text-xs py-0.5">Wajib</span>
+                </p>
+                <p class="text-xs text-gray-400 mt-0.5">PIN 5 digit yang diberikan panitia</p>
+              </div>
+              <button class="toggle-btn flex-shrink-0"
+                      role="switch"
+                      aria-checked="true"
+                      aria-disabled="true"
+                      tabindex="-1"
+                      aria-label="PIN selalu aktif">
+                <span class="toggle-thumb" aria-hidden="true"></span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
         <!-- ── Pengaturan Pemilihan ───────────────────────────── -->
         <div class="card" id="card-voting">
           <div class="card-header" id="card-voting-header">
@@ -395,6 +483,53 @@
   let _configData   = {};   // data dari server
   let _snapshot     = {};   // snapshot saat load (untuk "Batalkan")
   let _isDirty      = false;
+
+  // ── Helper: parse & build VOTER_LOGIN_FIELDS JSON ────────
+  // Default: semua field aktif jika belum ada config
+  const LOGIN_FIELDS_DEFAULT = { nisn: true, birthPlace: true, birthDate: true, pin: true };
+
+  function parseLoginFields(raw) {
+    if (!raw) return { ...LOGIN_FIELDS_DEFAULT };
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        nisn:       true, // selalu true
+        birthPlace: parsed.birthPlace !== false,
+        birthDate:  parsed.birthDate  !== false,
+        pin:        true, // selalu true
+      };
+    } catch (_) {
+      return { ...LOGIN_FIELDS_DEFAULT };
+    }
+  }
+
+  function buildLoginFieldsJson() {
+    return JSON.stringify({
+      nisn:       true,
+      birthPlace: getToggle('toggle-login-birthplace'),
+      birthDate:  getToggle('toggle-login-birthdate'),
+      pin:        true,
+    });
+  }
+
+  // Toggle khusus untuk field login — update _configData sebagai JSON string
+  function bindLoginFieldToggle(id, fieldKey) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+      if (!superAdmin || btn.getAttribute('aria-disabled') === 'true') return;
+      const current = btn.getAttribute('aria-checked') === 'true';
+      btn.setAttribute('aria-checked', (!current) ? 'true' : 'false');
+      // Rebuild JSON dan simpan ke _configData
+      _configData['VOTER_LOGIN_FIELDS'] = buildLoginFieldsJson();
+      setDirty(true);
+    });
+
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); btn.click(); }
+    });
+  }
 
   // ── DOM refs ──────────────────────────────────────────────
   const elLoading    = document.getElementById('loading-state');
@@ -567,6 +702,11 @@
     setToggle('toggle-public-result', _configData['ALLOW_PUBLIC_RESULT'] === 'true');
     setToggle('toggle-maintenance',   _configData['MAINTENANCE_MODE']    === 'true');
 
+    // Field login pemilih — parse dari JSON
+    const loginFields = parseLoginFields(_configData['VOTER_LOGIN_FIELDS']);
+    setToggle('toggle-login-birthplace', loginFields.birthPlace);
+    setToggle('toggle-login-birthdate',  loginFields.birthDate);
+
     // Simpan snapshot untuk fungsi "Batalkan"
     _snapshot = { ..._configData };
 
@@ -575,7 +715,7 @@
       elContent?.querySelectorAll('input, textarea, select').forEach(el => {
         el.disabled = true;
       });
-      ['toggle-public-result', 'toggle-maintenance'].forEach(id => {
+      ['toggle-public-result', 'toggle-maintenance', 'toggle-login-birthplace', 'toggle-login-birthdate'].forEach(id => {
         const btn = document.getElementById(id);
         if (btn) {
           btn.setAttribute('aria-disabled', 'true');
@@ -610,6 +750,11 @@
 
     setToggle('toggle-public-result', _configData['ALLOW_PUBLIC_RESULT'] === 'true');
     setToggle('toggle-maintenance',   _configData['MAINTENANCE_MODE']    === 'true');
+
+    // Kembalikan field login pemilih ke snapshot
+    const restoredFields = parseLoginFields(_configData['VOTER_LOGIN_FIELDS']);
+    setToggle('toggle-login-birthplace', restoredFields.birthPlace);
+    setToggle('toggle-login-birthdate',  restoredFields.birthDate);
 
     // Hapus error state form
     ['s-app-name', 's-school-logo'].forEach(id => {
@@ -653,6 +798,7 @@
       DRIVE_FOLDER_ID:     document.getElementById('s-drive-folder')?.value.trim() || '',
       ALLOW_PUBLIC_RESULT: _configData['ALLOW_PUBLIC_RESULT'] || 'false',
       MAINTENANCE_MODE:    _configData['MAINTENANCE_MODE']    || 'false',
+      VOTER_LOGIN_FIELDS:  buildLoginFieldsJson(),
     };
 
     let res;
@@ -684,8 +830,11 @@
         'Pengaturan — '
       );
 
-      // Perbarui snapshot setelah save sukses
-      _snapshot = { ...updates };
+      // Perbarui _configData dan snapshot setelah save sukses.
+      // Merge updates ke dalam _configData yang ada agar key lain
+      // (MAX_LOGIN_ATTEMPTS, dll) tidak hilang dari state lokal.
+      Object.assign(_configData, updates);
+      _snapshot = { ..._configData };
       setDirty(false);
 
     } else {
@@ -695,8 +844,10 @@
 
   // ── Event bindings ─────────────────────────────────────────
   // FIX #4 + #7: event listener, bukan inline onclick
-  bindToggle('toggle-public-result', 'ALLOW_PUBLIC_RESULT');
-  bindToggle('toggle-maintenance',   'MAINTENANCE_MODE');
+  bindToggle('toggle-public-result',    'ALLOW_PUBLIC_RESULT');
+  bindToggle('toggle-maintenance',      'MAINTENANCE_MODE');
+  bindLoginFieldToggle('toggle-login-birthplace', 'birthPlace');
+  bindLoginFieldToggle('toggle-login-birthdate',  'birthDate');
 
   btnSave?.addEventListener('click', saveSettings);
   btnSaveTop?.addEventListener('click', saveSettings);
