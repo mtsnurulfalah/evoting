@@ -90,10 +90,19 @@ const Auth = (() => {
 
   /**
    * Cek apakah role admin punya akses ke halaman settings.
-   * Hanya superadmin yang boleh.
+   * Superadmin: akses penuh. Ketua panitia: akses terbatas
+   * (hanya Field Login Pemilih dan Poin Per Kelas).
    */
   function canAccessSettings() {
-    return isSuperAdmin();
+    return isSuperAdmin() || isKetuaPanitia();
+  }
+
+  /**
+   * Cek apakah user adalah ketua panitia yang sedang di halaman settings.
+   * Digunakan untuk membatasi tampilan kartu ke field login & poin per kelas saja.
+   */
+  function isKetuaPanitiaSettings() {
+    return isKetuaPanitia();
   }
 
   /**
@@ -238,7 +247,7 @@ const Auth = (() => {
     getToken, getUserType, getUserData, getElectionData,
     isLoggedIn, isVoter, isAdmin, isExpired,
     getAdminRole, isSuperAdmin, isKetuaPanitia, isPanitia,
-    canAccessSettings,
+    canAccessSettings, isKetuaPanitiaSettings,
     setVoterSession, setAdminSession,
     logoutVoter, logoutAdmin,
     requireVoter, requireAdminPage, redirectIfLoggedIn,
