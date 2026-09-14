@@ -631,14 +631,6 @@ const Topbar = (() => {
     return span;
   }
 
-  // Tetap tersedia untuk kompatibilitas jika ada kode lain yang memanggil _initialHtml
-  function _initialHtml(adminData) {
-    const el  = _buildInitialEl(adminData);
-    const div = document.createElement('div');
-    div.appendChild(el);
-    return div.innerHTML;
-  }
-
   /**
    * Refresh tampilan avatar di sidebar (dipanggil setelah upload foto baru).
    */
