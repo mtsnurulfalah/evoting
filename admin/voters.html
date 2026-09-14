@@ -2094,6 +2094,7 @@ function loadXLSX() {
 async function openAssignModal() {
   // Cache daftar semua elections untuk pilihan tujuan
   let _allElections    = [];
+  let _electionsLoaded = false;  // flag: elections sudah selesai dimuat
   let _voterData       = null;   // hasil lookupVoterByNisn
   let _isLooking       = false;
   let _isAssigning     = false;
@@ -2114,10 +2115,18 @@ async function openAssignModal() {
   if (assignBtn) assignBtn.disabled = true;
 
   // ── Muat semua elections di background ───────────────────
+  // Jika lookup voter selesai sebelum elections dimuat, re-render preview
+  // setelah elections tersedia agar daftar pilihan tidak kosong.
   (async () => {
     const res = await API.election.getAll();
     if (res.success && Array.isArray(res.data)) {
-      _allElections = res.data;
+      _allElections    = res.data;
+      _electionsLoaded = true;
+      // Re-render preview jika voter sudah ditemukan tapi elections tadi masih kosong
+      const resultArea = document.getElementById('assign-result-area');
+      if (_voterData && resultArea) {
+        _renderAssignVoterPreview(_voterData, _allElections, resultArea);
+      }
     }
   })();
 
@@ -2133,8 +2142,8 @@ async function openAssignModal() {
       _setAssignFieldError('assign-nisn-error', 'NISN tidak boleh kosong.');
       return;
     }
-    if (!/^\d{1,10}$/.test(nisn)) {
-      _setAssignFieldError('assign-nisn-error', 'NISN harus 10 digit angka.');
+    if (!/^\d{10}$/.test(nisn)) {
+      _setAssignFieldError('assign-nisn-error', 'NISN harus tepat 10 digit angka.');
       return;
     }
     _clearAssignFieldError('assign-nisn-error');
@@ -2462,9 +2471,12 @@ function _showAssignResult(data) {
       ).join('')
     : '';
 
-  const voterLabel = data.name
-    ? `${Utils.escapeHtml(data.name)} <span class="font-mono text-xs text-gray-500">(${Utils.escapeHtml(data.nisn || '')})</span>`
-    : Utils.escapeHtml(data.nisn || '');
+  // Buat label voter dengan escaping yang aman — tanpa inject HTML mentah
+  const voterName = Utils.escapeHtml(data.name || '');
+  const voterNisn = Utils.escapeHtml(data.nisn || '');
+  const voterLabelHtml = voterName
+    ? `${voterName} <span class="font-mono text-xs text-gray-500">(${voterNisn})</span>`
+    : `<span class="font-mono">${voterNisn}</span>`;
 
   Modal.open({
     id:    'modal-assign-result',
@@ -2472,7 +2484,7 @@ function _showAssignResult(data) {
     size:  'sm',
     body:  `
       <div class="space-y-1">
-        <p class="text-xs text-gray-500 mb-3">Pemilih: <strong>${voterLabel}</strong></p>
+        <p class="text-xs text-gray-500 mb-3">Pemilih: <strong>${voterLabelHtml}</strong></p>
         ${assigned.length
           ? `<div class="import-result-row ok font-semibold text-sm">
                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
@@ -2494,7 +2506,7 @@ function _showAssignResult(data) {
              </div>
              ${failedHtml}`
           : ''}
-        ${!assigned.length && !failed.length
+        ${!assigned.length && !skipped.length && !failed.length
           ? `<p class="text-sm text-gray-500 text-center py-3">Tidak ada perubahan yang dilakukan.</p>`
           : ''}
       </div>`,
