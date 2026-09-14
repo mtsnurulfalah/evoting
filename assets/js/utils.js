@@ -286,10 +286,12 @@ const Utils = (() => {
   /**
    * Normalisasi URL foto untuk dipakai sebagai src= pada tag <img>.
    *
-   * - URL Cloudinary (res.cloudinary.com) → dikembalikan langsung
-   * - URL eksternal non-Drive lainnya     → dikembalikan langsung
-   * - URL Google Drive format lama        → dikonversi ke drive.usercontent.google.com
-   *   (untuk backward-compatibility dengan data lama di spreadsheet)
+   * - URL Cloudinary (res.cloudinary.com)            → langsung
+   * - Thumbnail Drive baru (lh3.googleusercontent.com/d/{id}) → langsung
+   * - URL eksternal non-Drive lainnya                → langsung
+   * - URL Google Drive format lama (/d/{id} atau ?id={id})
+   *     → dikonversi ke thumbnail lh3.googleusercontent.com/d/{id}
+   *     (backward-compatibility dengan data lama di spreadsheet)
    *
    * @param {string} url - URL foto dari database
    * @returns {string} URL siap pakai sebagai src=, atau '' jika input kosong
@@ -297,8 +299,11 @@ const Utils = (() => {
   function buildImgUrl(url) {
     if (!url) return '';
 
-    // Cloudinary URL — langsung pakai, tidak perlu konversi
+    // Cloudinary URL — langsung pakai
     if (url.includes('res.cloudinary.com')) return url;
+
+    // Thumbnail Drive baru — langsung pakai (format utama untuk foto kandidat)
+    if (url.includes('lh3.googleusercontent.com')) return url;
 
     // Bukan URL Drive — kembalikan apa adanya (URL eksternal, data URI, dll.)
     if (
@@ -306,10 +311,8 @@ const Utils = (() => {
       !url.includes('googleusercontent.com')
     ) return url;
 
-    // Sudah format drive.usercontent — tidak perlu konversi
-    if (url.includes('drive.usercontent.google.com')) return url;
-
-    // Legacy Google Drive: ekstrak File ID dan konversi ke drive.usercontent
+    // Legacy: drive.usercontent.google.com → ekstrak ID lalu konversi ke thumbnail baru
+    // (agar konsisten dengan format yang dihasilkan backend baru)
     let fileId = null;
 
     const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
@@ -322,7 +325,8 @@ const Utils = (() => {
 
     if (!fileId) return url;
 
-    return `https://drive.usercontent.google.com/download?id=${fileId}&export=view&authuser=0`;
+    // Gunakan thumbnail URL — tidak butuh login, tidak ada CORS issue
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
   }
 
   // Alias untuk backward-compatibility (tidak dipakai di kode baru)
