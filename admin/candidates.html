@@ -383,6 +383,8 @@ let _uploadState    = {        // status upload per slot
   main: 'none',  // 'none' | 'uploading' | 'done' | 'error'
   pair: 'none',
 };
+// AbortController aktif per slot — dipakai untuk cancel XHR saat modal ditutup
+let _uploadAbort = { main: null, pair: null };
 
 // ── Init ─────────────────────────────────────────────────────
 (async () => {
@@ -877,8 +879,10 @@ function openCandidateModal(id) {
     return;
   }
 
-  // Reset upload state setiap kali modal dibuka
-  _uploadState = { main: 'none', pair: 'none' };
+  // Reset upload state dan batalkan upload yang mungkin masih berjalan
+  _cancelActiveUploads();
+  _uploadState  = { main: 'none', pair: 'none' };
+  _uploadAbort  = { main: null,   pair: null   };
   _isSubmitting = false;
 
   const modal = Modal.open({
@@ -907,6 +911,8 @@ function openCandidateModal(id) {
   modal.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (btn.dataset.action === 'cancel') {
+        // Cancel upload yang sedang berjalan sebelum menutup modal
+        _cancelActiveUploads();
         _isSubmitting = false;
         Modal.close();
         return;
@@ -921,29 +927,116 @@ function openCandidateModal(id) {
 
 // ── Photo upload ──────────────────────────────────────────────
 //
-// Alur baru (direct upload — tidak lewat GAS sebagai proxy):
-//   1. Minta signature ke GAS  → request JSON kecil, selesai <5 detik
-//   2. Upload file langsung dari browser ke Cloudinary → tidak dibatasi timeout GAS
-//   3. URL Cloudinary disimpan di hidden input; dikirim ke GAS saat form disimpan
+// Alur (direct upload — tidak lewat GAS sebagai proxy):
+//   1. Kompres gambar di browser (Canvas) → kurangi ukuran sebelum kirim
+//   2. Minta signature ke GAS → request JSON kecil, selesai <5 detik
+//   3. Upload file langsung dari browser ke Cloudinary (AbortSignal)
+//   4. URL Cloudinary disimpan di hidden input; dikirim ke GAS saat form disimpan
 //
-// Retry otomatis hingga MAX_UPLOAD_ATTEMPTS kali sebelum menyerah.
+// Retry dengan exponential backoff: jeda 2s → 4s → 8s (maks 3 percobaan).
+// Upload bisa di-cancel saat modal ditutup — tidak ada XHR menggantung.
 
 const _MAX_UPLOAD_ATTEMPTS = 3;
-const _RETRY_DELAY_MS      = 2000; // jeda antar percobaan
 
-/**
- * Jeda non-blocking.
- * @param {number} ms
- */
+/** Jeda non-blocking. */
 function _sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/** Batalkan semua upload aktif (dipanggil saat modal ditutup/dibuka ulang). */
+function _cancelActiveUploads() {
+  ['main', 'pair'].forEach(type => {
+    if (_uploadAbort[type]) {
+      try { _uploadAbort[type].abort(); } catch (_) {}
+      _uploadAbort[type] = null;
+    }
+  });
+}
+
+/**
+ * Kompres gambar menggunakan Canvas API sebelum upload.
+ * Mengecilkan dimensi ke maks maxW×maxH dan menurunkan kualitas JPEG.
+ * Jika file sudah kecil (< threshold), dikembalikan apa adanya.
+ *
+ * @param {File}   file    - File gambar asli
+ * @param {number} maxW    - Lebar maksimal (default 1200px)
+ * @param {number} maxH    - Tinggi maksimal (default 1500px)
+ * @param {number} quality - Kualitas JPEG 0–1 (default 0.82)
+ * @returns {Promise<File>} File terkompresi (atau asli jika sudah kecil)
+ */
+function _compressImage(file, maxW = 1200, maxH = 1500, quality = 0.82) {
+  // Skip kompresi untuk file yang sudah kecil (< 300 KB) — tidak perlu
+  if (file.size < 300 * 1024) return Promise.resolve(file);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const blobUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(blobUrl);
+
+      let { width, height } = img;
+
+      // Hitung dimensi baru dengan mempertahankan aspect ratio
+      const ratio = Math.min(maxW / width, maxH / height, 1); // 1 = jangan perbesar
+      width  = Math.round(width  * ratio);
+      height = Math.round(height * ratio);
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Pilih output format: pertahankan PNG jika aslinya PNG dan kecil,
+      // gunakan JPEG untuk foto (lebih kecil dari PNG untuk foto realistis)
+      const outType = (file.type === 'image/png' && file.size < 1 * 1024 * 1024)
+        ? 'image/png'
+        : 'image/jpeg';
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; } // fallback ke asli jika canvas gagal
+          // Jika hasil kompresi lebih besar dari asli, pakai asli
+          if (blob.size >= file.size) { resolve(file); return; }
+          const compressed = new File([blob], file.name, { type: outType, lastModified: Date.now() });
+          resolve(compressed);
+        },
+        outType,
+        quality,
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(blobUrl);
+      resolve(file); // fallback ke asli
+    };
+
+    img.src = blobUrl;
+  });
+}
+
+/**
+ * Render progress bar di dalam photo-thumb.
+ * @param {HTMLElement} preview  - Elemen .photo-thumb
+ * @param {string}      localUrl - Object URL untuk preview lokal
+ * @param {number}      pct      - 0–100
+ */
+function _renderUploadProgress(preview, localUrl, pct) {
+  preview.innerHTML = `
+    <img src="${localUrl}" alt="Preview" style="opacity:.65">
+    <div class="photo-thumb-spinner" style="flex-direction:column;gap:4px">
+      <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+      ${pct > 0 ? `<span style="font-size:9px;color:#fff;font-weight:700;line-height:1">${pct}%</span>` : ''}
+    </div>`;
 }
 
 async function previewAndUpload(type, input) {
   const file = input.files[0];
   if (!file) return;
 
-  // Validasi file sisi klien
+  // Validasi format + ukuran sisi klien
   const validation = Utils.validateImageFile(file, 5);
   if (!validation.valid) {
     Toast.error(validation.error);
@@ -961,54 +1054,85 @@ async function previewAndUpload(type, input) {
 
   if (!preview || !urlInput) return;
 
-  // Simpan URL lama (untuk rollback jika semua percobaan gagal)
+  // Batalkan upload sebelumnya untuk slot ini (jika ada)
+  if (_uploadAbort[type]) {
+    try { _uploadAbort[type].abort(); } catch (_) {}
+  }
+
+  // Simpan URL lama untuk rollback
   const oldUrl = urlInput.value || '';
 
   // Set state uploading
   _uploadState[type] = 'uploading';
-  if (labelEl) labelEl.textContent = 'Mengupload...';
+  if (labelEl) labelEl.textContent = 'Memproses...';
 
-  // Tampilkan preview lokal + overlay spinner segera
+  // Tampilkan preview lokal segera
   const localUrl = URL.createObjectURL(file);
-  preview.innerHTML = `
-    <img src="${localUrl}" alt="Preview">
-    <div class="photo-thumb-spinner">
-      <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-    </div>`;
+  _renderUploadProgress(preview, localUrl, 0);
+
+  // ── Kompresi gambar sebelum upload ──────────────────────────
+  let fileToUpload = file;
+  try {
+    fileToUpload = await _compressImage(file);
+    const saved = file.size - fileToUpload.size;
+    if (saved > 10 * 1024) {
+      console.info(`[upload] Kompresi: ${(file.size/1024).toFixed(0)}KB → ${(fileToUpload.size/1024).toFixed(0)}KB`);
+    }
+  } catch {
+    fileToUpload = file; // fallback ke asli
+  }
 
   let lastError = null;
 
   for (let attempt = 1; attempt <= _MAX_UPLOAD_ATTEMPTS; attempt++) {
+    // Buat AbortController baru per percobaan
+    const abortCtrl = new AbortController();
+    _uploadAbort[type] = abortCtrl;
+
+    // Exponential backoff untuk retry berikutnya: 2s → 4s (maks 3 percobaan)
+    // attempt=1 gagal → tunggu 2s sebelum attempt=2
+    // attempt=2 gagal → tunggu 4s sebelum attempt=3
+    const retryDelayMs = Math.min(2000 * (2 ** (attempt - 1)), 8000);
+
     try {
-      // ── Langkah 1: Minta signature dari GAS (request ringan) ──
       if (labelEl) {
         labelEl.textContent = attempt > 1
-          ? `Mencoba ulang (${attempt}/${_MAX_UPLOAD_ATTEMPTS})...`
+          ? `Mencoba ulang ${attempt}/${_MAX_UPLOAD_ATTEMPTS}...`
           : 'Mengupload...';
       }
 
+      // ── Langkah 1: Minta signature dari GAS ────────────────
       const sigRes = await API.candidate.getUploadSignature(oldUrl);
+
+      // Cek apakah upload sudah di-cancel saat menunggu signature
+      if (abortCtrl.signal.aborted) return;
+
       if (!sigRes.success || !sigRes.data) {
-        // Gagal ambil signature — tidak perlu retry (bukan error jaringan)
+        // Error dari GAS (bukan jaringan) — tidak perlu retry
         URL.revokeObjectURL(localUrl);
         _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
         _uploadState[type] = 'error';
+        _uploadAbort[type] = null;
         Toast.error(sigRes.message || 'Gagal mendapatkan izin upload. Coba lagi.');
         return;
       }
 
-      // ── Langkah 2: Upload langsung dari browser ke Cloudinary ──
+      // ── Langkah 2: Upload ke Cloudinary (dengan AbortSignal + eager) ──
+      // sigRes.data.eager diteruskan ke API agar ikut di-apply oleh Cloudinary
       const cloudResult = await API.uploadToCloudinaryDirect(
-        file,
+        fileToUpload,
         sigRes.data,
         (pct) => {
+          _renderUploadProgress(preview, localUrl, pct);
           if (labelEl) labelEl.textContent = `Mengupload ${pct}%...`;
-        }
+        },
+        abortCtrl.signal,
       );
 
       // ── Berhasil ──────────────────────────────────────────────
-      urlInput.value = cloudResult.url;
       URL.revokeObjectURL(localUrl);
+      urlInput.value = cloudResult.url;
+      _uploadAbort[type] = null;
 
       const displaySrc = Utils.buildImgUrl(cloudResult.url);
       preview.innerHTML = `<img src="${Utils.escapeHtml(displaySrc)}" alt="Foto ter-upload"
@@ -1018,31 +1142,49 @@ async function previewAndUpload(type, input) {
       _uploadState[type] = 'done';
       if (labelEl) labelEl.textContent = 'Ganti Foto';
       Toast.success('Foto berhasil diupload.');
-      return; // selesai, keluar dari loop retry
+      return; // selesai
 
     } catch (err) {
+      // Jika di-cancel (modal ditutup) — berhenti tanpa pesan error
+      if (err.message === 'Upload dibatalkan.' || abortCtrl.signal.aborted) {
+        URL.revokeObjectURL(localUrl);
+        _uploadState[type] = 'none';
+        _uploadAbort[type] = null;
+        return;
+      }
+
       lastError = err;
-      console.warn(`[previewAndUpload] percobaan ${attempt}/${_MAX_UPLOAD_ATTEMPTS} gagal:`, err.message);
+      console.warn(`[upload] percobaan ${attempt}/${_MAX_UPLOAD_ATTEMPTS} gagal:`, err.message);
 
       if (attempt < _MAX_UPLOAD_ATTEMPTS) {
-        // Update label agar admin tahu sedang retry
-        if (labelEl) labelEl.textContent = `Gagal, mencoba ulang...`;
-        await _sleep(_RETRY_DELAY_MS);
+        if (labelEl) labelEl.textContent = `Gagal, tunggu ${retryDelayMs / 1000}s...`;
+        // Tampilkan countdown singkat di preview agar user tahu
+        _renderUploadProgress(preview, localUrl, 0);
+        await _sleep(retryDelayMs);
+        // Cek lagi setelah sleep — user mungkin sudah tutup modal
+        if (!document.getElementById(previewId)) {
+          URL.revokeObjectURL(localUrl);
+          return;
+        }
       }
     }
   }
 
   // ── Semua percobaan gagal ─────────────────────────────────
-  console.error('[previewAndUpload] semua percobaan gagal:', lastError);
+  console.error('[upload] semua percobaan gagal:', lastError?.message);
   URL.revokeObjectURL(localUrl);
   _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
   _uploadState[type] = 'error';
-  Toast.error('Gagal mengupload foto setelah beberapa percobaan. Periksa koneksi internet dan coba lagi.');
+  _uploadAbort[type] = null;
+  Toast.error(
+    lastError?.message
+      ? `Upload gagal: ${lastError.message}`
+      : 'Gagal mengupload foto setelah beberapa percobaan. Periksa koneksi dan coba lagi.',
+  );
 }
 
 /**
- * Rollback preview ke kondisi sebelum upload jika gagal.
- * Mengembalikan placeholder/foto lama dan mereset input file.
+ * Rollback preview ke kondisi sebelum upload jika semua percobaan gagal.
  */
 function _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input) {
   if (oldUrl) {
@@ -1055,7 +1197,7 @@ function _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input) {
   }
   urlInput.value = oldUrl;
   if (input) input.value = '';
-  if (labelEl) labelEl.textContent = 'Pilih Foto';
+  if (labelEl) labelEl.textContent = oldUrl ? 'Ganti Foto' : 'Pilih Foto';
 }
 
 // ── Save candidate (create / update) ─────────────────────────
