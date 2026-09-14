@@ -329,8 +329,7 @@ const Utils = (() => {
     return `https://lh3.googleusercontent.com/d/${fileId}`;
   }
 
-  // Alias untuk backward-compatibility (tidak dipakai di kode baru)
-  const buildDriveImgUrl = buildImgUrl;
+  // (alias buildDriveImgUrl dihapus — gunakan buildImgUrl secara langsung)
 
   // ── Debounce ─────────────────────────────────────────────
 
@@ -498,7 +497,7 @@ const Utils = (() => {
     truncate, capitalize, escapeHtml,
     $, $$, setLoading, show, hide, toggle, setText, setHtml, scrollTo,
     getFormData, fillForm, resetForm, showFieldError, clearFieldError,
-    readFileAsBase64, validateImageFile, buildImgUrl, buildDriveImgUrl,
+    readFileAsBase64, validateImageFile, buildImgUrl,
     debounce, getQueryParam,
     statusBadgeHtml, roleBadgeHtml,
     parseCSV, skeletonTableRows, skeletonCard,
