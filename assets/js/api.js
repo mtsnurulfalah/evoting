@@ -121,8 +121,6 @@ const API = (() => {
             ? 'Tidak dapat terhubung ke server. Periksa koneksi internet, lalu coba lagi.'
             : 'Gagal menghubungi server. Silakan coba lagi.',
         errorCode: isTimeout ? 'TIMEOUT_ERROR' : 'NETWORK_ERROR',
-        _isRetryable: true,  // flag untuk logic retry di caller
-        _originalError: err.message,
       };
     } finally {
       clearTimeout(timeoutId);
@@ -294,10 +292,6 @@ const API = (() => {
     /** Upload foto ke Google Drive via GAS (pengganti Cloudinary) */
     uploadPhotoDrive: (base64, mimeType, filename, oldUrl) =>
       uploadPhotoDrive(base64, mimeType, filename, oldUrl),
-    /** @deprecated */
-    getUploadSignature: (oldUrl = '') => request('candidate.getUploadSignature', { oldUrl }),
-    /** @deprecated */
-    uploadPhoto: (data) => request('candidate.uploadPhoto', data),
   };
 
   // ── Voter endpoints ──────────────────────────────────────
