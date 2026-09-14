@@ -130,7 +130,7 @@
       Pemilihan Ketua OSIM/S
     </h2>
 
-    <p class="text-white/70 text-sm sm:text-base mb-6 max-w-md leading-relaxed">
+    <p class="text-white/70 text-sm sm:text-base mb-6 max-w-md leading-relaxed" id="login-hint-text">
       Gunakan NISN, tempat &amp; tanggal lahir, serta PIN yang diberikan panitia
       untuk masuk ke sistem pemilihan.
     </p>
@@ -249,7 +249,7 @@
             </div>
 
             <!-- Tempat Lahir -->
-            <div class="form-group">
+            <div id="field-birthplace" class="form-group">
               <label class="form-label" for="birthPlace">
                 Tempat Lahir <span class="text-red-500" aria-hidden="true">*</span>
               </label>
@@ -265,7 +265,6 @@
                   class="form-input pl-9"
                   placeholder="Contoh: Jakarta"
                   autocomplete="off"
-                  aria-required="true"
                   aria-describedby="birthPlace-error"
                 />
               </div>
@@ -273,7 +272,7 @@
             </div>
 
             <!-- Tanggal Lahir -->
-            <div class="form-group">
+            <div id="field-birthdate" class="form-group">
               <label class="form-label" for="birthDate">
                 Tanggal Lahir <span class="text-red-500" aria-hidden="true">*</span>
               </label>
@@ -288,7 +287,6 @@
                   name="birthDate"
                   class="form-input pl-9"
                   autocomplete="off"
-                  aria-required="true"
                   aria-describedby="birthDate-error"
                 />
               </div>
@@ -422,15 +420,25 @@
    Logic utama: guard, init event, election info, login handler
    ============================================================= */
 
+// Konfigurasi field login yang aktif — diisi oleh loadAppConfig()
+// Default: semua field aktif sampai config dari server diterima
+let _loginFields = { nisn: true, birthPlace: true, birthDate: true, pin: true };
+
 (async () => {
 
   // ── 1. Guard: redirect jika sudah login ─────────────────
   if (Auth.redirectIfLoggedIn()) return;
 
-  // ── 2. Muat config & info election secara paralel ───────
-  //    Keduanya non-blocking; halaman tetap interaktif saat fetch berlangsung.
-  loadAppConfig();
+  // ── 2. Muat config (await) + info election (paralel non-blocking) ──
+  // loadAppConfig di-await agar konfigurasi field login (tampil/sembunyikan
+  // field birthPlace/birthDate) sudah diterapkan ke form sebelum user
+  // bisa mulai mengisi — menghindari race condition di mana handleLogin
+  // terpanggil dengan _loginFields masih berisi default sementara server
+  // sebenarnya menonaktifkan salah satu field.
+  // loadElectionInfo tetap fire-and-forget karena hanya mengisi banner
+  // informasi dan tidak mempengaruhi perilaku form.
   loadElectionInfo();
+  await loadAppConfig();
 
   // ── 3. Toggle visibilitas PIN ────────────────────────────
   // Fix #14: aria-label + aria-pressed ikut berubah saat toggle
@@ -457,6 +465,90 @@
   document.getElementById('login-form').addEventListener('submit', handleLogin);
 
 })();
+
+
+/* =============================================================
+   KONFIGURASI FIELD LOGIN
+   ============================================================= */
+
+/**
+ * Parse nilai VOTER_LOGIN_FIELDS dari config publik.
+ * Selalu kembalikan objek lengkap; nisn & pin selalu true.
+ */
+function parseLoginFields(raw) {
+  const defaults = { nisn: true, birthPlace: true, birthDate: true, pin: true };
+  if (!raw) return defaults;
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      nisn:       true,
+      birthPlace: parsed.birthPlace !== false,
+      birthDate:  parsed.birthDate  !== false,
+      pin:        true,
+    };
+  } catch (_) {
+    return defaults;
+  }
+}
+
+/**
+ * Terapkan konfigurasi field ke form:
+ * - Tampilkan/sembunyikan wrapper field
+ * - Set/hapus aria-required pada input
+ * - Update teks hint di panel kiri
+ */
+function applyLoginFields(fields) {
+  _loginFields = fields;
+
+  // Wrapper field opsional
+  const wrapBirthPlace = document.getElementById('field-birthplace');
+  const wrapBirthDate  = document.getElementById('field-birthdate');
+  const inputBirthPlace = document.getElementById('birthPlace');
+  const inputBirthDate  = document.getElementById('birthDate');
+
+  if (wrapBirthPlace) {
+    wrapBirthPlace.style.display = fields.birthPlace ? '' : 'none';
+  }
+  if (inputBirthPlace) {
+    if (fields.birthPlace) {
+      inputBirthPlace.setAttribute('aria-required', 'true');
+    } else {
+      inputBirthPlace.removeAttribute('aria-required');
+      inputBirthPlace.value = ''; // bersihkan nilai jika disembunyikan
+      clearFieldError('birthPlace');
+    }
+  }
+
+  if (wrapBirthDate) {
+    wrapBirthDate.style.display = fields.birthDate ? '' : 'none';
+  }
+  if (inputBirthDate) {
+    if (fields.birthDate) {
+      inputBirthDate.setAttribute('aria-required', 'true');
+    } else {
+      inputBirthDate.removeAttribute('aria-required');
+      inputBirthDate.value = '';
+      clearFieldError('birthDate');
+    }
+  }
+
+  // Update teks hint di panel kiri sesuai field yang aktif
+  const hintEl = document.getElementById('login-hint-text');
+  if (hintEl) {
+    const hasBoth   = fields.birthPlace && fields.birthDate;
+    const hasPlace  = fields.birthPlace && !fields.birthDate;
+    const hasDate   = !fields.birthPlace && fields.birthDate;
+    if (hasBoth) {
+      hintEl.textContent = 'Gunakan NISN, tempat & tanggal lahir, serta PIN yang diberikan panitia untuk masuk ke sistem pemilihan.';
+    } else if (hasPlace) {
+      hintEl.textContent = 'Gunakan NISN, tempat lahir, serta PIN yang diberikan panitia untuk masuk ke sistem pemilihan.';
+    } else if (hasDate) {
+      hintEl.textContent = 'Gunakan NISN, tanggal lahir, serta PIN yang diberikan panitia untuk masuk ke sistem pemilihan.';
+    } else {
+      hintEl.textContent = 'Gunakan NISN dan PIN yang diberikan panitia untuk masuk ke sistem pemilihan.';
+    }
+  }
+}
 
 
 /* =============================================================
@@ -518,7 +610,7 @@ async function loadElectionInfo() {
         }
 
       } else {
-        // Tidak ada pemilihan aktif/upcoming
+        // Tidak ada pemilihan aktif/upcoming (active:false, upcoming:false)
         noBanner.classList.remove('hidden');
       }
 
@@ -553,27 +645,29 @@ async function handleLogin(e) {
 
   // ── Ambil & bersihkan nilai input ──────────────────────
   const nisn       = document.getElementById('nisn').value.trim();
-  // Fix #4: trim birthPlace sebelum validasi — cegah spasi-only lolos
-  const birthPlace = document.getElementById('birthPlace').value.trim();
-  const birthDate  = document.getElementById('birthDate').value.trim();
+  const birthPlace = _loginFields.birthPlace
+    ? document.getElementById('birthPlace').value.trim()
+    : '';
+  const birthDate  = _loginFields.birthDate
+    ? document.getElementById('birthDate').value.trim()
+    : '';
   const pin        = document.getElementById('pin').value.trim();
 
   // ── Sembunyikan error global sebelum validasi baru ─────
   errBox.classList.add('hidden');
 
-  // ── Validasi frontend ───────────────────────────────────
+  // ── Validasi frontend — hanya field yang aktif ─────────
   let hasError = false;
 
   if (!/^\d{10}$/.test(nisn)) {
     showFieldError('nisn', 'NISN harus 10 digit angka.');
     hasError = true;
   }
-  // Fix #4: cek birthPlace setelah trim
-  if (!birthPlace) {
+  if (_loginFields.birthPlace && !birthPlace) {
     showFieldError('birthPlace', 'Tempat lahir tidak boleh kosong.');
     hasError = true;
   }
-  if (!birthDate) {
+  if (_loginFields.birthDate && !birthDate) {
     showFieldError('birthDate', 'Tanggal lahir tidak boleh kosong.');
     hasError = true;
   }
@@ -587,8 +681,13 @@ async function handleLogin(e) {
   // ── Loading state ───────────────────────────────────────
   Utils.setLoading(btn, true, 'Memverifikasi...');
 
+  // Bangun payload — hanya sertakan field yang aktif
+  const loginPayload = { nisn, pin };
+  if (_loginFields.birthPlace) loginPayload.birthPlace = birthPlace;
+  if (_loginFields.birthDate)  loginPayload.birthDate  = birthDate;
+
   try {
-    const res = await API.auth.voterLogin({ nisn, birthPlace, birthDate, pin });
+    const res = await API.auth.voterLogin(loginPayload);
 
     if (res.success) {
 
