@@ -803,6 +803,10 @@ function _applyAppConfig(d) {
     el.textContent = d.APP_SUBTITLE || 'Pemilihan Ketua OSIM/S';
   });
   _renderSchoolLogo(d.SCHOOL_LOGO_URL, d.SCHOOL_NAME);
+  // Terapkan konfigurasi field login voter jika halaman menyediakannya
+  if (typeof applyLoginFields === 'function' && typeof parseLoginFields === 'function') {
+    applyLoginFields(parseLoginFields(d.VOTER_LOGIN_FIELDS || null));
+  }
 }
 
 /**
