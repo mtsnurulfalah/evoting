@@ -550,16 +550,47 @@
 (async () => {
 
   // ── Guard ───────────────────────────────────────────────────
-  if (!Auth.requireAdminPage(['superadmin'])) return;
+  // Superadmin: akses penuh. Ketua panitia: akses terbatas (Field Login + Poin Per Kelas).
+  if (!Auth.requireAdminPage(['superadmin', 'ketua_panitia'])) return;
   Sidebar.init();
   Topbar.init();
 
-  const superAdmin = Auth.isSuperAdmin();
+  const superAdmin    = Auth.isSuperAdmin();
+  const ketuaPanitia  = Auth.isKetuaPanitia();
+  // canEdit: superadmin bisa edit semua, ketua_panitia bisa edit field login + poin
+  const canEdit       = superAdmin || ketuaPanitia;
 
-  // ── Badge superadmin di topbar ───────────────────────────────
+  // ── Sembunyikan kartu yang tidak relevan untuk ketua_panitia ──
+  // Ketua panitia hanya melihat Field Login Pemilih dan Poin Per Kelas.
+  if (ketuaPanitia) {
+    ['card-identity', 'card-drive', 'card-voting'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+    // Sembunyikan juga Informasi Sistem (card terakhir tanpa id — cari via sibling)
+    document.querySelectorAll('#content-state .card').forEach(card => {
+      // Card tanpa id adalah Informasi Sistem
+      if (!card.id) card.classList.add('hidden');
+    });
+    // Ganti judul halaman agar lebih kontekstual
+    const h1 = document.querySelector('header h1');
+    if (h1) h1.textContent = 'Pengaturan Pemilihan';
+  }
+
+  // ── Badge topbar ─────────────────────────────────────────────
   if (superAdmin) {
     document.getElementById('superadmin-badge')?.classList.remove('hidden');
     document.getElementById('topbar-save-section')?.classList.remove('hidden');
+  } else if (ketuaPanitia) {
+    // Ketua panitia bisa save — tampilkan tombol save di topbar
+    document.getElementById('topbar-save-section')?.classList.remove('hidden');
+    // Tampilkan badge ketua panitia
+    const badge = document.getElementById('superadmin-badge');
+    if (badge) {
+      badge.classList.remove('hidden');
+      badge.textContent = '';
+      badge.innerHTML = '<i class="fa-solid fa-user-tie fa-xs" aria-hidden="true"></i> Ketua Panitia';
+    }
   } else {
     document.getElementById('readonly-notice')?.classList.remove('hidden');
   }
@@ -603,7 +634,8 @@
     if (!btn) return;
 
     btn.addEventListener('click', () => {
-      if (!superAdmin || btn.getAttribute('aria-disabled') === 'true') return;
+      // canEdit mencakup superadmin dan ketua_panitia
+      if (!canEdit || btn.getAttribute('aria-disabled') === 'true') return;
       const current = btn.getAttribute('aria-checked') === 'true';
       btn.setAttribute('aria-checked', (!current) ? 'true' : 'false');
       // Rebuild JSON dan simpan ke _configData
@@ -688,7 +720,7 @@
                    min="1"
                    max="9999"
                    step="1"
-                   ${!superAdmin ? 'disabled' : ''}/>
+                   ${!canEdit ? 'disabled' : ''}/>
           </td>
         </tr>`;
     }).join('');
@@ -700,7 +732,7 @@
 
     // Bug #7 fix: pasang dirty listener langsung di input baru ini
     // sehingga tidak bergantung pada bindDirtyTrackers yang berjalan sebelum tabel ada
-    if (superAdmin) {
+    if (canEdit) {
       tbody.querySelectorAll('input[data-idx]').forEach(inp => {
         inp.addEventListener('input', () => {
           _configData['CLASS_POINTS'] = buildClassPointsJson();
@@ -823,7 +855,7 @@
   // FIX #9 + #14: kelola dirty state & tampilkan save bar
   function setDirty(dirty) {
     _isDirty = dirty;
-    if (!superAdmin) return;
+    if (!canEdit) return;
     if (dirty) {
       elSaveBar?.classList.remove('hidden');
     } else {
@@ -884,28 +916,30 @@
       if (inEl)  inEl.classList.remove('form-input-error');
     });
 
-    // APP_NAME wajib diisi
-    const appName = document.getElementById('s-app-name')?.value.trim();
-    if (!appName) {
-      const errEl = document.getElementById('s-app-name-error');
-      const inEl  = document.getElementById('s-app-name');
-      if (errEl) { errEl.textContent = 'Nama aplikasi tidak boleh kosong.'; errEl.classList.remove('hidden'); }
-      if (inEl)  inEl.classList.add('form-input-error');
-      inEl?.focus();
-      valid = false;
-    }
-
-    // URL logo: jika diisi, harus valid URL
-    const logoUrl = document.getElementById('s-school-logo')?.value.trim();
-    if (logoUrl) {
-      try { new URL(logoUrl); }
-      catch {
-        const errEl = document.getElementById('s-school-logo-error');
-        const inEl  = document.getElementById('s-school-logo');
-        if (errEl) { errEl.textContent = 'URL logo tidak valid. Gunakan format https://...'; errEl.classList.remove('hidden'); }
+    // APP_NAME wajib diisi — hanya validasi jika superadmin (ketua panitia tidak mengubah ini)
+    if (superAdmin) {
+      const appName = document.getElementById('s-app-name')?.value.trim();
+      if (!appName) {
+        const errEl = document.getElementById('s-app-name-error');
+        const inEl  = document.getElementById('s-app-name');
+        if (errEl) { errEl.textContent = 'Nama aplikasi tidak boleh kosong.'; errEl.classList.remove('hidden'); }
         if (inEl)  inEl.classList.add('form-input-error');
-        if (valid) inEl?.focus();
+        inEl?.focus();
         valid = false;
+      }
+
+      // URL logo: jika diisi, harus valid URL
+      const logoUrl = document.getElementById('s-school-logo')?.value.trim();
+      if (logoUrl) {
+        try { new URL(logoUrl); }
+        catch {
+          const errEl = document.getElementById('s-school-logo-error');
+          const inEl  = document.getElementById('s-school-logo');
+          if (errEl) { errEl.textContent = 'URL logo tidak valid. Gunakan format https://...'; errEl.classList.remove('hidden'); }
+          if (inEl)  inEl.classList.add('form-input-error');
+          if (valid) inEl?.focus();
+          valid = false;
+        }
       }
     }
 
@@ -972,8 +1006,13 @@
     // Simpan snapshot untuk fungsi "Batalkan"
     _snapshot = { ..._configData };
 
-    // FIX #8: disable interaksi + opacity untuk non-superadmin
-    if (!superAdmin) {
+    // Disable interaksi sesuai role:
+    // - Non-editor (viewer, panitia, dll): semua field disabled
+    // - Ketua panitia: hanya field identitas/drive/voting yang disabled,
+    //   field login pemilih dan poin per kelas tetap interaktif
+    // - Superadmin: semua field interaktif
+    if (!canEdit) {
+      // Role bukan editor — disable semua
       elContent?.querySelectorAll('input, textarea, select').forEach(el => {
         el.disabled = true;
       });
@@ -984,12 +1023,29 @@
           btn.setAttribute('tabindex', '-1');
         }
       });
+    } else if (ketuaPanitia) {
+      // Ketua panitia: disable kartu yang tidak boleh dia edit
+      // (Identitas, Drive, Voting, Informasi Sistem)
+      // Toggle ALLOW_PUBLIC_RESULT dan MAINTENANCE_MODE: superadmin only
+      ['toggle-public-result', 'toggle-maintenance'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+          btn.setAttribute('aria-disabled', 'true');
+          btn.setAttribute('tabindex', '-1');
+        }
+      });
+      // Input di kartu Identitas dan Drive: disabled
+      ['card-identity', 'card-drive'].forEach(cardId => {
+        document.getElementById(cardId)?.querySelectorAll('input, textarea, select').forEach(el => {
+          el.disabled = true;
+        });
+      });
     }
 
     showState('content');
 
-    // Bind dirty tracker setelah form terisi (agar tidak trigger dirty saat setValue)
-    if (superAdmin) {
+    // Bind dirty tracker setelah form terisi
+    if (canEdit) {
       bindDirtyTrackers();
       setDirty(false); // reset dirty setelah load
     }
@@ -1039,36 +1095,47 @@
   // ── Save settings ──────────────────────────────────────────
   // FIX #3 + #6 + #12
   async function saveSettings() {
-    if (!superAdmin) return;
+    if (!canEdit) return;
     if (!validateForm()) return;
 
-    // FIX #12: konfirmasi jika maintenance mode akan diaktifkan
-    const maintenanceOn    = _configData['MAINTENANCE_MODE'] === 'true';
-    const snapshotMaintenance = _snapshot['MAINTENANCE_MODE'] === 'true';
-    if (maintenanceOn && !snapshotMaintenance) {
-      const confirmed = await Utils.confirm(
-        'Mode Maintenance akan diaktifkan. Semua pengguna tidak dapat mengakses API hingga mode ini dinonaktifkan. Lanjutkan?',
-        'Aktifkan Mode Maintenance',
-        true
-      );
-      if (!confirmed) return;
+    // FIX #12: konfirmasi jika maintenance mode akan diaktifkan (superadmin only)
+    if (superAdmin) {
+      const maintenanceOn       = _configData['MAINTENANCE_MODE'] === 'true';
+      const snapshotMaintenance = _snapshot['MAINTENANCE_MODE']   === 'true';
+      if (maintenanceOn && !snapshotMaintenance) {
+        const confirmed = await Utils.confirm(
+          'Mode Maintenance akan diaktifkan. Semua pengguna tidak dapat mengakses API hingga mode ini dinonaktifkan. Lanjutkan?',
+          'Aktifkan Mode Maintenance',
+          true
+        );
+        if (!confirmed) return;
+      }
     }
 
     // Set loading pada kedua tombol save
     Utils.setLoading(btnSave,    true, 'Menyimpan...');
     Utils.setLoading(btnSaveTop, true, 'Menyimpan...');
 
-    const updates = {
-      APP_NAME:            document.getElementById('s-app-name')?.value.trim()     || '',
-      APP_SUBTITLE:        document.getElementById('s-app-subtitle')?.value.trim() || '',
-      SCHOOL_NAME:         document.getElementById('s-school-name')?.value.trim()  || '',
-      SCHOOL_LOGO_URL:     document.getElementById('s-school-logo')?.value.trim()  || '',
-      DRIVE_FOLDER_ID:     document.getElementById('s-drive-folder')?.value.trim() || '',
-      ALLOW_PUBLIC_RESULT: _configData['ALLOW_PUBLIC_RESULT'] || 'false',
-      MAINTENANCE_MODE:    _configData['MAINTENANCE_MODE']    || 'false',
-      VOTER_LOGIN_FIELDS:  buildLoginFieldsJson(),
-      CLASS_POINTS:        _configData['CLASS_POINTS']        || '{}',
-    };
+    // Ketua panitia hanya boleh mengirim key yang diizinkan
+    let updates;
+    if (ketuaPanitia) {
+      updates = {
+        VOTER_LOGIN_FIELDS: buildLoginFieldsJson(),
+        CLASS_POINTS:       _configData['CLASS_POINTS'] || '{}',
+      };
+    } else {
+      updates = {
+        APP_NAME:            document.getElementById('s-app-name')?.value.trim()     || '',
+        APP_SUBTITLE:        document.getElementById('s-app-subtitle')?.value.trim() || '',
+        SCHOOL_NAME:         document.getElementById('s-school-name')?.value.trim()  || '',
+        SCHOOL_LOGO_URL:     document.getElementById('s-school-logo')?.value.trim()  || '',
+        DRIVE_FOLDER_ID:     document.getElementById('s-drive-folder')?.value.trim() || '',
+        ALLOW_PUBLIC_RESULT: _configData['ALLOW_PUBLIC_RESULT'] || 'false',
+        MAINTENANCE_MODE:    _configData['MAINTENANCE_MODE']    || 'false',
+        VOTER_LOGIN_FIELDS:  buildLoginFieldsJson(),
+        CLASS_POINTS:        _configData['CLASS_POINTS']        || '{}',
+      };
+    }
 
     let res;
     try {
@@ -1121,7 +1188,7 @@
   // Poin per kelas — event bindings
   document.getElementById('btn-load-classes')?.addEventListener('click', loadClassesForPoints);
   document.getElementById('btn-reset-points')?.addEventListener('click', () => {
-    if (!superAdmin) return;
+    if (!canEdit) return;
     // Reset semua input poin ke 1
     document.querySelectorAll('#cp-tbody input[data-idx]').forEach(inp => {
       inp.value = 1;
