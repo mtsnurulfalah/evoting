@@ -448,6 +448,16 @@
               <span class="stat-label">Suara Masuk</span>
             </div>
           </div>
+          <!-- Stat poin — hanya tampil jika sistem poin aktif -->
+          <div class="result-stat-card hidden" id="r-stat-points-card">
+            <div class="result-stat-icon bg-amber-50 text-amber-600">
+              <i class="fa-solid fa-star-half-stroke"></i>
+            </div>
+            <div>
+              <span class="stat-num" id="r-total-points">0</span>
+              <span class="stat-label">Total Poin</span>
+            </div>
+          </div>
           <div class="result-stat-card">
             <div class="result-stat-icon bg-blue-50 text-blue-600">
               <i class="fa-solid fa-users"></i>
@@ -513,7 +523,7 @@
               <h3 class="text-sm font-bold text-gray-800">Perolehan Suara</h3>
               <p class="text-xs text-gray-400 mt-0.5" id="r-total-text">—</p>
             </div>
-            <span class="text-xs text-gray-400 flex-shrink-0">Diurutkan: suara terbanyak</span>
+            <span class="text-xs text-gray-400 flex-shrink-0" id="r-sort-label">Diurutkan: suara terbanyak</span>
           </div>
           <div class="p-3 sm:p-4 space-y-1" id="candidate-results">
             <!-- diisi JS -->
@@ -561,6 +571,8 @@
                   <th class="text-right">Total</th>
                   <th class="text-right">Memilih</th>
                   <th class="text-right">Belum</th>
+                  <th class="text-right hidden" id="th-points-per-vote">Poin/Suara</th>
+                  <th class="text-right hidden" id="th-total-points-col">Total Poin</th>
                   <th class="text-left">Partisipasi</th>
                 </tr>
               </thead>
@@ -785,6 +797,7 @@ function renderResults(data) {
   const stats      = data.stats      || {};
   const candidates = data.candidates || [];
   const winner     = data.winner;
+  const usePoints  = !!(data.usePoints);
 
   // Helper: set text content dengan null-safe
   const setText = (id, v) => {
@@ -798,10 +811,33 @@ function renderResults(data) {
   setText('r-voted',        Utils.formatNumber(stats.voted             || 0));
   setText('r-participation', (stats.participationRate || 0) + '%');
 
+  // Tampilkan/sembunyikan kartu poin
+  const pointsCard = document.getElementById('r-stat-points-card');
+  if (pointsCard) {
+    if (usePoints) {
+      pointsCard.classList.remove('hidden');
+      setText('r-total-points', Utils.formatNumber(data.totalPoints || 0));
+    } else {
+      pointsCard.classList.add('hidden');
+    }
+  }
+
+  // Update label sort
+  const sortLabel = document.getElementById('r-sort-label');
+  if (sortLabel) {
+    sortLabel.textContent = usePoints
+      ? 'Diurutkan: poin terbanyak'
+      : 'Diurutkan: suara terbanyak';
+  }
+
   // ── Participation section ──
   const pct = Math.min(stats.participationRate || 0, 100);
   setText('r-pct-text',    pct + '%');
-  setText('r-total-text',  Utils.formatNumber(data.totalVotes || 0) + ' suara sah masuk');
+  setText('r-total-text',
+    usePoints
+      ? `${Utils.formatNumber(data.totalVotes || 0)} suara · ${Utils.formatNumber(data.totalPoints || 0)} poin`
+      : `${Utils.formatNumber(data.totalVotes || 0)} suara sah masuk`
+  );
   setText('r-total-v',     Utils.formatNumber(stats.totalVoters || 0));
   setText('r-voted-v',     Utils.formatNumber(stats.voted       || 0));
   setText('r-not-voted-v', Utils.formatNumber(stats.notVoted    || 0));
@@ -813,16 +849,16 @@ function renderResults(data) {
   }
 
   // ── Winner banner ──
-  renderWinnerBanner(winner, stats);
+  renderWinnerBanner(winner, stats, usePoints);
 
   // ── Candidate results ──
-  renderCandidateRows(candidates, winner, data.totalVotes || 0);
+  renderCandidateRows(candidates, winner, data.totalVotes || 0, data.totalPoints || 0, usePoints);
 
   // ── Class breakdown ──
-  renderClassBreakdown(data.classSummary);
+  renderClassBreakdown(data.classSummary, usePoints);
 }
 
-function renderWinnerBanner(winner, stats) {
+function renderWinnerBanner(winner, stats, usePoints) {
   const box = document.getElementById('winner-box');
   if (!box) return;
 
@@ -854,13 +890,21 @@ function renderWinnerBanner(winner, stats) {
     // Unggul jelas
     box.classList.remove('winner-tie-banner');
     const w = winner.candidate;
-    const isEnded = false; // bisa diperluas untuk cek status election
 
     setText('winner-label',  'Pasangan Unggul (Sementara)');
     setText('winner-name',   w.name + (w.pairName ? ' & ' + w.pairName : ''));
     setText('winner-detail', `No. ${w.orderNumber}${w.className ? ' · ' + w.className : ''}`);
-    setText('winner-votes',  Utils.formatNumber(w.votes));
-    setText('winner-pct',    w.percentage + '%');
+
+    // Tampilkan poin atau suara sesuai mode
+    if (usePoints) {
+      setText('winner-votes', Utils.formatNumber(w.points));
+      setText('winner-pct',   w.percentage + '%');
+      const votesLabelEl = document.querySelector('#winner-box .text-xs.text-white\\/65:last-of-type');
+      if (votesLabelEl) votesLabelEl.textContent = 'poin';
+    } else {
+      setText('winner-votes', Utils.formatNumber(w.votes));
+      setText('winner-pct',   w.percentage + '%');
+    }
 
     const trophy = document.getElementById('winner-trophy-icon');
     if (trophy) trophy.className = 'fa-solid fa-trophy text-yellow-300 text-xl';
@@ -874,7 +918,7 @@ function renderWinnerBanner(winner, stats) {
   if (textEl) textEl.textContent = `Partisipasi: ${pct}% (${Utils.formatNumber(stats.voted || 0)} dari ${Utils.formatNumber(stats.totalVoters || 0)} pemilih)`;
 }
 
-function renderCandidateRows(candidates, winner, totalVotes) {
+function renderCandidateRows(candidates, winner, totalVotes, totalPoints, usePoints) {
   const container = document.getElementById('candidate-results');
   if (!container) return;
 
@@ -893,7 +937,7 @@ function renderCandidateRows(candidates, winner, totalVotes) {
     const pairSrc   = Utils.buildImgUrl(c.pairPhotoUrl || '');
     const color     = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
     const pct       = c.percentage || 0;
-    const barWidth  = totalVotes > 0 ? pct : 0;
+    const barWidth  = (usePoints ? totalPoints : totalVotes) > 0 ? pct : 0;
 
     // Rank badge
     const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n';
@@ -901,6 +945,18 @@ function renderCandidateRows(candidates, winner, totalVotes) {
 
     // Foto stack
     const photoHtml = buildPhotoStack(photoSrc, pairSrc, c, isWinner);
+
+    // Blok angka kanan: poin (utama) + suara (sub) jika usePoints, suara saja jika tidak
+    const scoreHtml = usePoints
+      ? `<p class="text-base font-extrabold text-gray-800 tabular-nums leading-tight">
+           ${Utils.formatNumber(c.points || 0)}
+         </p>
+         <p class="text-xs text-amber-500 font-semibold">poin</p>
+         <p class="text-xs text-gray-400 tabular-nums">${Utils.formatNumber(c.votes)} suara</p>`
+      : `<p class="text-base font-extrabold text-gray-800 tabular-nums leading-tight">
+           ${Utils.formatNumber(c.votes)}
+         </p>
+         <p class="text-xs text-gray-400">suara</p>`;
 
     return `
       <div class="candidate-row ${isWinner ? 'is-winner' : ''}" data-candidate-id="${Utils.escapeHtml(c.id)}">
@@ -948,12 +1004,9 @@ function renderCandidateRows(candidates, winner, totalVotes) {
           </div>
         </div>
 
-        <!-- Jumlah suara -->
+        <!-- Jumlah poin/suara -->
         <div class="text-right flex-shrink-0 pl-2">
-          <p class="text-base font-extrabold text-gray-800 tabular-nums leading-tight">
-            ${Utils.formatNumber(c.votes)}
-          </p>
-          <p class="text-xs text-gray-400">suara</p>
+          ${scoreHtml}
         </div>
 
       </div>`;
@@ -1000,7 +1053,7 @@ function buildPhotoStack(photoSrc, pairSrc, c, isWinner) {
     </div>`;
 }
 
-function renderClassBreakdown(classSummary) {
+function renderClassBreakdown(classSummary, usePoints) {
   const box   = document.getElementById('class-breakdown-box');
   const tbody = document.getElementById('class-tbody');
   if (!box || !tbody) return;
@@ -1012,12 +1065,25 @@ function renderClassBreakdown(classSummary) {
 
   box.classList.remove('hidden');
 
+  // Tampilkan/sembunyikan kolom poin
+  const thPpv = document.getElementById('th-points-per-vote');
+  const thTp  = document.getElementById('th-total-points-col');
+  if (thPpv) thPpv.classList.toggle('hidden', !usePoints);
+  if (thTp)  thTp.classList.toggle('hidden',  !usePoints);
+
   const countLabel = document.getElementById('class-count-label');
   if (countLabel) countLabel.textContent = `${classSummary.length} kelas`;
 
   tbody.innerHTML = classSummary.map(cs => {
-    const pct       = cs.participation || 0;
-    const barColor  = pct >= 80 ? '#16a34a' : pct >= 50 ? '#f59e0b' : '#ef4444';
+    const pct      = cs.participation || 0;
+    const barColor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#f59e0b' : '#ef4444';
+    const ppv      = cs.pointsPerVote || 1;
+    const tp       = cs.totalPoints   || 0;
+
+    const pointsCols = usePoints
+      ? `<td class="text-right tabular-nums font-semibold text-amber-600" data-label="Poin/Suara">${ppv}</td>
+         <td class="text-right tabular-nums font-semibold text-amber-700" data-label="Total Poin">${Utils.formatNumber(tp)}</td>`
+      : '';
 
     return `
       <tr class="border-b border-gray-50 last:border-0">
@@ -1025,6 +1091,7 @@ function renderClassBreakdown(classSummary) {
         <td class="text-right tabular-nums text-gray-700" data-label="Total">${Utils.formatNumber(cs.total)}</td>
         <td class="text-right tabular-nums text-green-700 font-medium" data-label="Memilih">${Utils.formatNumber(cs.voted)}</td>
         <td class="text-right tabular-nums text-orange-600" data-label="Belum">${Utils.formatNumber(cs.notVoted)}</td>
+        ${pointsCols}
         <td data-label="Partisipasi">
           <div class="flex items-center gap-2">
             <div class="class-participation-bar flex-1" style="min-width:50px">
@@ -1063,8 +1130,9 @@ async function exportResults() {
     return;
   }
 
-  const data = res.data || {};
+  const data       = res.data || {};
   const candidates = data.candidates || [];
+  const usePoints  = !!(data.usePoints);
 
   if (!candidates.length) {
     Toast.warning('Tidak ada data kandidat untuk diekspor.');
@@ -1072,16 +1140,20 @@ async function exportResults() {
   }
 
   // Baris kandidat
-  const candidateRows = candidates.map((c, i) => ({
-    peringkat:    i + 1,
-    no_urut:      c.orderNumber  || '',
-    nama_ketua:   c.name         || '',
-    kelas_ketua:  c.className    || '',
-    nama_wakil:   c.pairName     || '',
-    kelas_wakil:  c.pairClassName || '',
-    jumlah_suara: c.votes        || 0,
-    persentase:   (c.percentage  || 0) + '%',
-  }));
+  const candidateRows = candidates.map((c, i) => {
+    const row = {
+      peringkat:    i + 1,
+      no_urut:      c.orderNumber  || '',
+      nama_ketua:   c.name         || '',
+      kelas_ketua:  c.className    || '',
+      nama_wakil:   c.pairName     || '',
+      kelas_wakil:  c.pairClassName || '',
+      jumlah_suara: c.votes        || 0,
+      persentase:   (c.percentage  || 0) + '%',
+    };
+    if (usePoints) row.total_poin = c.points || 0;
+    return row;
+  });
 
   // Row statistik di akhir
   const stats = data.stats || {};
@@ -1090,10 +1162,10 @@ async function exportResults() {
     peringkat:    '---',
     no_urut:      'STATISTIK',
     nama_ketua:   'Total Suara: ' + (data.totalVotes || 0),
-    kelas_ketua:  'Total Pemilih: ' + (stats.totalVoters || 0),
-    nama_wakil:   'Sudah Memilih: ' + (stats.voted || 0),
-    kelas_wakil:  'Belum Memilih: ' + (stats.notVoted || 0),
-    jumlah_suara: '',
+    kelas_ketua:  usePoints ? 'Total Poin: ' + (data.totalPoints || 0) : 'Total Pemilih: ' + (stats.totalVoters || 0),
+    nama_wakil:   usePoints ? 'Total Pemilih: ' + (stats.totalVoters || 0) : 'Sudah Memilih: ' + (stats.voted || 0),
+    kelas_wakil:  usePoints ? 'Sudah Memilih: ' + (stats.voted || 0) : 'Belum Memilih: ' + (stats.notVoted || 0),
+    jumlah_suara: usePoints ? 'Belum Memilih: ' + (stats.notVoted || 0) : '',
     persentase:   'Partisipasi: ' + (stats.participationRate || 0) + '%',
   });
 
