@@ -398,9 +398,9 @@ const Sidebar = (() => {
    */
   function buildNavHtml(role) {
     const items = getNavItems(role);
-    // Settings hanya untuk superadmin — sesuai backend (config.update hanya allow superadmin)
-    // dan Auth.canAccessSettings() yang mengembalikan true hanya untuk superadmin.
-    const showSettings    = (role === 'superadmin');
+    // Settings untuk superadmin (akses penuh) dan ketua_panitia (akses terbatas:
+    // Field Login Pemilih + Poin Per Kelas). Sinkron dengan Auth.canAccessSettings().
+    const showSettings    = (role === 'superadmin' || role === 'ketua_panitia');
     const showUserMgmt    = (role === 'superadmin');
 
     let html = `<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">Menu Utama</p>`;
