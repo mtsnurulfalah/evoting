@@ -1079,19 +1079,29 @@ async function previewAndUpload(type, input) {
       console.info(`[upload] Kompresi: ${(file.size/1024).toFixed(0)}KB → ${(fileToUpload.size/1024).toFixed(0)}KB`);
     }
   } catch {
-    fileToUpload = file; // fallback ke asli
+    fileToUpload = file;
+  }
+
+  // Ambil konfigurasi Cloudinary dari config.js
+  const cloudName    = window.CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = window.CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset
+      || cloudName === 'YOUR_CLOUD_NAME') {
+    URL.revokeObjectURL(localUrl);
+    _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
+    _uploadState[type] = 'error';
+    Toast.error('Konfigurasi upload belum diset. Hubungi administrator.');
+    return;
   }
 
   let lastError = null;
 
   for (let attempt = 1; attempt <= _MAX_UPLOAD_ATTEMPTS; attempt++) {
-    // Buat AbortController baru per percobaan
     const abortCtrl = new AbortController();
     _uploadAbort[type] = abortCtrl;
 
-    // Exponential backoff untuk retry berikutnya: 2s → 4s (maks 3 percobaan)
-    // attempt=1 gagal → tunggu 2s sebelum attempt=2
-    // attempt=2 gagal → tunggu 4s sebelum attempt=3
+    // Exponential backoff: attempt=1 gagal → tunggu 2s, attempt=2 gagal → tunggu 4s
     const retryDelayMs = Math.min(2000 * (2 ** (attempt - 1)), 8000);
 
     try {
@@ -1101,38 +1111,11 @@ async function previewAndUpload(type, input) {
           : 'Mengupload...';
       }
 
-      // ── Langkah 1: Minta signature dari GAS ────────────────
-      const sigRes = await API.candidate.getUploadSignature(oldUrl);
-
-      // Cek apakah upload sudah di-cancel saat menunggu signature
-      if (abortCtrl.signal.aborted) return;
-
-      if (!sigRes.success || !sigRes.data) {
-        // Bedakan error yang bisa di-retry (jaringan/timeout/server crash)
-        // dari error yang tidak perlu di-retry (unauthorized, config salah, dll.)
-        const isRetryable = sigRes._isRetryable === true
-          || sigRes.errorCode === 'NETWORK_ERROR'
-          || sigRes.errorCode === 'TIMEOUT_ERROR';
-
-        if (isRetryable && attempt < _MAX_UPLOAD_ATTEMPTS) {
-          // Lempar sebagai error biasa agar loop retry menangkap dan mencoba ulang
-          throw new Error(sigRes.message || 'Gagal menghubungi server.');
-        }
-
-        // Error final atau non-retryable — rollback langsung
-        URL.revokeObjectURL(localUrl);
-        _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
-        _uploadState[type] = 'error';
-        _uploadAbort[type] = null;
-        Toast.error(sigRes.message || 'Gagal mendapatkan izin upload. Coba lagi.');
-        return;
-      }
-
-      // ── Langkah 2: Upload ke Cloudinary (dengan AbortSignal + eager) ──
-      // sigRes.data.eager diteruskan ke API agar ikut di-apply oleh Cloudinary
-      const cloudResult = await API.uploadToCloudinaryDirect(
+      // ── Upload langsung ke Cloudinary (tanpa signature / tanpa GAS) ──
+      const cloudResult = await API.uploadToCloudinaryUnsigned(
         fileToUpload,
-        sigRes.data,
+        cloudName,
+        uploadPreset,
         (pct) => {
           _renderUploadProgress(preview, localUrl, pct);
           if (labelEl) labelEl.textContent = `Mengupload ${pct}%...`;
@@ -1153,10 +1136,10 @@ async function previewAndUpload(type, input) {
       _uploadState[type] = 'done';
       if (labelEl) labelEl.textContent = 'Ganti Foto';
       Toast.success('Foto berhasil diupload.');
-      return; // selesai
+      return;
 
     } catch (err) {
-      // Jika di-cancel (modal ditutup) — berhenti tanpa pesan error
+      // Di-cancel (modal ditutup) — berhenti tanpa pesan error
       if (err.message === 'Upload dibatalkan.' || abortCtrl.signal.aborted) {
         URL.revokeObjectURL(localUrl);
         _uploadState[type] = 'none';
@@ -1168,11 +1151,10 @@ async function previewAndUpload(type, input) {
       console.warn(`[upload] percobaan ${attempt}/${_MAX_UPLOAD_ATTEMPTS} gagal:`, err.message);
 
       if (attempt < _MAX_UPLOAD_ATTEMPTS) {
-        if (labelEl) labelEl.textContent = `Gagal, tunggu ${retryDelayMs / 1000}s...`;
-        // Tampilkan countdown singkat di preview agar user tahu
+        if (labelEl) labelEl.textContent = `Gagal, coba lagi ${retryDelayMs / 1000}s...`;
         _renderUploadProgress(preview, localUrl, 0);
         await _sleep(retryDelayMs);
-        // Cek lagi setelah sleep — user mungkin sudah tutup modal
+        // Pastikan modal belum ditutup selama sleep
         if (!document.getElementById(previewId)) {
           URL.revokeObjectURL(localUrl);
           return;
@@ -1188,20 +1170,15 @@ async function previewAndUpload(type, input) {
   _uploadState[type] = 'error';
   _uploadAbort[type] = null;
 
-  // Pesan yang spesifik sesuai jenis error
-  const _errMsg = lastError?.message || '';
-  const _isServerUnreachable = _errMsg.includes('menghubungi server')
-    || _errMsg.includes('terhubung')
-    || _errMsg.includes('Cloudinary')
-    || _errMsg.includes('timeout')
-    || _errMsg.includes('Timeout');
+  const _isConnErr = lastError?.message?.includes('Cloudinary')
+    || lastError?.message?.includes('timeout')
+    || lastError?.message?.includes('Timeout');
   Toast.error(
-    _isServerUnreachable
-      ? `Koneksi gagal setelah ${_MAX_UPLOAD_ATTEMPTS}x percobaan. Pastikan internet stabil, lalu coba lagi.`
-      : (_errMsg ? `Upload gagal: ${_errMsg}` : 'Gagal mengupload foto. Periksa koneksi dan coba lagi.'),
+    _isConnErr
+      ? `Koneksi ke Cloudinary gagal setelah ${_MAX_UPLOAD_ATTEMPTS}x. Periksa internet dan coba lagi.`
+      : (lastError?.message ? `Upload gagal: ${lastError.message}` : 'Gagal mengupload foto. Coba lagi.')
   );
 }
-
 /**
  * Rollback preview ke kondisi sebelum upload jika semua percobaan gagal.
  */
