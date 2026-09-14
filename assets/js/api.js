@@ -255,7 +255,69 @@ const API = (() => {
     });
   }
 
-  // ── Candidate endpoints ──────────────────────────────────
+  /**
+   * Upload file langsung ke Cloudinary menggunakan UNSIGNED upload preset.
+   * Tidak memerlukan signature maupun roundtrip ke GAS — upload langsung dari browser.
+   *
+   * Prasyarat: buat unsigned upload preset di Cloudinary Dashboard
+   *   Settings → Upload → Upload presets → Add upload preset → Signing mode: Unsigned
+   *
+   * @param {File}     file         - File object dari <input type="file">
+   * @param {string}   cloudName    - Nama cloud Cloudinary (window.CLOUDINARY_CLOUD_NAME)
+   * @param {string}   uploadPreset - Nama unsigned preset (window.CLOUDINARY_UPLOAD_PRESET)
+   * @param {Function} [onProgress] - Callback progress(0–100)
+   * @param {AbortSignal} [abortSignal] - Signal untuk membatalkan upload
+   * @returns {Promise<{url: string, publicId: string}>}
+   */
+  async function uploadToCloudinaryUnsigned(file, cloudName, uploadPreset, onProgress, abortSignal) {
+    const endpoint = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+    const timeoutMs = _calcUploadTimeout(file.size);
+
+    const formData = new FormData();
+    formData.append('file',          file);
+    formData.append('upload_preset', uploadPreset);
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      if (abortSignal) {
+        if (abortSignal.aborted) { reject(new Error('Upload dibatalkan.')); return; }
+        abortSignal.addEventListener('abort', () => xhr.abort(), { once: true });
+      }
+
+      if (onProgress && xhr.upload) {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+        });
+      }
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve({ url: data.secure_url, publicId: data.public_id });
+          } catch {
+            reject(new Error('Respons Cloudinary tidak valid.'));
+          }
+        } else {
+          let errMsg = `Cloudinary error ${xhr.status}`;
+          try {
+            const errData = JSON.parse(xhr.responseText);
+            if (errData.error?.message) errMsg = errData.error.message;
+          } catch (_) {}
+          reject(new Error(errMsg));
+        }
+      });
+
+      xhr.addEventListener('error',   () => reject(new Error('Koneksi ke Cloudinary gagal. Periksa jaringan Anda.')));
+      xhr.addEventListener('timeout', () => reject(new Error(`Upload timeout (>${Math.round(timeoutMs / 1000)}s). File mungkin terlalu besar atau jaringan lambat.`)));
+      xhr.addEventListener('abort',   () => reject(new Error('Upload dibatalkan.')));
+
+      xhr.open('POST', endpoint);
+      xhr.timeout = timeoutMs;
+      xhr.send(formData);
+    });
+  }
 
   const candidate = {
     /** Kandidat publik dari election upcoming/active — tanpa token */
@@ -358,5 +420,5 @@ const API = (() => {
     return _pendingRequests > 0;
   }
 
-  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, adminUsers, accessPin, isPending, uploadToCloudinaryDirect };
+  return { auth, election, candidate, voter, vote, result, config, logs, adminProfile, adminUsers, accessPin, isPending, uploadToCloudinaryDirect, uploadToCloudinaryUnsigned };
 })();
