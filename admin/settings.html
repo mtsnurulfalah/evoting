@@ -331,6 +331,91 @@
           </div>
         </div>
 
+        <!-- ── Poin Per Kelas ──────────────────────────────── -->
+        <div class="card" id="card-class-points">
+          <div class="card-header" id="card-class-points-header">
+            <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-star-half-stroke text-amber-500 text-xs" aria-hidden="true"></i>
+              </span>
+              Poin Per Kelas
+            </h3>
+          </div>
+          <div class="card-body space-y-4">
+
+            <p class="text-xs text-gray-500 leading-relaxed">
+              Atur berapa poin yang dihitung per suara untuk setiap kelas. Kelas dengan poin lebih tinggi memberi pengaruh lebih besar ke hasil akhir.
+              Kelas yang tidak diatur dianggap bernilai <strong>1 poin</strong>.
+            </p>
+
+            <!-- Selector election untuk referensi kelas -->
+            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+              <label class="form-label text-xs whitespace-nowrap mb-0 flex-shrink-0" for="cp-election-select">
+                Referensi Pemilihan
+              </label>
+              <div class="flex gap-2 flex-1 min-w-0">
+                <select id="cp-election-select"
+                        class="form-select text-xs flex-1 min-w-0"
+                        aria-label="Pilih pemilihan sebagai sumber daftar kelas">
+                  <option value="">— Pilih pemilihan —</option>
+                </select>
+                <button type="button" id="btn-load-classes"
+                        class="btn btn-outline btn-sm gap-1.5 flex-shrink-0 text-xs"
+                        aria-label="Muat daftar kelas dari pemilihan yang dipilih">
+                  <i class="fa-solid fa-rotate-right text-xs" aria-hidden="true"></i>
+                  Muat Kelas
+                </button>
+              </div>
+            </div>
+
+            <!-- State: kosong / loading / tabel kelas -->
+            <div id="cp-empty" class="py-6 text-center text-gray-400 text-xs">
+              <i class="fa-solid fa-chalkboard text-2xl mb-2 block text-gray-300" aria-hidden="true"></i>
+              Pilih pemilihan di atas lalu klik "Muat Kelas" untuk mengatur poin.
+            </div>
+
+            <div id="cp-loading" class="hidden py-4 text-center text-gray-400 text-xs">
+              <div class="inline-block w-5 h-5 border-2 border-gray-200 border-t-amber-500 rounded-full animate-spin mb-1" role="status" aria-label="Memuat..."></div>
+              <p>Memuat daftar kelas...</p>
+            </div>
+
+            <div id="cp-table-wrap" class="hidden">
+              <!-- Info: berapa kelas ditemukan -->
+              <p class="text-xs text-gray-400 mb-2" id="cp-class-count"></p>
+
+              <!-- Tabel kelas + input poin -->
+              <div class="border border-gray-100 rounded-xl overflow-hidden">
+                <table class="w-full text-sm" id="cp-table" aria-label="Tabel poin per kelas">
+                  <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                      <th class="text-left text-xs font-semibold text-gray-500 px-4 py-2.5">Kelas</th>
+                      <th class="text-right text-xs font-semibold text-gray-500 px-4 py-2.5 w-36">
+                        Poin per Suara
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody id="cp-tbody" class="divide-y divide-gray-50"></tbody>
+                </table>
+              </div>
+
+              <!-- Tombol reset semua ke 1 -->
+              <button type="button" id="btn-reset-points"
+                      class="btn btn-secondary btn-sm gap-1.5 text-xs mt-3"
+                      aria-label="Reset semua poin ke nilai default 1">
+                <i class="fa-solid fa-rotate-left text-xs" aria-hidden="true"></i>
+                Reset Semua ke 1
+              </button>
+            </div>
+
+            <!-- Error state -->
+            <div id="cp-error" class="hidden alert alert-error text-xs py-2">
+              <i class="fa-solid fa-circle-xmark flex-shrink-0" aria-hidden="true"></i>
+              <span id="cp-error-msg">Gagal memuat kelas.</span>
+            </div>
+
+          </div>
+        </div>
+
         <!-- ── Pengaturan Pemilihan ───────────────────────────── -->
         <div class="card" id="card-voting">
           <div class="card-header" id="card-voting-header">
@@ -529,6 +614,149 @@
     btn.addEventListener('keydown', (e) => {
       if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); btn.click(); }
     });
+  }
+
+  // ── Helper: Poin Per Kelas ────────────────────────────
+  // _cpClasses menyimpan daftar kelas yang sedang ditampilkan
+  let _cpClasses = [];
+
+  /** Parse CLASS_POINTS dari raw JSON string ke plain object */
+  function parseClassPoints(raw) {
+    if (!raw) return {};
+    try {
+      const p = JSON.parse(raw);
+      if (typeof p !== 'object' || Array.isArray(p) || p === null) return {};
+      return p;
+    } catch (_) { return {}; }
+  }
+
+  /** Bangun JSON CLASS_POINTS dari input di tabel */
+  function buildClassPointsJson() {
+    const result = {};
+    _cpClasses.forEach(cls => {
+      const input = document.querySelector(`input[data-class="${CSS.escape(cls)}"]`);
+      if (!input) return;
+      const val = parseFloat(input.value);
+      result[cls] = (!isNaN(val) && val >= 1) ? val : 1;
+    });
+    return JSON.stringify(result);
+  }
+
+  /** Render tabel kelas dengan input poin */
+  function renderClassPointsTable(classes, savedPoints) {
+    _cpClasses = classes;
+    const tbody      = document.getElementById('cp-tbody');
+    const countLabel = document.getElementById('cp-class-count');
+    const tableWrap  = document.getElementById('cp-table-wrap');
+    const empty      = document.getElementById('cp-empty');
+    const loading    = document.getElementById('cp-loading');
+    if (loading) loading.classList.add('hidden');
+
+    if (!classes.length) {
+      if (empty) { empty.classList.remove('hidden'); empty.textContent = 'Tidak ada kelas yang ditemukan di pemilihan ini.'; }
+      if (tableWrap) tableWrap.classList.add('hidden');
+      return;
+    }
+
+    if (empty) empty.classList.add('hidden');
+    if (tableWrap) tableWrap.classList.remove('hidden');
+
+    if (countLabel) countLabel.textContent = `${classes.length} kelas ditemukan`;
+
+    tbody.innerHTML = classes.map(cls => {
+      const saved  = savedPoints[cls];
+      const val    = (saved !== undefined && !isNaN(parseFloat(saved))) ? parseFloat(saved) : 1;
+      const safeId = cls.replace(/"/g, '&quot;');
+      return `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="px-4 py-2.5 text-sm font-medium text-gray-700">${Utils.escapeHtml(cls)}</td>
+          <td class="px-4 py-2.5 text-right">
+            <input type="number"
+                   class="form-input text-right text-sm w-28 tabular-nums"
+                   data-class="${safeId}"
+                   value="${val}"
+                   min="1"
+                   max="9999"
+                   step="1"
+                   aria-label="Poin per suara untuk kelas ${safeId}"
+                   ${!superAdmin ? 'disabled' : ''}/>
+          </td>
+        </tr>`;
+    }).join('');
+
+    // Dirty tracker untuk input poin
+    if (superAdmin) {
+      tbody.querySelectorAll('input[data-class]').forEach(inp => {
+        inp.addEventListener('input', () => {
+          _configData['CLASS_POINTS'] = buildClassPointsJson();
+          setDirty(true);
+        });
+      });
+    }
+  }
+
+  /** Muat daftar kelas dari server */
+  async function loadClassesForPoints() {
+    const electionId = document.getElementById('cp-election-select')?.value || '';
+    const empty   = document.getElementById('cp-empty');
+    const loading = document.getElementById('cp-loading');
+    const errBox  = document.getElementById('cp-error');
+    const errMsg  = document.getElementById('cp-error-msg');
+    const tableWrap = document.getElementById('cp-table-wrap');
+
+    if (!electionId) {
+      if (empty) { empty.classList.remove('hidden'); empty.textContent = 'Pilih pemilihan di atas lalu klik "Muat Kelas".'; }
+      if (tableWrap) tableWrap.classList.add('hidden');
+      return;
+    }
+
+    if (empty)    empty.classList.add('hidden');
+    if (errBox)   errBox.classList.add('hidden');
+    if (tableWrap) tableWrap.classList.add('hidden');
+    if (loading)  loading.classList.remove('hidden');
+
+    let res;
+    try {
+      res = await API.voter.getClasses(electionId);
+    } catch (err) {
+      if (loading) loading.classList.add('hidden');
+      if (errMsg)  errMsg.textContent = 'Gagal menghubungi server.';
+      if (errBox)  errBox.classList.remove('hidden');
+      return;
+    }
+
+    if (!res.success) {
+      if (loading) loading.classList.add('hidden');
+      if (errMsg)  errMsg.textContent = res.message || 'Gagal memuat kelas.';
+      if (errBox)  errBox.classList.remove('hidden');
+      return;
+    }
+
+    const classes     = (res.data && res.data.classes) || [];
+    const savedPoints = parseClassPoints(_configData['CLASS_POINTS']);
+    renderClassPointsTable(classes, savedPoints);
+  }
+
+  /** Isi dropdown election di kartu poin per kelas */
+  async function populateClassPointsElectionSelect() {
+    const sel = document.getElementById('cp-election-select');
+    if (!sel) return;
+    const res = await API.election.getAll().catch(() => null);
+    if (!res || !res.success || !res.data || !res.data.length) return;
+    sel.innerHTML =
+      '<option value="">— Pilih pemilihan —</option>' +
+      res.data.map(e =>
+        `<option value="${Utils.escapeHtml(e.id)}">${Utils.escapeHtml(e.title)}</option>`
+      ).join('');
+    // Auto-select pemilihan aktif/pertama
+    const active = res.data.find(e => e.status === 'active') || res.data[0];
+    if (active) {
+      sel.value = active.id;
+      // Otomatis load jika sudah ada config CLASS_POINTS
+      if (_configData['CLASS_POINTS'] && _configData['CLASS_POINTS'] !== '{}') {
+        await loadClassesForPoints();
+      }
+    }
   }
 
   // ── DOM refs ──────────────────────────────────────────────
@@ -731,6 +959,9 @@
       bindDirtyTrackers();
       setDirty(false); // reset dirty setelah load
     }
+
+    // Isi dropdown election di kartu Poin Per Kelas (async, non-blocking)
+    populateClassPointsElectionSelect();
   }
 
   // ── Discard changes ───────────────────────────────────────
@@ -799,6 +1030,7 @@
       ALLOW_PUBLIC_RESULT: _configData['ALLOW_PUBLIC_RESULT'] || 'false',
       MAINTENANCE_MODE:    _configData['MAINTENANCE_MODE']    || 'false',
       VOTER_LOGIN_FIELDS:  buildLoginFieldsJson(),
+      CLASS_POINTS:        _configData['CLASS_POINTS']        || '{}',
     };
 
     let res;
@@ -848,6 +1080,19 @@
   bindToggle('toggle-maintenance',      'MAINTENANCE_MODE');
   bindLoginFieldToggle('toggle-login-birthplace', 'birthPlace');
   bindLoginFieldToggle('toggle-login-birthdate',  'birthDate');
+
+  // Poin per kelas — event bindings
+  document.getElementById('btn-load-classes')?.addEventListener('click', loadClassesForPoints);
+  document.getElementById('btn-reset-points')?.addEventListener('click', () => {
+    if (!superAdmin) return;
+    // Reset semua input poin ke 1
+    document.querySelectorAll('#cp-tbody input[data-class]').forEach(inp => {
+      inp.value = 1;
+    });
+    _configData['CLASS_POINTS'] = buildClassPointsJson();
+    setDirty(true);
+    Toast.info('Semua poin direset ke 1.');
+  });
 
   btnSave?.addEventListener('click', saveSettings);
   btnSaveTop?.addEventListener('click', saveSettings);
