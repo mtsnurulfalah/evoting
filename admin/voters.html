@@ -590,6 +590,13 @@
         <i class="fa-solid fa-file-excel text-xs" aria-hidden="true"></i>
         <span class="header-btn-label">Import Excel</span>
       </button>
+      <button id="btn-assign"
+              class="btn btn-outline btn-sm gap-1.5"
+              title="Assign pemilih yang sudah ada ke jadwal pemilihan lain"
+              aria-label="Assign pemilih ke jadwal pemilihan lain">
+        <i class="fa-solid fa-link text-xs" aria-hidden="true"></i>
+        <span class="header-btn-label">Assign</span>
+      </button>
       <button id="btn-export"
               class="btn btn-outline btn-sm gap-1.5"
               title="Ekspor data pemilih ke CSV"
@@ -981,6 +988,7 @@ let   _accessTimerId  = null;
   if (isReadonly) {
     document.getElementById('btn-add').classList.add('hidden');
     document.getElementById('btn-import').classList.add('hidden');
+    document.getElementById('btn-assign').classList.add('hidden');
   }
   if (showReadonlyNotice) {
     document.getElementById('badge-readonly').classList.remove('hidden');
@@ -990,6 +998,7 @@ let   _accessTimerId  = null;
   if (!isReadonly) {
     document.getElementById('btn-add').addEventListener('click', () => openVoterModal());
     document.getElementById('btn-import').addEventListener('click', openImportModal);
+    document.getElementById('btn-assign').addEventListener('click', openAssignModal);
   }
 
   document.getElementById('btn-export').addEventListener('click', exportVoters);
@@ -2064,6 +2073,438 @@ function loadXLSX() {
     });
 
   return _xlsxLoadPromise;
+}
+
+// ── Assign Modal ──────────────────────────────────────────────
+
+/**
+ * Modal Assign Pemilih — memungkinkan admin mendaftarkan voter yang
+ * sudah ada di database ke satu atau lebih jadwal pemilihan lain
+ * menggunakan NISN dan PIN yang sama (Opsi A).
+ *
+ * Alur:
+ *   1. Admin ketik NISN → klik Cari / tekan Enter
+ *   2. Backend lookupVoterByNisn mengembalikan data + elections yang sudah berisi NISN
+ *   3. Tampilkan preview identitas voter
+ *   4. Tampilkan daftar elections yang tersedia (exclude yg sudah terdaftar)
+ *   5. Admin centang election tujuan → klik Assign
+ *   6. Backend assignVoterToElection menjalankan proses assign
+ *   7. Tampilkan ringkasan hasil (assigned / skipped / failed)
+ */
+async function openAssignModal() {
+  // Cache daftar semua elections untuk pilihan tujuan
+  let _allElections    = [];
+  let _voterData       = null;   // hasil lookupVoterByNisn
+  let _isLooking       = false;
+  let _isAssigning     = false;
+
+  const modal = Modal.open({
+    id:    'modal-assign',
+    title: 'Assign Pemilih ke Jadwal Pemilihan Lain',
+    size:  'lg',
+    body:  _assignModalBodyHtml(),
+    actions: [
+      { label: 'Tutup',  class: 'btn-secondary', action: 'close' },
+      { label: 'Assign', class: 'btn-primary',   action: 'assign', id: 'btn-modal-assign' },
+    ],
+  });
+
+  // Tombol Assign awalnya disabled sampai ada voter yang ditemukan
+  const assignBtn = document.getElementById('btn-modal-assign');
+  if (assignBtn) assignBtn.disabled = true;
+
+  // ── Muat semua elections di background ───────────────────
+  (async () => {
+    const res = await API.election.getAll();
+    if (res.success && Array.isArray(res.data)) {
+      _allElections = res.data;
+    }
+  })();
+
+  // ── Event: Cari voter berdasarkan NISN ───────────────────
+  const nisnInput  = document.getElementById('assign-nisn-input');
+  const lookupBtn  = document.getElementById('btn-assign-lookup');
+  const resultArea = document.getElementById('assign-result-area');
+
+  async function doLookup() {
+    if (_isLooking) return;
+    const nisn = (nisnInput?.value || '').trim();
+    if (!nisn) {
+      _setAssignFieldError('assign-nisn-error', 'NISN tidak boleh kosong.');
+      return;
+    }
+    if (!/^\d{1,10}$/.test(nisn)) {
+      _setAssignFieldError('assign-nisn-error', 'NISN harus 10 digit angka.');
+      return;
+    }
+    _clearAssignFieldError('assign-nisn-error');
+
+    _isLooking = true;
+    Utils.setLoading(lookupBtn, true, 'Mencari...');
+    if (resultArea) {
+      resultArea.innerHTML = `
+        <div class="flex items-center gap-2 py-4 text-gray-400 text-sm">
+          <div class="w-4 h-4 border-2 border-gray-300 border-t-primary-500 rounded-full animate-spin flex-shrink-0"></div>
+          Mencari data pemilih...
+        </div>`;
+      resultArea.classList.remove('hidden');
+    }
+
+    try {
+      const res = await API.voter.lookupByNisn(nisn);
+      if (!res.success) {
+        if (resultArea) {
+          resultArea.innerHTML = `
+            <div class="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <i class="fa-solid fa-circle-xmark flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+              <span>${Utils.escapeHtml(res.message || 'Pemilih tidak ditemukan.')}</span>
+            </div>`;
+        }
+        _voterData = null;
+        if (assignBtn) assignBtn.disabled = true;
+        return;
+      }
+
+      _voterData = res.data;
+      _renderAssignVoterPreview(_voterData, _allElections, resultArea);
+      if (assignBtn) assignBtn.disabled = false;
+
+    } catch (_) {
+      if (resultArea) {
+        resultArea.innerHTML = `
+          <div class="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <i class="fa-solid fa-circle-xmark flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+            Gagal menghubungi server. Silakan coba lagi.
+          </div>`;
+      }
+      _voterData = null;
+      if (assignBtn) assignBtn.disabled = true;
+    } finally {
+      _isLooking = false;
+      Utils.setLoading(lookupBtn, false);
+    }
+  }
+
+  lookupBtn?.addEventListener('click', doLookup);
+  nisnInput?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doLookup(); }
+  });
+  nisnInput?.addEventListener('input', () => _clearAssignFieldError('assign-nisn-error'));
+
+  // ── Event: Tombol Assign ─────────────────────────────────
+  modal.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.action === 'close') { Modal.close(); return; }
+      if (btn.dataset.action !== 'assign') return;
+      if (_isAssigning || !_voterData) return;
+
+      // Kumpulkan election yang dicentang
+      const checked = [...modal.querySelectorAll('.assign-election-cb:checked')]
+        .map(cb => cb.value);
+
+      if (!checked.length) {
+        Toast.warning('Pilih minimal satu jadwal pemilihan tujuan.');
+        return;
+      }
+
+      _isAssigning = true;
+      Utils.setLoading(btn, true, 'Memproses...');
+
+      try {
+        const res = await API.voter.assignToElection(_voterData.nisn, checked);
+
+        if (!res.success) {
+          Toast.error(res.message || 'Gagal melakukan assign.');
+          return;
+        }
+
+        Modal.close();
+        _showAssignResult(res.data);
+        await loadVoters();
+
+      } catch (_) {
+        Toast.error('Terjadi kesalahan. Silakan coba lagi.');
+      } finally {
+        _isAssigning = false;
+        Utils.setLoading(btn, false);
+      }
+    });
+  });
+
+  // Fokus ke input NISN
+  setTimeout(() => nisnInput?.focus(), 80);
+}
+
+/** HTML awal body modal assign */
+function _assignModalBodyHtml() {
+  return `
+    <div class="space-y-4">
+
+      <!-- Step 1: Cari NISN -->
+      <div>
+        <label class="form-label text-xs" for="assign-nisn-input">
+          NISN Pemilih <span class="text-red-500" aria-hidden="true">*</span>
+        </label>
+        <div class="flex gap-2">
+          <input type="text"
+                 id="assign-nisn-input"
+                 class="form-input flex-1 font-mono"
+                 placeholder="10 digit NISN"
+                 maxlength="10"
+                 inputmode="numeric"
+                 autocomplete="off"
+                 aria-required="true"
+                 aria-label="NISN pemilih yang akan di-assign"/>
+          <button type="button" id="btn-assign-lookup"
+                  class="btn btn-secondary flex-shrink-0 gap-1.5 text-sm"
+                  aria-label="Cari data pemilih berdasarkan NISN">
+            <i class="fa-solid fa-magnifying-glass text-xs" aria-hidden="true"></i>
+            Cari
+          </button>
+        </div>
+        <p id="assign-nisn-error" class="field-error" role="alert" aria-live="polite"></p>
+        <p class="text-xs text-gray-400 mt-1">
+          <i class="fa-solid fa-circle-info fa-xs mr-1" aria-hidden="true"></i>
+          Pemilih akan di-assign ke jadwal lain dengan NISN dan PIN yang sama.
+        </p>
+      </div>
+
+      <!-- Step 2: Hasil pencarian + pilih election -->
+      <div id="assign-result-area" class="hidden"></div>
+
+    </div>`;
+}
+
+/**
+ * Render preview data voter + daftar election tujuan yang bisa dipilih.
+ * Elections yang sudah berisi NISN ini ditampilkan sebagai disabled (sudah terdaftar).
+ */
+function _renderAssignVoterPreview(voterData, allElections, container) {
+  if (!container) return;
+
+  const registeredSet = new Set(voterData.registeredElectionIds || []);
+
+  // Elections yang belum berisi voter ini
+  const available = allElections.filter(e => !registeredSet.has(e.id));
+
+  const electionsHtml = allElections.length === 0
+    ? `<div class="text-sm text-gray-400 italic py-2">
+         <i class="fa-solid fa-spinner fa-spin mr-1" aria-hidden="true"></i>
+         Memuat daftar pemilihan...
+       </div>`
+    : allElections.map(e => {
+        const isRegistered = registeredSet.has(e.id);
+        const statusBadge  = isRegistered
+          ? `<span class="text-xs text-green-600 font-semibold flex items-center gap-1 flex-shrink-0">
+               <i class="fa-solid fa-circle-check fa-xs" aria-hidden="true"></i>Terdaftar
+             </span>`
+          : '';
+        return `
+          <label class="flex items-center gap-3 p-2.5 rounded-lg
+                        ${isRegistered
+                          ? 'bg-gray-50 opacity-60 cursor-not-allowed'
+                          : 'cursor-pointer hover:bg-primary-50 hover:border-primary-200 border border-transparent'}
+                        transition-colors"
+                 ${isRegistered ? 'aria-disabled="true"' : ''}>
+            <input type="checkbox"
+                   class="assign-election-cb w-4 h-4 accent-primary-600 flex-shrink-0"
+                   value="${Utils.escapeHtml(e.id)}"
+                   ${isRegistered ? 'disabled' : ''}
+                   aria-label="Assign ke ${Utils.escapeHtml(e.title || e.id)}"/>
+            <span class="flex-1 min-w-0">
+              <span class="text-sm font-medium text-gray-800 truncate block">
+                ${Utils.escapeHtml(e.title || e.id)}
+              </span>
+              ${e.startDate
+                ? `<span class="text-xs text-gray-400">
+                     ${Utils.formatDateTime(e.startDate)} — ${Utils.formatDateTime(e.endDate)}
+                   </span>`
+                : ''}
+            </span>
+            ${statusBadge}
+          </label>`;
+      }).join('');
+
+  const pinDisplay = voterData.pin
+    ? `<span class="pin-badge ml-1">${Utils.escapeHtml(voterData.pin)}</span>`
+    : `<span class="text-gray-400 text-xs ml-1">—</span>`;
+
+  container.innerHTML = `
+    <!-- Preview data voter -->
+    <div class="bg-primary-50 border border-primary-200 rounded-xl p-4 space-y-2.5">
+      <div class="flex items-center gap-2 mb-1">
+        <i class="fa-solid fa-circle-check text-primary-500" aria-hidden="true"></i>
+        <span class="text-sm font-semibold text-primary-700">Data Pemilih Ditemukan</span>
+      </div>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+        <div>
+          <span class="text-xs text-gray-500 font-medium uppercase tracking-wide block">Nama</span>
+          <span class="text-gray-800 font-semibold">${Utils.escapeHtml(voterData.name || '—')}</span>
+        </div>
+        <div>
+          <span class="text-xs text-gray-500 font-medium uppercase tracking-wide block">NISN</span>
+          <span class="font-mono text-gray-800">${Utils.escapeHtml(voterData.nisn || '—')}</span>
+        </div>
+        <div>
+          <span class="text-xs text-gray-500 font-medium uppercase tracking-wide block">Kelas</span>
+          <span class="text-gray-700">${Utils.escapeHtml(voterData.className || '—')}</span>
+        </div>
+        <div>
+          <span class="text-xs text-gray-500 font-medium uppercase tracking-wide block">PIN Login</span>
+          ${pinDisplay}
+        </div>
+        <div>
+          <span class="text-xs text-gray-500 font-medium uppercase tracking-wide block">Tempat Lahir</span>
+          <span class="text-gray-700">${Utils.escapeHtml(voterData.birthPlace || '—')}</span>
+        </div>
+        <div>
+          <span class="text-xs text-gray-500 font-medium uppercase tracking-wide block">Tanggal Lahir</span>
+          <span class="text-gray-700">
+            ${voterData.birthDate ? Utils.formatDate(voterData.birthDate) : '—'}
+          </span>
+        </div>
+      </div>
+      <p class="text-xs text-primary-600 mt-1">
+        <i class="fa-solid fa-info-circle fa-xs mr-1" aria-hidden="true"></i>
+        Terdaftar di <strong>${registeredSet.size}</strong> jadwal pemilihan.
+        PIN yang sama akan digunakan di semua jadwal yang di-assign.
+      </p>
+    </div>
+
+    <!-- Pilih election tujuan -->
+    <div>
+      <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+        Pilih Jadwal Pemilihan Tujuan
+      </p>
+      ${available.length === 0 && allElections.length > 0
+        ? `<div class="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+             <i class="fa-solid fa-triangle-exclamation flex-shrink-0" aria-hidden="true"></i>
+             Pemilih ini sudah terdaftar di semua jadwal pemilihan yang ada.
+           </div>`
+        : `<div class="space-y-1 max-h-52 overflow-y-auto pr-1" role="group"
+                aria-label="Daftar jadwal pemilihan tujuan">
+             ${electionsHtml}
+           </div>
+           ${available.length > 1
+             ? `<div class="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                  <button type="button" id="btn-assign-select-all"
+                          class="text-xs text-primary-600 hover:text-primary-800 font-semibold transition-colors">
+                    Pilih Semua
+                  </button>
+                  <span class="text-gray-300" aria-hidden="true">|</span>
+                  <button type="button" id="btn-assign-clear-all"
+                          class="text-xs text-gray-500 hover:text-gray-700 font-semibold transition-colors">
+                    Hapus Semua
+                  </button>
+                </div>`
+             : ''}`
+      }
+    </div>`;
+
+  // Bind Pilih Semua / Hapus Semua
+  document.getElementById('btn-assign-select-all')?.addEventListener('click', () => {
+    container.querySelectorAll('.assign-election-cb:not(:disabled)')
+      .forEach(cb => { cb.checked = true; });
+  });
+  document.getElementById('btn-assign-clear-all')?.addEventListener('click', () => {
+    container.querySelectorAll('.assign-election-cb:not(:disabled)')
+      .forEach(cb => { cb.checked = false; });
+  });
+}
+
+/** Helper: set error pada field assign modal */
+function _setAssignFieldError(fieldId, msg) {
+  const el = document.getElementById(fieldId);
+  if (el) el.innerHTML =
+    `<i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> ${Utils.escapeHtml(msg)}`;
+}
+
+/** Helper: clear error pada field assign modal */
+function _clearAssignFieldError(fieldId) {
+  const el = document.getElementById(fieldId);
+  if (el) el.innerHTML = '';
+}
+
+/** Tampilkan ringkasan hasil assign setelah selesai */
+function _showAssignResult(data) {
+  const assigned = data.assigned || [];
+  const skipped  = data.skipped  || [];
+  const failed   = data.failed   || [];
+
+  const assignedHtml = assigned.length
+    ? assigned.map(a =>
+        `<div class="import-result-row ok text-xs py-2">
+           <i class="fa-solid fa-circle-check flex-shrink-0" aria-hidden="true"></i>
+           <span>Berhasil di-assign ke <strong>${Utils.escapeHtml(a.electionTitle || a.electionId)}</strong></span>
+         </div>`
+      ).join('')
+    : '';
+
+  const skippedHtml = skipped.length
+    ? skipped.map(s =>
+        `<div class="import-result-row skip text-xs py-2">
+           <i class="fa-solid fa-forward flex-shrink-0" aria-hidden="true"></i>
+           <span class="flex-1">${Utils.escapeHtml(s.electionTitle || s.electionId || '—')}
+             <span class="text-blue-500">— ${Utils.escapeHtml(s.reason || 'Dilewati')}</span>
+           </span>
+         </div>`
+      ).join('')
+    : '';
+
+  const failedHtml = failed.length
+    ? failed.map(f =>
+        `<div class="import-result-row fail text-xs py-2">
+           <i class="fa-solid fa-circle-xmark flex-shrink-0" aria-hidden="true"></i>
+           <span class="flex-1">${Utils.escapeHtml(f.electionTitle || f.electionId || '—')}
+             <span class="text-red-500">— ${Utils.escapeHtml(f.reason || 'Gagal')}</span>
+           </span>
+         </div>`
+      ).join('')
+    : '';
+
+  const voterLabel = data.name
+    ? `${Utils.escapeHtml(data.name)} <span class="font-mono text-xs text-gray-500">(${Utils.escapeHtml(data.nisn || '')})</span>`
+    : Utils.escapeHtml(data.nisn || '');
+
+  Modal.open({
+    id:    'modal-assign-result',
+    title: 'Hasil Assign Pemilih',
+    size:  'sm',
+    body:  `
+      <div class="space-y-1">
+        <p class="text-xs text-gray-500 mb-3">Pemilih: <strong>${voterLabel}</strong></p>
+        ${assigned.length
+          ? `<div class="import-result-row ok font-semibold text-sm">
+               <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+               <span>${assigned.length} pemilihan berhasil di-assign</span>
+             </div>
+             ${assignedHtml}`
+          : ''}
+        ${skipped.length
+          ? `<div class="import-result-row skip font-semibold text-sm mt-2">
+               <i class="fa-solid fa-forward" aria-hidden="true"></i>
+               <span>${skipped.length} pemilihan dilewati</span>
+             </div>
+             ${skippedHtml}`
+          : ''}
+        ${failed.length
+          ? `<div class="import-result-row fail font-semibold text-sm mt-2">
+               <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+               <span>${failed.length} pemilihan gagal</span>
+             </div>
+             ${failedHtml}`
+          : ''}
+        ${!assigned.length && !failed.length
+          ? `<p class="text-sm text-gray-500 text-center py-3">Tidak ada perubahan yang dilakukan.</p>`
+          : ''}
+      </div>`,
+    actions: [
+      { label: 'Tutup', class: 'btn-primary', action: 'close' },
+    ],
+  });
+
+  document.querySelector('#modal-assign-result [data-action="close"]')
+    ?.addEventListener('click', () => Modal.close());
 }
 
 // ── Import Modal ──────────────────────────────────────────────
