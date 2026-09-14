@@ -1108,7 +1108,18 @@ async function previewAndUpload(type, input) {
       if (abortCtrl.signal.aborted) return;
 
       if (!sigRes.success || !sigRes.data) {
-        // Error dari GAS (bukan jaringan) — tidak perlu retry
+        // Bedakan error yang bisa di-retry (jaringan/timeout/server crash)
+        // dari error yang tidak perlu di-retry (unauthorized, config salah, dll.)
+        const isRetryable = sigRes._isRetryable === true
+          || sigRes.errorCode === 'NETWORK_ERROR'
+          || sigRes.errorCode === 'TIMEOUT_ERROR';
+
+        if (isRetryable && attempt < _MAX_UPLOAD_ATTEMPTS) {
+          // Lempar sebagai error biasa agar loop retry menangkap dan mencoba ulang
+          throw new Error(sigRes.message || 'Gagal menghubungi server.');
+        }
+
+        // Error final atau non-retryable — rollback langsung
         URL.revokeObjectURL(localUrl);
         _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
         _uploadState[type] = 'error';
@@ -1176,10 +1187,18 @@ async function previewAndUpload(type, input) {
   _rollbackPhotoPreview(preview, urlInput, oldUrl, labelEl, input);
   _uploadState[type] = 'error';
   _uploadAbort[type] = null;
+
+  // Pesan yang spesifik sesuai jenis error
+  const _errMsg = lastError?.message || '';
+  const _isServerUnreachable = _errMsg.includes('menghubungi server')
+    || _errMsg.includes('terhubung')
+    || _errMsg.includes('Cloudinary')
+    || _errMsg.includes('timeout')
+    || _errMsg.includes('Timeout');
   Toast.error(
-    lastError?.message
-      ? `Upload gagal: ${lastError.message}`
-      : 'Gagal mengupload foto setelah beberapa percobaan. Periksa koneksi dan coba lagi.',
+    _isServerUnreachable
+      ? `Koneksi gagal setelah ${_MAX_UPLOAD_ATTEMPTS}x percobaan. Pastikan internet stabil, lalu coba lagi.`
+      : (_errMsg ? `Upload gagal: ${_errMsg}` : 'Gagal mengupload foto. Periksa koneksi dan coba lagi.'),
   );
 }
 
