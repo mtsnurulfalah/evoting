@@ -163,10 +163,10 @@
       <!-- Content (tersembunyi sampai data dimuat) -->
       <div id="content-state" class="hidden space-y-5">
 
-        <!-- FIX #8 + notice read-only untuk non-superadmin -->
+        <!-- FIX #8 + notice read-only untuk non-editor -->
         <div id="readonly-notice" class="hidden alert alert-warning">
           <i class="fa-solid fa-triangle-exclamation flex-shrink-0" aria-hidden="true"></i>
-          <span>Anda hanya dapat melihat pengaturan. Hanya <strong>Super Admin</strong> yang dapat mengubah konfigurasi.</span>
+          <span>Anda hanya dapat melihat pengaturan. Hubungi Super Admin untuk melakukan perubahan.</span>
         </div>
 
         <!-- ── Identitas Aplikasi ──────────────────────────────── -->
@@ -356,6 +356,7 @@
               <div class="flex gap-2 flex-1 min-w-0">
                 <select id="cp-election-select"
                         class="form-select text-xs flex-1 min-w-0"
+                        data-no-dirty
                         aria-label="Pilih pemilihan sebagai sumber daftar kelas">
                   <option value="">— Pilih pemilihan —</option>
                 </select>
@@ -472,7 +473,7 @@
         </div>
 
         <!-- ── Informasi Sistem (read-only) ──────────────────── -->
-        <div class="card">
+        <div class="card" id="card-system-info">
           <div class="card-header">
             <h3 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
               <span class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -561,16 +562,14 @@
   const canEdit       = superAdmin || ketuaPanitia;
 
   // ── Sembunyikan kartu yang tidak relevan untuk ketua_panitia ──
-  // Ketua panitia hanya melihat Field Login Pemilih dan Poin Per Kelas.
-  if (ketuaPanitia) {
-    ['card-identity', 'card-drive', 'card-voting'].forEach(id => {
+  // Bug #1 fix: kartu disembunyikan SETELAH showState('content') via applyRoleVisibility().
+  // Tidak bisa dilakukan di sini karena #content-state masih hidden (belum showState).
+  function applyRoleVisibility() {
+    if (!ketuaPanitia) return;
+    // Sembunyikan kartu yang tidak relevan
+    ['card-identity', 'card-drive', 'card-voting', 'card-system-info'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.add('hidden');
-    });
-    // Sembunyikan juga Informasi Sistem (card terakhir tanpa id — cari via sibling)
-    document.querySelectorAll('#content-state .card').forEach(card => {
-      // Card tanpa id adalah Informasi Sistem
-      if (!card.id) card.classList.add('hidden');
     });
     // Ganti judul halaman agar lebih kontekstual
     const h1 = document.querySelector('header h1');
@@ -948,8 +947,9 @@
 
   // ── Dirty state tracking pada input fields ────────────────
   // FIX #9: pantau perubahan pada semua input/textarea dalam content-state
+  // Bug #2 fix: kecualikan elemen dengan data-no-dirty (mis. cp-election-select)
   function bindDirtyTrackers() {
-    elContent?.querySelectorAll('input, textarea, select').forEach(el => {
+    elContent?.querySelectorAll('input:not([data-no-dirty]), textarea:not([data-no-dirty]), select:not([data-no-dirty])').forEach(el => {
       el.addEventListener('input', () => setDirty(true));
       el.addEventListener('change', () => setDirty(true));
     });
@@ -1044,6 +1044,9 @@
 
     showState('content');
 
+    // Bug #1 fix: sembunyikan kartu yang tidak relevan SETELAH konten tampil
+    applyRoleVisibility();
+
     // Bind dirty tracker setelah form terisi
     if (canEdit) {
       bindDirtyTrackers();
@@ -1121,7 +1124,9 @@
     if (ketuaPanitia) {
       updates = {
         VOTER_LOGIN_FIELDS: buildLoginFieldsJson(),
-        CLASS_POINTS:       _configData['CLASS_POINTS'] || '{}',
+        // Bug #3 fix: selalu gunakan buildClassPointsJson() agar nilai dari
+        // tabel yang sudah di-render (meski belum trigger input event) ikut tersimpan
+        CLASS_POINTS:       buildClassPointsJson(),
       };
     } else {
       updates = {
@@ -1133,7 +1138,7 @@
         ALLOW_PUBLIC_RESULT: _configData['ALLOW_PUBLIC_RESULT'] || 'false',
         MAINTENANCE_MODE:    _configData['MAINTENANCE_MODE']    || 'false',
         VOTER_LOGIN_FIELDS:  buildLoginFieldsJson(),
-        CLASS_POINTS:        _configData['CLASS_POINTS']        || '{}',
+        CLASS_POINTS:        buildClassPointsJson(),
       };
     }
 
@@ -1151,20 +1156,23 @@
     if (res.success) {
       Toast.success('Pengaturan berhasil disimpan.');
 
-      // FIX #6: update sidebar app name, school name, dan document title
-      const newAppName    = updates.APP_NAME    || 'eVoting OSIM';
-      const newSchoolName = updates.SCHOOL_NAME || '';
+      // Bug #4 fix: update sidebar hanya jika updates mengandung APP_NAME
+      // (tidak berlaku untuk ketua_panitia yang tidak mengubah identitas)
+      if (superAdmin) {
+        const newAppName    = updates.APP_NAME    || 'eVoting OSIM';
+        const newSchoolName = updates.SCHOOL_NAME || '';
 
-      const sidebarAppName    = document.getElementById('sidebar-app-name');
-      const sidebarSchoolName = document.getElementById('sidebar-school-name');
-      if (sidebarAppName)    sidebarAppName.textContent    = newAppName;
-      if (sidebarSchoolName) sidebarSchoolName.textContent = newSchoolName;
+        const sidebarAppName    = document.getElementById('sidebar-app-name');
+        const sidebarSchoolName = document.getElementById('sidebar-school-name');
+        if (sidebarAppName)    sidebarAppName.textContent    = newAppName;
+        if (sidebarSchoolName) sidebarSchoolName.textContent = newSchoolName;
 
-      // Update document title
-      document.title = document.title.replace(
-        /^[^—]+—/,
-        'Pengaturan — '
-      );
+        // Update document title
+        document.title = document.title.replace(
+          /^[^—]+—/,
+          'Pengaturan — '
+        );
+      }
 
       // Perbarui _configData dan snapshot setelah save sukses.
       // Merge updates ke dalam _configData yang ada agar key lain
