@@ -24,8 +24,10 @@ const API = (() => {
   // ── Request state ────────────────────────────────────────
   let _pendingRequests = 0;
 
-  // Timeout default (ms). GAS cold-start bisa 15–30 detik, jadi pakai 45 detik.
-  const DEFAULT_TIMEOUT_MS = 45000;
+  // Timeout default (ms).
+  // GAS cold-start bisa 15–30 detik, ditambah eksekusi script dan akses Spreadsheet.
+  // 60 detik memberi ruang cukup untuk kondisi cold-start terburuk.
+  const DEFAULT_TIMEOUT_MS = 60000;
 
   // ── Core fetch ───────────────────────────────────────────
   /**
@@ -106,15 +108,20 @@ const API = (() => {
       return data;
 
     } catch (err) {
-      // Bedakan timeout dari error jaringan biasa agar pesan lebih informatif
+      // Bedakan timeout, CORS/network, dan error lainnya agar pesan lebih informatif
       const isTimeout = err.name === 'AbortError';
+      const isNetworkError = err instanceof TypeError && err.message.toLowerCase().includes('failed to fetch');
+
       console.error(`[API] ${isTimeout ? 'Timeout' : 'Error'} on action "${action}":`, err);
       return {
         success: false,
         message: isTimeout
-          ? 'Permintaan membutuhkan waktu terlalu lama. Silakan coba lagi.'
-          : 'Gagal menghubungi server. Periksa koneksi internet Anda.',
+          ? 'Server membutuhkan waktu terlalu lama untuk merespons. Silakan coba lagi.'
+          : isNetworkError
+            ? 'Tidak dapat terhubung ke server. Periksa koneksi internet, lalu coba lagi.'
+            : 'Gagal menghubungi server. Silakan coba lagi.',
         errorCode: isTimeout ? 'TIMEOUT_ERROR' : 'NETWORK_ERROR',
+        _isRetryable: true,  // flag untuk logic retry di caller
         _originalError: err.message,
       };
     } finally {
