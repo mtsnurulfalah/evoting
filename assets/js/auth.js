@@ -12,16 +12,25 @@ const Auth = (() => {
   const KEY_USER_DATA  = 'ev_user_data';
   const KEY_EXPIRES_AT = 'ev_expires_at';
   const KEY_ELECTION   = 'ev_election';
+  // Multi-election: array semua elections yang voter terdaftar dan aktif
+  const KEY_ELECTIONS  = 'ev_elections';
 
   // ── Token Storage ────────────────────────────────────────
 
-  function setSession(token, userType, userData, expiresAt, electionData) {
+  function setSession(token, userType, userData, expiresAt, electionData, electionsData) {
     sessionStorage.setItem(KEY_TOKEN,      token);
     sessionStorage.setItem(KEY_USER_TYPE,  userType);
     sessionStorage.setItem(KEY_USER_DATA,  JSON.stringify(userData || {}));
     sessionStorage.setItem(KEY_EXPIRES_AT, expiresAt || '');
     if (electionData) {
       sessionStorage.setItem(KEY_ELECTION, JSON.stringify(electionData));
+    }
+    // Simpan array elections untuk multi-election support
+    if (electionsData && Array.isArray(electionsData)) {
+      sessionStorage.setItem(KEY_ELECTIONS, JSON.stringify(electionsData));
+    } else if (electionData) {
+      // Fallback: bungkus single election ke dalam array agar API konsisten
+      sessionStorage.setItem(KEY_ELECTIONS, JSON.stringify([electionData]));
     }
   }
 
@@ -31,6 +40,7 @@ const Auth = (() => {
     sessionStorage.removeItem(KEY_USER_DATA);
     sessionStorage.removeItem(KEY_EXPIRES_AT);
     sessionStorage.removeItem(KEY_ELECTION);
+    sessionStorage.removeItem(KEY_ELECTIONS);
   }
 
   function getToken() {
@@ -47,10 +57,72 @@ const Auth = (() => {
     } catch { return {}; }
   }
 
+  /** Ambil data election pertama (backward-compat untuk single election) */
   function getElectionData() {
     try {
       return JSON.parse(sessionStorage.getItem(KEY_ELECTION) || 'null');
     } catch { return null; }
+  }
+
+  /**
+   * Ambil array semua elections dalam sesi ini.
+   * Selalu return array (minimal 1 item, atau [] jika tidak ada).
+   * @returns {Array<{id, title, description, startDate, endDate, voterId, hasVoted, votedAt}>}
+   */
+  function getElectionsData() {
+    try {
+      const raw = sessionStorage.getItem(KEY_ELECTIONS);
+      if (!raw) {
+        // Fallback: bungkus data election tunggal
+        const single = getElectionData();
+        return single ? [single] : [];
+      }
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+
+  /**
+   * Update status hasVoted untuk election tertentu di session storage.
+   * Dipanggil setelah vote berhasil di satu election.
+   * @param {string} electionId
+   */
+  function markElectionVoted(electionId) {
+    const elections = getElectionsData();
+    const updated = elections.map(e => {
+      // Cocokkan dengan field 'id' ATAU 'electionId' — kedua format mungkin ada
+      // tergantung dari mana data elections berasal (login response vs fallback).
+      const eid = String(e.id || e.electionId || '');
+      if (eid === String(electionId)) {
+        return { ...e, hasVoted: true, votedAt: new Date().toISOString() };
+      }
+      return e;
+    });
+    sessionStorage.setItem(KEY_ELECTIONS, JSON.stringify(updated));
+    // Jika semua sudah vote, update user data hasVoted juga
+    if (updated.every(e => !!e.hasVoted)) markAsVoted();
+  }
+
+  /**
+   * Cek apakah voter sudah vote di SEMUA elections dalam sesi.
+   * @returns {boolean}
+   */
+  function hasVotedAll() {
+    const elections = getElectionsData();
+    if (elections.length === 0) {
+      // Fallback ke data user
+      const voter = getUserData();
+      return !!voter.hasVoted;
+    }
+    return elections.every(e => !!e.hasVoted);
+  }
+
+  /**
+   * Cek apakah sesi ini multi-election (lebih dari 1 election).
+   * @returns {boolean}
+   */
+  function isMultiElection() {
+    return getElectionsData().length > 1;
   }
 
   function isExpired() {
@@ -126,12 +198,16 @@ const Auth = (() => {
   // ── Voter session ────────────────────────────────────────
 
   function setVoterSession(responseData) {
+    // responseData.elections = array elections (multi-election support)
+    // responseData.election  = single election (backward-compat)
+    const electionsArr = responseData.elections || null;
     setSession(
       responseData.token,
       'voter',
       responseData.voter,
       responseData.expiresAt,
-      responseData.election
+      responseData.election,   // KEY_ELECTION — single (backward-compat)
+      electionsArr             // KEY_ELECTIONS — array
     );
   }
 
@@ -143,6 +219,7 @@ const Auth = (() => {
       'admin',
       responseData.admin,
       responseData.expiresAt,
+      null,
       null
     );
   }
@@ -205,8 +282,7 @@ const Auth = (() => {
    */
   function redirectIfLoggedIn() {
     if (isVoter()) {
-      const voter = getUserData();
-      if (voter.hasVoted) {
+      if (hasVotedAll()) {
         window.location.replace('/success.html');
       } else {
         window.location.replace('/voting.html');
@@ -221,12 +297,11 @@ const Auth = (() => {
   }
 
   /**
-   * Guard khusus halaman voting: jika sudah vote → redirect success.
+   * Guard khusus halaman voting: jika sudah vote di SEMUA elections → redirect success.
    */
   function requireNotVoted() {
     if (!requireVoter()) return false;
-    const voter = getUserData();
-    if (voter.hasVoted) {
+    if (hasVotedAll()) {
       window.location.replace('/success.html');
       return false;
     }
@@ -234,7 +309,7 @@ const Auth = (() => {
   }
 
   /**
-   * Update hasVoted di local session (setelah berhasil vote).
+   * Update hasVoted di local session (setelah berhasil vote di semua elections).
    */
   function markAsVoted() {
     const data = getUserData();
@@ -245,6 +320,7 @@ const Auth = (() => {
   return {
     setSession, clearSession,
     getToken, getUserType, getUserData, getElectionData,
+    getElectionsData, hasVotedAll, isMultiElection, markElectionVoted,
     isLoggedIn, isVoter, isAdmin, isExpired,
     getAdminRole, isSuperAdmin, isKetuaPanitia, isPanitia,
     canAccessSettings, isKetuaPanitiaSettings,
