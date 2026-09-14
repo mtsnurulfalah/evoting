@@ -1066,15 +1066,41 @@ let   _accessTimerId  = null;
 
 // ── PIN Generator ────────────────────────────────────────────
 
+/**
+ * Ambil semua PIN yang sudah digunakan di election ini.
+ * Menggunakan pagination untuk menangani kasus voter > 9999.
+ * @returns {Promise<Set<string>>}
+ */
 async function fetchUsedPins() {
   if (!_electionId) return new Set();
+  const usedPins = new Set();
   try {
-    const res = await API.voter.getAll({ electionId: _electionId, page: 1, pageSize: 9999 });
-    if (res.success && res.data && res.data.items) {
-      return new Set(res.data.items.map(v => String(v.pin || '')).filter(Boolean));
-    }
+    // Ambil semua voter dengan pageSize besar. Jika ada lebih dari satu halaman,
+    // loop sampai selesai untuk memastikan semua PIN terkumpul.
+    const PAGE_SIZE = 9999;
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const res = await API.voter.getAll({
+        electionId: _electionId,
+        page,
+        pageSize: PAGE_SIZE,
+      });
+      if (!res.success || !res.data) break;
+
+      const items = res.data.items || [];
+      items.forEach(v => {
+        const p = String(v.pin || '').trim();
+        if (p) usedPins.add(p);
+      });
+
+      totalPages = res.data.totalPages || 1;
+      page++;
+    } while (page <= totalPages);
+
   } catch (_) {}
-  return new Set();
+  return usedPins;
 }
 
 function generateUniquePin(usedPins) {
@@ -1672,7 +1698,23 @@ function openVoterModal(id) {
     let data = {};
     if (id) {
       const res = await API.voter.getById(id);
-      if (res.success && res.data) data = res.data;
+      // Cek token dulu sebelum handle error, agar tidak update modal yang sudah diganti
+      const checkModal = document.getElementById('modal-voter');
+      if (!checkModal || checkModal.dataset.token !== modalToken) return;
+
+      if (!res.success) {
+        Modal.updateBody('modal-voter', `
+          <div class="flex flex-col items-center justify-center py-10 gap-3 text-center">
+            <i class="fa-solid fa-triangle-exclamation text-3xl text-red-400" aria-hidden="true"></i>
+            <p class="text-sm text-gray-600 font-medium">Gagal memuat data pemilih.</p>
+            <p class="text-xs text-gray-400">${Utils.escapeHtml(res.message || 'Silakan tutup dan coba lagi.')}</p>
+          </div>`);
+        // Disable tombol simpan karena data tidak berhasil dimuat
+        const saveBtn = document.getElementById('modal-save-btn');
+        if (saveBtn) saveBtn.disabled = true;
+        return;
+      }
+      if (res.data) data = res.data;
     }
 
     // BUG #3 FIX: token check yang lebih eksplisit dan aman
@@ -1683,6 +1725,15 @@ function openVoterModal(id) {
 
     // Auto-generate PIN untuk tambah baru
     if (!id) {
+      // Tampilkan indikator loading di field PIN agar user tahu sedang generate
+      const pinInputEarly = document.getElementById('f-pin');
+      const regenBtnEarly = document.getElementById('btn-regen-pin');
+      if (pinInputEarly) {
+        pinInputEarly.placeholder = 'Generating…';
+        pinInputEarly.disabled = true;
+      }
+      if (regenBtnEarly) regenBtnEarly.disabled = true;
+
       const usedPins = await fetchUsedPins();
 
       // Cek ulang setelah async fetch
@@ -1691,10 +1742,19 @@ function openVoterModal(id) {
 
       const generatedPin = generateUniquePin(usedPins);
       const pinInput     = document.getElementById('f-pin');
-      if (pinInput && generatedPin) {
-        pinInput.value = generatedPin;
-        clearFormError('f-pin');
+      if (pinInput) {
+        pinInput.disabled     = false;
+        pinInput.placeholder  = '·····';
+        if (generatedPin) {
+          pinInput.value = generatedPin;
+          clearFormError('f-pin');
+        } else {
+          // Gagal generate: biarkan kosong, tampilkan pesan error ringan
+          setFormError('f-pin', 'Tidak dapat generate PIN otomatis. Isi manual.');
+        }
       }
+      const regenBtn2 = document.getElementById('btn-regen-pin');
+      if (regenBtn2) regenBtn2.disabled = false;
 
       // BUG #13 FIX: tombol regen-pin dengan { once: false } tapi guard _regenRunning
       let _regenRunning = false;
@@ -1748,7 +1808,7 @@ function openVoterModal(id) {
   modal.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (btn.dataset.action === 'cancel') {
-        _isSubmitting = false;
+        _isSubmitting = false;  // reset flag saat cancel agar modal berikutnya tidak terblokir
         Modal.close();
         return;
       }
@@ -2162,13 +2222,23 @@ const _EXCEL_COL_LABELS    = {
 };
 
 function excelSerialToDateStr(serial) {
+  // Excel Windows (1900 date system): epoch = 1 Jan 1900, serial 1 = 1 Jan 1900
+  // Excel Mac (1904 date system): epoch = 1 Jan 1904, serial 0 = 1 Jan 1904
+  // SheetJS dengan `cellDates: false` selalu menggunakan 1900 system (25569 offset ke Unix epoch).
+  // Namun ada bug di Excel 1900: serial 60 dianggap 29 Feb 1900 (tidak ada) —
+  // SheetJS sudah mengkompensasi ini secara internal sehingga kita tidak perlu koreksi manual.
+  // Offset 25569 = jumlah hari dari 1 Jan 1900 ke 1 Jan 1970 (Unix epoch), dikurangi 2
+  // (karena Excel menghitung 1 Jan 1900 sebagai hari ke-1 dan salah menghitung 29 Feb 1900).
+  if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return '';
   const utcDays = Math.floor(serial - 25569);
   const utcMs   = utcDays * 86400 * 1000;
   const d       = new Date(utcMs);
-  if (isNaN(d)) return '';
+  if (isNaN(d.getTime())) return '';
   const y  = d.getUTCFullYear();
   const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
   const dy = String(d.getUTCDate()).padStart(2, '0');
+  // Sanity check: tahun harus wajar untuk data siswa (1950–2030)
+  if (y < 1950 || y > 2030) return '';
   return `${y}-${mo}-${dy}`;
 }
 
@@ -2312,15 +2382,16 @@ async function doImport(btn) {
 
   try {
     const res = await API.voter.importBulk(_electionId, _parsedRows, skipDup);
-    Utils.setLoading(btn, false);
 
     if (res.success) {
       const d = res.data || {};
-      Modal.close();
+      Modal.close();           // tutup dulu agar tidak flash tombol "aktif" lagi
       _parsedRows = [];
+      Utils.setLoading(btn, false);
       showImportResult(d);
       await loadVoters();
     } else {
+      Utils.setLoading(btn, false);
       Toast.error(res.message || 'Import gagal. Silakan coba lagi.');
     }
   } catch (err) {
@@ -2504,20 +2575,34 @@ async function exportVoters() {
 async function populateAvailableClasses(electionId) {
   if (!electionId) return;
   try {
-    const res = await API.voter.getAll({
-      electionId,
-      pageSize: 9999,
-      page:     1,
-    });
-    // Batalkan jika election sudah berubah saat fetch berjalan
+    // Loop pagination untuk memastikan semua kelas terkumpul meski voter > 9999
+    const PAGE_SIZE  = 9999;
+    const classSet   = new Set();
+    let page         = 1;
+    let totalPages   = 1;
+
+    do {
+      const res = await API.voter.getAll({
+        electionId,
+        pageSize: PAGE_SIZE,
+        page,
+      });
+      // Batalkan jika election sudah berubah saat fetch berjalan
+      if (electionId !== _electionId) return;
+      if (!res.success || !res.data || !res.data.items) break;
+
+      res.data.items.forEach(v => {
+        const cls = (v.className || '').trim();
+        if (cls) classSet.add(cls);
+      });
+
+      totalPages = res.data.totalPages || 1;
+      page++;
+    } while (page <= totalPages);
+
+    // Batalkan sekali lagi setelah loop selesai
     if (electionId !== _electionId) return;
-    if (!res.success || !res.data || !res.data.items) return;
 
-    const classes = res.data.items
-      .map(v => (v.className || '').trim())
-      .filter(Boolean);
-
-    const classSet    = new Set(classes);
     _availableClasses = [...classSet].sort((a, b) =>
       a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' })
     );
@@ -2732,32 +2817,42 @@ function renderClassChips() {
     return;
   }
 
-  container.innerHTML = [..._selectedClasses]
-    .sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }))
-    .map(cls => {
-      const safe = Utils.escapeHtml(cls);
-      return `
-        <span class="active-filter-tag" role="status" aria-label="Filter kelas: ${safe}">
-          <i class="fa-solid fa-chalkboard fa-xs opacity-70" aria-hidden="true"></i>
-          ${safe}
-          <button type="button"
-                  data-remove-class="${safe}"
-                  aria-label="Hapus filter kelas ${safe}"
-                  title="Hapus filter kelas ${safe}">
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-          </button>
-        </span>`;
-    }).join('');
+  // Gunakan array untuk track urutan mapping safe-id → nilai asli
+  // agar tombol hapus bisa mereferensi nilai dengan benar
+  const sortedClasses = [..._selectedClasses].sort((a, b) =>
+    a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' })
+  );
 
-  // Bind tombol hapus satu kelas
-  container.querySelectorAll('[data-remove-class]').forEach(btn => {
+  container.innerHTML = sortedClasses.map((cls, idx) => {
+    const safe = Utils.escapeHtml(cls);
+    // Gunakan index-based data attribute untuk menghindari masalah escaping
+    // pada nama kelas yang mengandung karakter HTML khusus (&, <, >, ", ')
+    return `
+      <span class="active-filter-tag" role="status" aria-label="Filter kelas: ${safe}">
+        <i class="fa-solid fa-chalkboard fa-xs opacity-70" aria-hidden="true"></i>
+        ${safe}
+        <button type="button"
+                data-remove-class-idx="${idx}"
+                aria-label="Hapus filter kelas ${safe}"
+                title="Hapus filter kelas ${safe}">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+      </span>`;
+  }).join('');
+
+  // Bind tombol hapus satu kelas — pakai index untuk lookup nilai asli
+  container.querySelectorAll('[data-remove-class-idx]').forEach(btn => {
     btn.addEventListener('click', () => {
-      _selectedClasses.delete(btn.dataset.removeClass);
-      updateClassFilterButton();
-      renderClassChips();
-      refreshClassDropdownList(document.getElementById('class-search-input')?.value.trim());
-      _currentPage = 1;
-      if (_electionId) loadVoters();
+      const idx = parseInt(btn.dataset.removeClassIdx, 10);
+      const cls = sortedClasses[idx];
+      if (cls !== undefined) {
+        _selectedClasses.delete(cls);
+        updateClassFilterButton();
+        renderClassChips();
+        refreshClassDropdownList(document.getElementById('class-search-input')?.value.trim());
+        _currentPage = 1;
+        if (_electionId) loadVoters();
+      }
     });
   });
 }
