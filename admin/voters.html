@@ -931,6 +931,18 @@ let _selectedClasses  = new Set();
 // Cache daftar kelas unik dari election aktif (diisi setelah loadVoters pertama)
 let _availableClasses = [];
 
+// Cache voter by ID — diisi setiap kali renderTable dipanggil.
+// Digunakan openVoterModal() agar edit tidak perlu round-trip ke GAS.
+// Invalidated sebelum setiap fetch baru di loadVoters().
+/** @type {Map<string, Object>} */
+let _voterCache = new Map();
+
+// Cache PIN yang sudah terpakai di election ini — diisi dari data yang
+// sudah ada di tabel sehingga fetchUsedPins() tidak perlu request terpisah.
+// null = belum terisi (perlu fetch); Set = sudah terisi.
+/** @type {Set<string>|null} */
+let _usedPinsCache = null;
+
 // BUG #3 FIX: debounced search stabil, dibuat sekali
 const _debouncedSearch = Utils.debounce(() => { _currentPage = 1; loadVoters(); }, 400);
 
@@ -1019,6 +1031,8 @@ let   _accessTimerId  = null;
     // Reset filter kelas & cache karena election berbeda memiliki kelas berbeda
     _selectedClasses.clear();
     _availableClasses = [];
+    _voterCache       = new Map(); // invalidasi cache voter saat election berganti
+    _usedPinsCache    = null;       // invalidasi cache PIN saat election berganti
     updateClassFilterButton();
     renderClassChips();
     refreshClassDropdownList();
@@ -1082,6 +1096,10 @@ let   _accessTimerId  = null;
  */
 async function fetchUsedPins() {
   if (!_electionId) return new Set();
+
+  // Gunakan cache jika sudah terisi dari renderTable — tidak perlu request baru.
+  if (_usedPinsCache !== null) return new Set(_usedPinsCache);
+
   const usedPins = new Set();
   try {
     // Ambil semua voter dengan pageSize besar. Jika ada lebih dari satu halaman,
@@ -1109,6 +1127,8 @@ async function fetchUsedPins() {
     } while (page <= totalPages);
 
   } catch (_) {}
+  // Simpan ke cache agar pemanggilan berikutnya tidak perlu fetch lagi
+  _usedPinsCache = new Set(usedPins);
   return usedPins;
 }
 
@@ -1225,6 +1245,9 @@ async function loadVoters() {
     page:       _currentPage,
     pageSize:   _pageSize,
   };
+
+  _voterCache    = new Map(); // invalidasi cache sebelum fetch baru
+  _usedPinsCache = null;      // invalidasi cache PIN
 
   let tableRes;
   let lastErr;
@@ -1377,6 +1400,19 @@ function renderTable(voters) {
   const isSuperAdmin = Auth.isSuperAdmin();
   const isReadonly   = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
   const tbody        = document.getElementById('voters-tbody');
+
+  // Isi cache dari data halaman ini.
+  // Merge (bukan replace) agar navigasi antar halaman tetap menyimpan
+  // data halaman sebelumnya — berguna untuk PIN uniqueness check.
+  voters.forEach(v => {
+    if (v.id) _voterCache.set(v.id, v);
+    // Tambahkan PIN ke usedPins cache
+    const p = String(v.pin || '').trim();
+    if (p) {
+      if (!_usedPinsCache) _usedPinsCache = new Set();
+      _usedPinsCache.add(p);
+    }
+  });
 
   tbody.innerHTML = voters.map(v => {
     const pinHtml = v.pin
@@ -1706,24 +1742,31 @@ function openVoterModal(id) {
   (async () => {
     let data = {};
     if (id) {
-      const res = await API.voter.getById(id);
-      // Cek token dulu sebelum handle error, agar tidak update modal yang sudah diganti
-      const checkModal = document.getElementById('modal-voter');
-      if (!checkModal || checkModal.dataset.token !== modalToken) return;
+      // Coba ambil dari cache terlebih dahulu — tidak perlu round-trip ke GAS.
+      const cached = _voterCache.get(id);
+      if (cached) {
+        data = cached;
+      } else {
+        // Cache miss (misalnya setelah refresh paksa) — fallback ke API.
+        const res = await API.voter.getById(id);
+        // Cek token dulu sebelum handle error, agar tidak update modal yang sudah diganti
+        const checkModal = document.getElementById('modal-voter');
+        if (!checkModal || checkModal.dataset.token !== modalToken) return;
 
-      if (!res.success) {
-        Modal.updateBody('modal-voter', `
-          <div class="flex flex-col items-center justify-center py-10 gap-3 text-center">
-            <i class="fa-solid fa-triangle-exclamation text-3xl text-red-400" aria-hidden="true"></i>
-            <p class="text-sm text-gray-600 font-medium">Gagal memuat data pemilih.</p>
-            <p class="text-xs text-gray-400">${Utils.escapeHtml(res.message || 'Silakan tutup dan coba lagi.')}</p>
-          </div>`);
-        // Disable tombol simpan karena data tidak berhasil dimuat
-        const saveBtn = document.getElementById('modal-save-btn');
-        if (saveBtn) saveBtn.disabled = true;
-        return;
+        if (!res.success) {
+          Modal.updateBody('modal-voter', `
+            <div class="flex flex-col items-center justify-center py-10 gap-3 text-center">
+              <i class="fa-solid fa-triangle-exclamation text-3xl text-red-400" aria-hidden="true"></i>
+              <p class="text-sm text-gray-600 font-medium">Gagal memuat data pemilih.</p>
+              <p class="text-xs text-gray-400">${Utils.escapeHtml(res.message || 'Silakan tutup dan coba lagi.')}</p>
+            </div>`);
+          // Disable tombol simpan karena data tidak berhasil dimuat
+          const saveBtn = document.getElementById('modal-save-btn');
+          if (saveBtn) saveBtn.disabled = true;
+          return;
+        }
+        if (res.data) data = res.data;
       }
-      if (res.data) data = res.data;
     }
 
     // BUG #3 FIX: token check yang lebih eksplisit dan aman
