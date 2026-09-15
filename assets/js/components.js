@@ -246,11 +246,12 @@ const Modal = (() => {
       return `<button ${btnId ? `id="${btnId}"` : ''} class="btn ${btnClass}" data-action="${action}">${Utils.escapeHtml(a.label)}</button>`;
     }).join('');
 
+    const titleId   = `${id}-title`;
     const modalHtml = `
-      <div id="${id}" class="modal-backdrop" role="dialog" aria-modal="true">
+      <div id="${id}" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
         <div class="modal-box ${sizeClass}">
           <div class="modal-header">
-            <h3 class="text-base font-semibold text-gray-800">${Utils.escapeHtml(title || '')}</h3>
+            <h3 id="${titleId}" class="text-base font-semibold text-gray-800">${Utils.escapeHtml(title || '')}</h3>
             ${closable ? `<button class="btn btn-icon btn-secondary text-gray-400" id="${id}-close-btn" aria-label="Tutup">
               <i class="fa-solid fa-xmark"></i></button>` : ''}
           </div>
@@ -306,7 +307,9 @@ const Modal = (() => {
     const modal = open({
       id: 'modal-confirm',
       title,
-      body: `<p class="text-gray-600 text-sm leading-relaxed">${Utils.escapeHtml(message)}</p>`,
+      // FIX #3: white-space: pre-line agar karakter '\n' dalam message di-render sebagai baris baru.
+      // Utils.escapeHtml() aman untuk XSS, dan pre-line menghormati newline tanpa mengeksekusi HTML.
+      body: `<p class="text-gray-600 text-sm leading-relaxed" style="white-space:pre-line">${Utils.escapeHtml(message)}</p>`,
       size: 'sm',
       actions: [
         { label: 'Batal',     class: 'btn-secondary', action: 'cancel' },
