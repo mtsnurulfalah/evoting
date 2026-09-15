@@ -370,13 +370,20 @@
             </div>
             <!-- Link publik: Kenali Kandidat + Lihat Hasil -->
             <div class="flex items-center justify-center gap-4 flex-wrap">
-              <a id="btn-candidates-card"
-                 href="/candidates.html"
-                 class="inline-flex items-center justify-center gap-1.5 text-xs text-primary-600
-                        hover:text-primary-700 font-medium transition-colors">
-                <i class="fa-solid fa-users fa-sm" aria-hidden="true"></i>
-                Kenali Pasangan Calon
-              </a>
+              <!-- Diisi dinamis oleh loadElectionInfo():
+                   • single election  → satu link dengan ?electionId=
+                   • multiple elections → beberapa link per election
+                   • fallback/default  → satu link tanpa parameter -->
+              <div id="candidates-card-wrap"
+                   class="inline-flex items-center justify-center gap-1.5 flex-wrap">
+                <a id="btn-candidates-card"
+                   href="/candidates.html"
+                   class="inline-flex items-center justify-center gap-1.5 text-xs text-primary-600
+                          hover:text-primary-700 font-medium transition-colors">
+                  <i class="fa-solid fa-users fa-sm" aria-hidden="true"></i>
+                  Kenali Pasangan Calon
+                </a>
+              </div>
               <span class="text-gray-200 select-none" aria-hidden="true">|</span>
               <a href="/results.html"
                  class="inline-flex items-center justify-center gap-1.5 text-xs text-primary-600
@@ -551,6 +558,59 @@ function applyLoginFields(fields) {
    ELECTION INFO LOADER
    ============================================================= */
 
+/**
+ * Render link "Kenali Pasangan Calon" di footer card login.
+ *
+ * @param {Array<{href: string, title: string|null}>} items
+ *   - Single item (title null)  → link tunggal dengan teks "Kenali Pasangan Calon"
+ *   - Multiple items            → satu link per pemilihan dengan nama pemilihan sebagai label;
+ *                                  setiap link diawali ikon users dan dipisah koma/baris
+ */
+function _renderCardCandidateLinks(items) {
+  const wrap = document.getElementById('candidates-card-wrap');
+  if (!wrap) return;
+
+  const linkCls =
+    'inline-flex items-center justify-center gap-1.5 text-xs text-primary-600 ' +
+    'hover:text-primary-700 font-medium transition-colors';
+
+  if (!items || items.length === 0) {
+    // Fallback: link generik tanpa parameter
+    wrap.innerHTML =
+      '<a href="/candidates.html" class="' + linkCls + '">' +
+        '<i class="fa-solid fa-users fa-sm" aria-hidden="true"></i>' +
+        ' Kenali Pasangan Calon' +
+      '</a>';
+    return;
+  }
+
+  if (items.length === 1) {
+    // Satu link — teks selalu "Kenali Pasangan Calon" (tidak perlu nama election)
+    wrap.innerHTML =
+      '<a href="' + items[0].href + '" class="' + linkCls + '">' +
+        '<i class="fa-solid fa-users fa-sm" aria-hidden="true"></i>' +
+        ' Kenali Pasangan Calon' +
+      '</a>';
+    return;
+  }
+
+  // Beberapa election: tampilkan sebagai daftar link vertikal kecil
+  // Ganti wrapper menjadi flex-col agar tidak melebar horizontal
+  wrap.className = 'flex flex-col items-center gap-1';
+  wrap.innerHTML =
+    '<span class="text-xs text-gray-400 font-medium">' +
+      '<i class="fa-solid fa-users fa-sm mr-1" aria-hidden="true"></i>' +
+      'Kenali Pasangan Calon:' +
+    '</span>' +
+    items.map(function(item) {
+      return (
+        '<a href="' + item.href + '" class="' + linkCls + '">' +
+          Utils.escapeHtml(item.title || 'Lihat Kandidat') +
+        '</a>'
+      );
+    }).join('');
+}
+
 async function loadElectionInfo() {
   const skeleton = document.getElementById('election-skeleton');
   const elBanner = document.getElementById('election-info');
@@ -607,20 +667,11 @@ async function loadElectionInfo() {
               ' Kenali Pasangan Calon' +
             '</a>';
 
-          // Sinkronkan link footer card login
-          const btnCard = document.getElementById('btn-candidates-card');
-          if (btnCard && e.id) {
-            btnCard.href = href;
-          }
+          // Footer card login: satu link dengan electionId
+          _renderCardCandidateLinks([{ href: href, title: null }]);
 
         } else {
           // ── Multiple active elections — daftar per election ──────
-          const btnCard = document.getElementById('btn-candidates-card');
-          if (btnCard) {
-            // Footer card: tanpa electionId, biarkan candidates.html pilih sendiri
-            btnCard.href = '/candidates.html';
-          }
-
           listEl.innerHTML =
             '<p class="font-semibold text-white mb-2">' +
               activeList.length + ' Pemilihan Sedang Berlangsung' +
@@ -652,6 +703,14 @@ async function loadElectionInfo() {
                 separator
               );
             }).join('');
+
+          // Footer card login: satu link per election, ditampilkan berurutan
+          _renderCardCandidateLinks(activeList.map(function(e) {
+            return {
+              href:  e.id ? '/candidates.html?electionId=' + encodeURIComponent(e.id) : '/candidates.html',
+              title: e.title || 'Pemilihan',
+            };
+          }));
         }
 
         elBanner.classList.remove('hidden');
@@ -662,16 +721,16 @@ async function loadElectionInfo() {
           'Dimulai pada ' + Utils.formatDateTime(d.election.startDate);
         upBanner.classList.remove('hidden');
 
-        // Teruskan electionId ke link "Kenali Pasangan Calon"
+        const upHref = d.election.id
+          ? '/candidates.html?electionId=' + encodeURIComponent(d.election.id)
+          : '/candidates.html';
+
+        // Link di banner upcoming
         const btnUpcoming = document.getElementById('btn-view-candidates-upcoming');
-        if (btnUpcoming && d.election.id) {
-          btnUpcoming.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
-        }
-        // Sinkronkan link di footer card login
-        const btnCardUp = document.getElementById('btn-candidates-card');
-        if (btnCardUp && d.election.id) {
-          btnCardUp.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
-        }
+        if (btnUpcoming) btnUpcoming.href = upHref;
+
+        // Footer card login
+        _renderCardCandidateLinks([{ href: upHref, title: null }]);
 
       } else {
         // Tidak ada pemilihan aktif/upcoming
