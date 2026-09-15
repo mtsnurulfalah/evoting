@@ -597,6 +597,13 @@
         <i class="fa-solid fa-link text-xs" aria-hidden="true"></i>
         <span class="header-btn-label">Assign</span>
       </button>
+      <button id="btn-sync-pin"
+              class="btn btn-outline btn-sm gap-1.5"
+              title="Sinkronkan PIN pemilih ke semua jadwal pemilihan yang memiliki NISN sama"
+              aria-label="Sinkronkan PIN pemilih lintas jadwal pemilihan">
+        <i class="fa-solid fa-arrows-rotate text-xs" aria-hidden="true"></i>
+        <span class="header-btn-label">Sinkron PIN</span>
+      </button>
       <button id="btn-export"
               class="btn btn-outline btn-sm gap-1.5"
               title="Ekspor data pemilih ke CSV"
@@ -1029,6 +1036,7 @@ let   _accessTimerId  = null;
     document.getElementById('btn-add').classList.add('hidden');
     document.getElementById('btn-import').classList.add('hidden');
     document.getElementById('btn-assign').classList.add('hidden');
+    document.getElementById('btn-sync-pin').classList.add('hidden');
   }
   if (showReadonlyNotice) {
     document.getElementById('badge-readonly').classList.remove('hidden');
@@ -1039,6 +1047,7 @@ let   _accessTimerId  = null;
     document.getElementById('btn-add').addEventListener('click', () => openVoterModal());
     document.getElementById('btn-import').addEventListener('click', openImportModal);
     document.getElementById('btn-assign').addEventListener('click', openAssignModal);
+    document.getElementById('btn-sync-pin').addEventListener('click', openSyncPinModal);
   }
 
   document.getElementById('btn-export').addEventListener('click', exportVoters);
@@ -2293,6 +2302,191 @@ function loadXLSX() {
   return _xlsxLoadPromise;
 }
 
+// ── Sync PIN Modal ────────────────────────────────────────────
+
+/**
+ * Modal Sinkronisasi PIN Pemilih Lintas Election.
+ *
+ * Alur:
+ *   1. Tampilkan preview: election sumber yang aktif di dropdown.
+ *   2. Tombol "Mulai Sinkronisasi" → kirim API.voter.syncPins(electionId).
+ *   3. Tampilkan ringkasan: berapa NISN disinkronkan, berapa entri diperbarui.
+ *
+ * Hak akses: superadmin / admin / ketua_panitia (bukan viewer/panitia).
+ */
+async function openSyncPinModal() {
+  if (!_electionId) {
+    Toast.warning('Pilih pemilihan terlebih dahulu sebelum menyinkronkan PIN.');
+    return;
+  }
+
+  // Ambil judul election yang sedang aktif di dropdown
+  const elSel      = document.getElementById('election-select');
+  const elTitle    = elSel?.options[elSel.selectedIndex]?.text || _electionId;
+
+  const modal = Modal.open({
+    id:    'modal-sync-pin',
+    title: 'Sinkronkan PIN Pemilih Lintas Jadwal',
+    size:  'sm',
+    body: `
+      <div class="space-y-4">
+        <div class="alert alert-info text-sm">
+          <i class="fa-solid fa-circle-info flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold mb-1">Apa yang dilakukan fitur ini?</p>
+            <p class="leading-relaxed">
+              Setiap NISN yang terdaftar di lebih dari satu jadwal pemilihan dan
+              memiliki PIN berbeda antar jadwal akan <strong>disamakan</strong>
+              menggunakan PIN dari jadwal yang sedang Anda pilih.
+            </p>
+          </div>
+        </div>
+
+        <!-- Sumber election -->
+        <div class="bg-primary-50 border border-primary-200 rounded-xl p-4">
+          <p class="text-xs font-semibold text-primary-600 uppercase tracking-wide mb-1">
+            Jadwal sumber PIN
+          </p>
+          <p class="text-sm font-bold text-primary-900 leading-snug">
+            ${Utils.escapeHtml(elTitle)}
+          </p>
+          <p class="text-xs text-primary-600 mt-1">
+            PIN dari jadwal ini akan disebarkan ke semua jadwal lain yang memiliki NISN sama.
+          </p>
+        </div>
+
+        <div class="alert alert-warning text-sm">
+          <i class="fa-solid fa-triangle-exclamation flex-shrink-0" aria-hidden="true"></i>
+          <div>
+            <p class="font-semibold">Perhatian</p>
+            <ul class="mt-1 space-y-0.5 list-disc list-inside text-xs">
+              <li>Tindakan ini tidak dapat dibatalkan secara otomatis.</li>
+              <li>Pemilih di jadwal lain harus menggunakan PIN baru ini untuk login.</li>
+              <li>Voter yang PIN-nya sudah sama tidak akan disentuh.</li>
+            </ul>
+          </div>
+        </div>
+      </div>`,
+    actions: [
+      { label: 'Batal',               class: 'btn-secondary', action: 'cancel' },
+      { label: 'Mulai Sinkronisasi',  class: 'btn-primary',   action: 'sync',  id: 'modal-sync-btn' },
+    ],
+  });
+
+  let _isSyncing = false;
+
+  modal.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
+      if (btn.dataset.action !== 'sync')  return;
+      if (_isSyncing) return;
+
+      _isSyncing = true;
+      Utils.setLoading(btn, true, 'Menyinkronkan…');
+
+      try {
+        const res = await API.voter.syncPins(_electionId);
+
+        if (!res.success) {
+          Toast.error(res.message || 'Gagal menyinkronkan PIN. Silakan coba lagi.');
+          return;
+        }
+
+        Modal.close();
+        _showSyncPinResult(res.data, elTitle);
+        // Reload tabel agar PIN yang diperbarui langsung terlihat
+        // (hanya relevan jika user kemudian pindah ke election lain)
+        await loadVoters();
+
+      } catch (err) {
+        console.error('[openSyncPinModal] error:', err);
+        Toast.error('Terjadi kesalahan tak terduga. Silakan coba lagi.');
+      } finally {
+        _isSyncing = false;
+        Utils.setLoading(btn, false);
+      }
+    });
+  });
+}
+
+/**
+ * Tampilkan ringkasan hasil sinkronisasi PIN.
+ * @param {Object} data - Response data dari backend
+ * @param {string} sourceTitle - Judul election sumber
+ */
+function _showSyncPinResult(data, sourceTitle) {
+  const { syncedNisnCount = 0, updatedEntries = 0, skippedEntries = 0, details = [] } = data;
+
+  // Kelompokkan detail berdasarkan status
+  const updatedDetails = details.filter(d => d.status === 'updated');
+  const sameDetails    = details.filter(d => d.status === 'same');
+
+  // Render daftar election yang diperbarui (maks 8 ditampilkan)
+  const updatedElections = [...new Map(
+    updatedDetails.map(d => [d.electionId, d.electionTitle || d.electionId])
+  ).entries()];
+
+  const updatedElHtml = updatedElections.length
+    ? updatedElections.slice(0, 8).map(([, title]) =>
+        `<li class="text-xs text-green-700">
+           <i class="fa-solid fa-circle-check fa-xs mr-1 text-green-500" aria-hidden="true"></i>
+           ${Utils.escapeHtml(title)}
+         </li>`
+      ).join('') +
+      (updatedElections.length > 8
+        ? `<li class="text-xs text-gray-400 italic">… dan ${updatedElections.length - 8} jadwal lainnya</li>`
+        : '')
+    : '';
+
+  const noChangeHtml = syncedNisnCount === 0
+    ? `<div class="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+         <i class="fa-solid fa-circle-check text-green-500 flex-shrink-0" aria-hidden="true"></i>
+         <span>Semua PIN sudah sinkron — tidak ada yang perlu diubah.</span>
+       </div>`
+    : '';
+
+  Modal.open({
+    id:    'modal-sync-pin-result',
+    title: 'Hasil Sinkronisasi PIN',
+    size:  'sm',
+    body: `
+      <div class="space-y-3">
+        <p class="text-xs text-gray-500">
+          Sumber: <strong>${Utils.escapeHtml(sourceTitle)}</strong>
+        </p>
+
+        ${noChangeHtml}
+
+        ${syncedNisnCount > 0 ? `
+        <div class="import-result-row ok font-semibold text-sm">
+          <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+          <span>${syncedNisnCount} NISN berhasil disinkronkan</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-center">
+          <div class="bg-green-50 rounded-lg p-3">
+            <div class="text-2xl font-extrabold text-green-700">${updatedEntries}</div>
+            <div class="text-xs text-green-600 mt-0.5">entri diperbarui</div>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <div class="text-2xl font-extrabold text-gray-500">${skippedEntries}</div>
+            <div class="text-xs text-gray-400 mt-0.5">sudah sama</div>
+          </div>
+        </div>
+        ${updatedElHtml ? `
+        <div>
+          <p class="text-xs font-semibold text-gray-600 mb-1">Jadwal yang diperbarui:</p>
+          <ul class="space-y-0.5 pl-1">${updatedElHtml}</ul>
+        </div>` : ''}
+        ` : ''}
+      </div>`,
+    actions: [
+      { label: 'Tutup', class: 'btn-primary', action: 'close' },
+    ],
+  });
+
+  document.querySelector('#modal-sync-pin-result [data-action="close"]')
+    ?.addEventListener('click', () => Modal.close());
+}
 // ── Assign Modal ──────────────────────────────────────────────
 
 /**
