@@ -12,36 +12,65 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="/assets/css/tailwind.css"/>
   <style>
-    /* ── Base ─────────────────────────────────────────── */
-    body { overflow-x: hidden; }
-
-    /* ── Safe-area inset (iOS home indicator) ─────────── */
-    .mobile-submit-bar {
-      padding-bottom: calc(0.875rem + env(safe-area-inset-bottom, 0px));
+    /* ═══════════════════════════════════════════════════════
+       BASE
+    ═══════════════════════════════════════════════════════ */
+    body {
+      overflow-x: hidden;
+      /* Pastikan body tidak pernah overflow horizontal */
+      max-width: 100vw;
     }
 
-    /* ── Kandidat card ────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       SAFE-AREA (iOS home indicator)
+    ═══════════════════════════════════════════════════════ */
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       KANDIDAT CARD
+       FIX #1: Hapus duplikasi dengan input.css — override
+       hanya properti yang perlu ditambahkan (tidak ada di file CSS global).
+    ═══════════════════════════════════════════════════════ */
     .candidate-card {
-      transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, transform 0.12s ease;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease,
+                  background-color 0.18s ease, transform 0.12s ease;
       will-change: border-color, box-shadow;
+      cursor: pointer;
+      outline: none;
     }
-    .candidate-card:hover {
+    .candidate-card:hover:not(.state-voted) {
       transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
     }
     .candidate-card:focus-visible {
       outline: 3px solid #2563eb;
       outline-offset: 2px;
     }
+    /* FIX #1: Satu definisi selected — tidak lagi konflik dengan input.css */
     .candidate-card.selected {
       border-color: #2563eb !important;
       background: linear-gradient(150deg, #eff6ff 0%, #ffffff 60%);
-      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.16), 0 1px 4px rgba(37, 99, 235, 0.08);
+      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.18), 0 1px 4px rgba(37, 99, 235, 0.08);
     }
     .candidate-card.selected:hover {
       transform: translateY(-2px);
     }
+    /* FIX #5: Warna number badge konsisten — menggunakan var CSS agar mudah override */
+    .candidate-card .candidate-number {
+      background-color: #e5e7eb; /* gray-200 — sinkron dengan .candidate-number di input.css */
+      color: #374151;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .candidate-card.selected .candidate-number {
+      background-color: #2563eb;
+      color: #ffffff;
+    }
 
-    /* ── Skeleton shimmer ─────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       SKELETON SHIMMER
+    ═══════════════════════════════════════════════════════ */
     @keyframes shimmer {
       0%   { background-position: -800px 0; }
       100% { background-position:  800px 0; }
@@ -53,12 +82,16 @@
       border-radius: 0.75rem;
     }
 
-    /* ── Kandidat grid ────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       KANDIDAT GRID
+       FIX #6: Pendekatan min() lebih aman dari max() untuk
+       kompatibilitas browser lama (min() lebih luas didukung).
+    ═══════════════════════════════════════════════════════ */
     .candidates-grid {
       display: grid;
       gap: 1rem;
-      /* Gunakan max() agar tidak overflow di layar sempit (< 320px) */
-      grid-template-columns: repeat(auto-fill, minmax(max(100%, 260px), 1fr));
+      /* Satu kolom penuh di layar sangat kecil */
+      grid-template-columns: 1fr;
     }
     @media (min-width: 480px) {
       .candidates-grid {
@@ -66,19 +99,9 @@
       }
     }
 
-    /* ── Timer bar ────────────────────────────────────── */
-    #timer-bar { transition: background-color 0.5s ease; }
-
-    /* ── line-clamp ───────────────────────────────────── */
-    .line-clamp-3 {
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    /* ── Checkmark animasi ────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       CHECKMARK ANIMASI
+    ═══════════════════════════════════════════════════════ */
     .selected-check {
       animation: checkPop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     }
@@ -87,14 +110,54 @@
       to   { transform: scale(1) rotate(0deg);   opacity: 1; }
     }
 
-    /* ── Election section separator ───────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       TIMER BAR
+    ═══════════════════════════════════════════════════════ */
+    #timer-bar {
+      transition: background-color 0.5s ease;
+    }
+    .timer-pulse {
+      animation: timerPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes timerPulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.6; }
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       LINE-CLAMP
+    ═══════════════════════════════════════════════════════ */
+    .line-clamp-3 {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       ELECTION SECTION SEPARATOR
+    ═══════════════════════════════════════════════════════ */
     .election-section + .election-section {
       margin-top: 2.5rem;
       padding-top: 2.5rem;
       border-top: 2px dashed #e5e7eb;
     }
+    /* Scroll margin agar tidak tertutup sticky topbar */
+    .election-section {
+      scroll-margin-top: 5rem;
+    }
 
-    /* ── Badge "Sudah Memilih" ────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       BADGE "SUDAH MEMILIH"
+    ═══════════════════════════════════════════════════════ */
     .voted-badge {
       display: inline-flex;
       align-items: center;
@@ -107,9 +170,12 @@
       border-radius: 9999px;
       border: 1px solid #bbf7d0;
       letter-spacing: 0.01em;
+      flex-shrink: 0;
     }
 
-    /* ── Voted overlay pada grid ─────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       VOTED OVERLAY PADA GRID
+    ═══════════════════════════════════════════════════════ */
     .grid-voted {
       position: relative;
       pointer-events: none;
@@ -119,16 +185,18 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: rgba(255,255,255,0.55);
+      background: rgba(255, 255, 255, 0.55);
       border-radius: 0.75rem;
       pointer-events: none;
       z-index: 1;
     }
 
-    /* ── Progress bar multi-election ─────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       PROGRESS BAR MULTI-ELECTION
+    ═══════════════════════════════════════════════════════ */
     .progress-step {
       flex: 1;
-      height: 5px;
+      height: 6px;
       border-radius: 3px;
       background: #e5e7eb;
       transition: background 0.4s ease;
@@ -145,7 +213,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
       animation: progressShimmer 1.5s infinite;
     }
     @keyframes progressShimmer {
@@ -153,105 +221,144 @@
       100% { transform: translateX(100%); }
     }
 
-    /* ── Submit card highlight ────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       SUBMIT CARD (desktop)
+    ═══════════════════════════════════════════════════════ */
     .submit-card {
       background: linear-gradient(135deg, #eff6ff 0%, #f8faff 100%);
       border: 1.5px solid #bfdbfe;
       border-radius: 1rem;
     }
 
-    /* ── Confirm modal: preserve newlines ─────────────── */
-    .modal-confirm-body {
-      white-space: pre-line;
-    }
-
-    /* ── Mobile submit bar ────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       MOBILE SUBMIT BAR
+       FIX: max-width mencegah bar terlalu lebar di tablet.
+    ═══════════════════════════════════════════════════════ */
     #mobile-submit-bar {
-      /* Pastikan tidak ada overflow di bawah */
       max-width: 100vw;
+      /* Blur background agar konten di belakang tetap visible */
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.97);
     }
 
-    /* ── Topbar subtitle mobile ───────────────────────── */
-    #header-election-subtitle {
-      max-width: 200px;
-    }
-
-    /* ── Scroll margin untuk section anchor ──────────── */
-    .election-section {
-      scroll-margin-top: 4.5rem;
-    }
-
-    /* ── Focus ring global consistency ───────────────── */
+    /* ═══════════════════════════════════════════════════════
+       FOCUS RING GLOBAL
+    ═══════════════════════════════════════════════════════ */
     button:focus-visible,
     a:focus-visible {
       outline: 2px solid #2563eb;
       outline-offset: 2px;
     }
+
+    /* ═══════════════════════════════════════════════════════
+       DETAIL MODAL — foto responsif
+    ═══════════════════════════════════════════════════════ */
+    .detail-photo {
+      width: 100%;
+      /* Tinggi responsif: minimum 120px, maksimum 200px */
+      height: clamp(120px, 20vw, 200px);
+      object-fit: cover;
+      object-position: top;
+      border-radius: 0.75rem;
+    }
+    .detail-photo-placeholder {
+      width: 100%;
+      height: clamp(120px, 20vw, 200px);
+      background: #f3f4f6;
+      border-radius: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       TOPBAR HEIGHT RESERVED untuk scroll compensation
+    ═══════════════════════════════════════════════════════ */
+    .topbar-reserved {
+      height: 56px; /* tinggi topbar */
+    }
   </style>
 </head>
 <body class="min-h-screen bg-gray-50">
 
+<!-- Toast Container -->
 <div id="toast-container"></div>
 
-<!-- ── Topbar ────────────────────────────────────────────── -->
+<!-- ══════════════════════════════════════════════════════════
+     TOPBAR
+═══════════════════════════════════════════════════════════ -->
 <header class="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
   <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
 
-    <!-- Kiri: logo + nama app + election title -->
-    <div class="flex items-center gap-2.5 min-w-0">
+    <!-- Kiri: logo + nama app + judul pemilihan -->
+    <div class="flex items-center gap-2.5 min-w-0 flex-1">
       <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
            data-school-logo>
-        <i class="fa-solid fa-box-ballot text-white text-sm"></i>
+        <i class="fa-solid fa-box-ballot text-white text-sm" aria-hidden="true"></i>
       </div>
-      <div class="min-w-0">
-        <p class="text-sm font-semibold text-gray-800 truncate leading-tight" id="header-title" data-app-name>eVoting OSIM</p>
-        <!-- FIX #13: tampilkan di semua ukuran layar, bukan hidden di mobile -->
-        <p class="text-xs text-gray-500 truncate leading-tight" id="header-election-title" style="max-width: 220px;"></p>
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold text-gray-800 truncate leading-tight"
+           id="header-title"
+           data-app-name>eVoting OSIM</p>
+        <!-- FIX #10: ID konsisten, max-width responsif via Tailwind -->
+        <p class="text-xs text-gray-500 leading-tight truncate max-w-[180px] sm:max-w-[300px]"
+           id="header-election-title"></p>
       </div>
     </div>
 
-    <!-- Kanan: nama voter + logout -->
+    <!-- Kanan: nama voter + tombol keluar -->
     <div class="flex items-center gap-2 flex-shrink-0">
-      <div class="hidden sm:flex items-center gap-1.5 text-sm text-gray-600 min-w-0 bg-gray-50
-                  border border-gray-200 rounded-full px-3 py-1">
-        <i class="fa-solid fa-circle-user text-primary-500 flex-shrink-0 text-xs"></i>
-        <span id="voter-name" class="font-medium truncate max-w-28 text-xs"></span>
+      <!-- Nama voter — tampil di sm ke atas -->
+      <div class="hidden sm:flex items-center gap-1.5 bg-gray-50 border border-gray-200
+                  rounded-full px-3 py-1.5 min-w-0 max-w-[160px]">
+        <i class="fa-solid fa-circle-user text-primary-500 flex-shrink-0 text-xs" aria-hidden="true"></i>
+        <span id="voter-name" class="text-xs font-medium text-gray-700 truncate"></span>
       </div>
       <button id="logout-btn"
-              class="btn btn-sm btn-secondary text-xs gap-1.5 flex-shrink-0"
+              class="btn btn-sm btn-secondary gap-1.5 flex-shrink-0"
               aria-label="Keluar dari sesi pemilihan">
-        <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-        <span class="hidden sm:inline">Keluar</span>
+        <i class="fa-solid fa-right-from-bracket text-xs" aria-hidden="true"></i>
+        <span class="hidden sm:inline text-xs">Keluar</span>
       </button>
     </div>
 
   </div>
 </header>
 
-<!-- ── Timer Bar ─────────────────────────────────────────── -->
+<!-- ══════════════════════════════════════════════════════════
+     TIMER BAR
+═══════════════════════════════════════════════════════════ -->
 <div id="timer-bar"
-     class="bg-primary-700 text-white text-xs text-center py-2 hidden"
+     class="bg-primary-700 text-white text-xs font-medium py-2 px-4 hidden"
      role="timer"
      aria-live="off"
      aria-atomic="true">
-  <i class="fa-regular fa-clock mr-1.5" aria-hidden="true"></i>
-  Sisa waktu<span id="timer-label"></span>:
-  <span id="timer-countdown" class="font-bold tabular-nums ml-1"></span>
+  <div class="max-w-5xl mx-auto flex items-center justify-center gap-2">
+    <i class="fa-regular fa-clock" aria-hidden="true"></i>
+    <span>Sisa waktu<span id="timer-label" class="font-semibold"></span>:</span>
+    <span id="timer-countdown" class="font-bold tabular-nums bg-white/20 px-2 py-0.5 rounded-full"></span>
+  </div>
 </div>
 
-<!-- ── Main Content ───────────────────────────────────────── -->
-<main id="main-content" class="max-w-5xl mx-auto px-4 py-6">
+<!-- ══════════════════════════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════════════════════════ -->
+<main id="main-content" class="max-w-5xl mx-auto px-4 py-6 pb-6">
 
   <!-- ── Loading State ── -->
   <div id="loading-state" aria-label="Memuat data pemilihan" aria-busy="true">
+    <!-- Spinner + teks -->
     <div class="mb-6 text-center">
       <div class="inline-flex flex-col items-center gap-3">
         <div class="w-10 h-10 border-[3px] border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
         <p class="text-gray-500 text-sm font-medium">Memuat data pemilihan…</p>
       </div>
     </div>
-    <!-- Skeleton cards -->
-    <div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+    <!-- Skeleton cards — lebih realistis -->
+    <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))">
       <div class="skeleton-card h-72"></div>
       <div class="skeleton-card h-72 hidden sm:block"></div>
       <div class="skeleton-card h-72 hidden lg:block"></div>
@@ -286,39 +393,49 @@
     <!-- Multi-election progress bar (tersembunyi untuk single election) -->
     <div id="multi-progress" class="hidden mb-6">
       <div class="card p-4">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between gap-3 mb-3">
           <p class="text-sm font-semibold text-gray-700 flex items-center gap-2">
             <i class="fa-solid fa-list-check text-primary-500" aria-hidden="true"></i>
             Progress Pemilihan
           </p>
-          <p class="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full"
-             id="progress-label">0 dari 0 selesai</p>
+          <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full whitespace-nowrap"
+                id="progress-label">0 dari 0 selesai</span>
         </div>
-        <div id="progress-steps" class="flex gap-1.5" role="progressbar" aria-label="Progress pemilihan"></div>
-        <div id="progress-names" class="flex gap-1.5 mt-1.5"></div>
+        <!-- Progress steps bar -->
+        <div id="progress-steps"
+             class="flex gap-1.5"
+             role="progressbar"
+             aria-label="Progress pemilihan"></div>
+        <!-- Label nama di bawah step -->
+        <div id="progress-names" class="flex gap-1.5 mt-2"></div>
       </div>
     </div>
 
     <!-- Kontainer section per election — di-render via JS -->
     <div id="elections-container"></div>
 
-    <!-- ── Mobile sticky submit bar ── -->
-    <!--
-      FIX #11: tinggi minimal 64px untuk memenuhi touch target 44px,
-      ditambah padding atas dan iOS safe-area.
+    <!-- ── Mobile Sticky Submit Bar ──
+         FIX: min-height 72px memenuhi touch target,
+         z-index z-20 < topbar z-30 (benar),
+         backdrop-filter memberi kedalaman visual.
     -->
     <div id="mobile-submit-bar"
-         class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t-2 border-primary-200
-                shadow-2xl z-20 mobile-submit-bar px-4 pt-3 hidden"
+         class="md:hidden fixed bottom-0 left-0 right-0 border-t-2 border-primary-200
+                shadow-2xl z-20 hidden"
+         style="padding-bottom: max(0.875rem, env(safe-area-inset-bottom, 0.875rem)); padding-top: 0.75rem;"
          aria-label="Konfirmasi pilihan Anda">
-      <div class="flex items-center gap-3 max-w-lg mx-auto">
+      <div class="flex items-center gap-3 px-4 max-w-lg mx-auto">
+        <!-- Info pilihan -->
         <div class="flex-1 min-w-0">
-          <p class="text-xs text-gray-400 leading-none mb-0.5 truncate" id="mobile-bar-election"></p>
-          <p class="text-sm font-bold text-gray-800 truncate leading-tight" id="mobile-bar-candidate"></p>
+          <p class="text-xs text-gray-400 leading-none mb-0.5 truncate"
+             id="mobile-bar-election"></p>
+          <p class="text-sm font-bold text-gray-800 truncate leading-tight"
+             id="mobile-bar-candidate"></p>
         </div>
+        <!-- Tombol konfirmasi: min 44px touch target -->
         <button id="submit-btn-mobile"
-                class="btn btn-primary flex-shrink-0 whitespace-nowrap min-h-[44px] px-5"
-                style="min-width: 130px;">
+                class="btn btn-primary flex-shrink-0 whitespace-nowrap"
+                style="min-height: 44px; min-width: 130px;">
           <i class="fa-solid fa-check-circle" aria-hidden="true"></i>
           Konfirmasi
         </button>
@@ -335,9 +452,10 @@
 <script src="/assets/js/auth.js"></script>
 <script src="/assets/js/components.js"></script>
 <script>
-/* ============================================================
+/* ═══════════════════════════════════════════════════════════
    voting.html — Multi-election support
-   ============================================================ */
+   Refactored: bug fixes + UI/UX upgrade
+═══════════════════════════════════════════════════════════ */
 
 // ── Placeholder gambar kosong ────────────────────────────────
 const IMG_PLACEHOLDER =
@@ -351,23 +469,20 @@ let _elections      = [];   // Array data election dari session
 let _sectionStates  = {};   // { [electionId]: { candidates, selectedId, isSubmitting, hasVoted } }
 let _timerInterval  = null;
 let _isLoading      = false;
-// electionId yang sedang aktif di mobile bar
 let _mobileActiveElectionId = null;
-// FIX #8: guard agar submit mobile tidak dipanggil ganda saat tap cepat
+// FIX #8: guard double-tap
 let _mobileSubmitPending = false;
 
 // ── Init ─────────────────────────────────────────────────────
 (async () => {
   if (!Auth.requireNotVoted()) return;
 
-  // loadAppConfig berjalan async — tidak perlu await, update header saat selesai
-  loadAppConfig().then(cfg => {
-    if (cfg && cfg.APP_NAME) {
-      document.getElementById('header-title').textContent = cfg.APP_NAME;
-    }
-  });
+  // FIX #4: Hapus manual override header-title di .then() —
+  // _applyAppConfig() di loadAppConfig sudah mengurus semua elemen [data-app-name].
+  // Cukup panggil tanpa callback agar tidak ada race condition.
+  loadAppConfig();
 
-  // Tampilkan nama voter segera dari sessionStorage tanpa menunggu config
+  // Tampilkan nama voter segera dari sessionStorage
   const voterData = Auth.getUserData();
   if (voterData) {
     document.getElementById('voter-name').textContent = voterData.name || 'Pemilih';
@@ -377,7 +492,6 @@ let _mobileSubmitPending = false;
 
   // Mobile bar submit
   document.getElementById('submit-btn-mobile').addEventListener('click', () => {
-    // FIX #8: guard double-tap / race condition
     if (_mobileSubmitPending) return;
     if (_mobileActiveElectionId) {
       _mobileSubmitPending = true;
@@ -394,26 +508,37 @@ let _mobileSubmitPending = false;
 
   // Logout
   document.getElementById('logout-btn').addEventListener('click', async () => {
-    const ok = await Utils.confirm('Keluar dari halaman pemilihan? Sesi akan berakhir.', 'Konfirmasi Keluar');
+    const ok = await Utils.confirm(
+      'Keluar dari halaman pemilihan? Sesi akan berakhir.',
+      'Konfirmasi Keluar'
+    );
     if (ok) Auth.logoutVoter();
   });
 
-  // Resize: recalculate padding
+  // Resize: recalculate padding untuk mobile submit bar
   window.addEventListener('resize', () => {
     const bar = document.getElementById('mobile-submit-bar');
     if (bar && !bar.classList.contains('hidden')) {
       _updateMainPadding(true);
     }
   });
+
+  // FIX #8: Bersihkan timer interval saat halaman di-unload
+  // agar tidak memory leak saat user navigasi dengan tombol back
+  window.addEventListener('beforeunload', () => {
+    if (_timerInterval) {
+      clearInterval(_timerInterval);
+      _timerInterval = null;
+    }
+  });
 })();
 
 // ── loadPage ─────────────────────────────────────────────────
-
 async function loadPage() {
   if (_isLoading) return;
   _isLoading = true;
 
-  // Reset state agar retry tidak mewarisi data iterasi sebelumnya
+  // Reset state agar retry bersih
   _elections              = [];
   _sectionStates          = {};
   _mobileActiveElectionId = null;
@@ -423,7 +548,7 @@ async function loadPage() {
   hideReloginBtn();
 
   try {
-    // Ambil status vote terbaru dari server
+    // Cek status vote dari server
     const statusRes = await API.vote.getMultiStatus();
     if (statusRes.success && statusRes.data) {
       const { allVoted, elections: statusElections } = statusRes.data;
@@ -434,7 +559,7 @@ async function loadPage() {
         return;
       }
 
-      // Sinkronisasi status hasVoted dari server ke session storage
+      // Sinkronisasi status hasVoted dari server ke session
       if (Array.isArray(statusElections)) {
         statusElections.forEach(e => {
           if (e.hasVoted) Auth.markElectionVoted(e.electionId);
@@ -454,7 +579,7 @@ async function loadPage() {
 
     // Update header
     if (_elections.length === 1) {
-      const el = _elections[0];
+      const el    = _elections[0];
       const title = el.title || 'Pemilihan';
       document.getElementById('header-election-title').textContent = title;
       document.title = title + ' — eVoting OSIM';
@@ -463,6 +588,7 @@ async function loadPage() {
       document.getElementById('header-election-title').textContent =
         _elections.length + ' pemilihan aktif';
       document.title = 'Pilih Kandidat — eVoting OSIM';
+      // Countdown dari election yang berakhir paling awal
       const earliest = _elections
         .filter(e => e.endDate)
         .sort((a, b) => new Date(a.endDate) - new Date(b.endDate))[0];
@@ -477,15 +603,16 @@ async function loadPage() {
         selectedId:   null,
         isSubmitting: false,
         hasVoted:     !!el.hasVoted,
+        loadError:    null,
       };
     });
 
-    // Render skeleton sections
+    // Render skeleton + tampilkan content
     renderElectionSections();
     showState('content');
     renderMultiProgress();
 
-    // Load kandidat untuk semua elections secara paralel
+    // Load kandidat semua elections secara paralel
     const candidateLoads = electionIds.map(elId =>
       API.candidate.getByElection(elId)
         .then(res => ({ elId, res }))
@@ -510,7 +637,6 @@ async function loadPage() {
       return;
     }
 
-    // Update progress setelah kandidat selesai dimuat
     renderMultiProgress();
 
   } catch (_err) {
@@ -521,7 +647,6 @@ async function loadPage() {
 }
 
 // ── renderElectionSections ────────────────────────────────────
-
 function renderElectionSections() {
   const container = document.getElementById('elections-container');
   container.innerHTML = '';
@@ -535,103 +660,116 @@ function renderElectionSections() {
     section.className = 'election-section';
     section.id        = 'section-' + elId;
 
-    // FIX #7: gunakan textContent bukan escapeHtml saat mengisi textContent
-    // (textContent tidak meng-interpret HTML, escaping di sini justru salah)
+    // Bangun HTML section header
+    const multiHeaderHtml = isMulti ? `
+      <div class="flex flex-wrap items-center gap-2 mb-2" id="header-badges-${elId}">
+        <span class="inline-flex items-center justify-center w-6 h-6 bg-primary-100
+                     text-primary-700 text-xs font-bold rounded-full flex-shrink-0">
+          ${idx + 1}
+        </span>
+        <span class="text-xs font-semibold text-primary-600 uppercase tracking-wide">
+          Pemilihan ${idx + 1} dari ${_elections.length}
+        </span>
+        ${state.hasVoted
+          ? '<span class="voted-badge"><i class="fa-solid fa-check-circle fa-xs" aria-hidden="true"></i> Sudah Memilih</span>'
+          : ''}
+      </div>` : `<div id="header-badges-${elId}" class="hidden"></div>`;
+
+    const endDateHtml = isMulti && el.endDate ? `
+      <div class="flex-shrink-0 text-right">
+        <p class="text-xs text-gray-400 leading-none mb-0.5">Berakhir</p>
+        <p class="text-xs font-semibold text-gray-600 tabular-nums">
+          ${Utils.formatDateTime(el.endDate)}
+        </p>
+      </div>` : '';
+
+    // FIX: escapeHtml untuk semua teks dari data
+    const titleSafe       = Utils.escapeHtml(el.title || 'Pemilihan');
+    const descSafe        = el.description ? Utils.escapeHtml(el.description) : '';
+    const elTitleForAriaLabel = isMulti ? ' untuk ' + Utils.escapeHtml(el.title || 'pemilihan ini') : '';
+    const submitTitleNote = isMulti ? ' · ' + Utils.escapeHtml(el.title || '') : '';
+    const elIdSafe        = Utils.escapeHtml(String(elId));
+
     section.innerHTML = `
       <!-- Section header -->
       <div class="mb-5">
-        ${isMulti ? `
-        <div class="flex flex-wrap items-center gap-2 mb-2" id="header-badges-${elId}">
-          <span class="inline-flex items-center justify-center w-6 h-6
-                       bg-primary-100 text-primary-700 text-xs font-bold rounded-full flex-shrink-0">
-            ${idx + 1}
-          </span>
-          <span class="text-xs font-semibold text-primary-600 uppercase tracking-wide">
-            Pemilihan ${idx + 1} dari ${_elections.length}
-          </span>
-          ${state.hasVoted
-            ? '<span class="voted-badge"><i class="fa-solid fa-check-circle fa-xs" aria-hidden="true"></i> Sudah Memilih</span>'
-            : ''}
-        </div>` : `<div id="header-badges-${elId}" class="hidden"></div>`}
-
+        ${multiHeaderHtml}
         <div class="flex items-start justify-between gap-3">
           <div class="flex-1 min-w-0">
-            <h2 class="text-xl font-bold text-gray-900 leading-tight" id="title-${elId}">
-              ${Utils.escapeHtml(el.title || 'Pemilihan')}
+            <h2 class="text-xl font-bold text-gray-900 leading-tight" id="title-${elIdSafe}">
+              ${titleSafe}
             </h2>
-            ${el.description
-              ? `<p class="text-gray-500 text-sm mt-1 leading-relaxed">
-                   ${Utils.escapeHtml(el.description)}
-                 </p>`
+            ${descSafe
+              ? `<p class="text-gray-500 text-sm mt-1 leading-relaxed line-clamp-2">${descSafe}</p>`
               : ''}
           </div>
-          ${isMulti && el.endDate
-            ? `<div class="flex-shrink-0 text-right">
-                 <p class="text-xs text-gray-400 leading-none mb-0.5">Berakhir</p>
-                 <p class="text-xs font-semibold text-gray-600">
-                   ${Utils.formatDateTime(el.endDate)}
-                 </p>
-               </div>`
-            : ''}
+          ${endDateHtml}
         </div>
 
-        <!-- Badge aktif + info subtitle kandidat -->
+        <!-- Status badge + subtitle kandidat -->
         <div class="flex flex-wrap items-center gap-2 mt-3">
           <div class="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200
-                      text-emerald-700 rounded-full px-3.5 py-1.5 text-xs font-semibold">
-            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" aria-hidden="true"></span>
+                      text-emerald-700 rounded-full px-3 py-1.5 text-xs font-semibold">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse flex-shrink-0"
+                  aria-hidden="true"></span>
             Sedang Berlangsung
           </div>
-          <p class="text-xs text-gray-400 italic" id="subtitle-${elId}"></p>
+          <p class="text-xs text-gray-400 italic" id="subtitle-${elIdSafe}"></p>
         </div>
 
         <!-- Info pilihan yang sudah dipilih -->
-        <div id="selection-info-${elId}"
+        <div id="selection-info-${elIdSafe}"
              class="mt-3 hidden"
              role="status" aria-live="polite" aria-atomic="true">
           <div class="flex items-center gap-2.5 bg-blue-50 border border-blue-200
                       rounded-lg px-4 py-2.5 text-sm text-blue-800">
             <i class="fa-solid fa-hand-pointer flex-shrink-0 text-blue-500" aria-hidden="true"></i>
-            <span>
-              Pilihan Anda: <strong id="selected-name-${elId}" class="ml-0.5"></strong>
+            <span class="min-w-0">
+              Pilihan Anda:
+              <strong id="selected-name-${elIdSafe}" class="ml-0.5 break-words"></strong>
             </span>
           </div>
         </div>
       </div>
 
       <!-- Candidates grid -->
-      <div id="grid-${elId}"
+      <div id="grid-${elIdSafe}"
            role="radiogroup"
-           aria-label="Pilih pasangan calon${isMulti ? ' untuk ' + Utils.escapeHtml(el.title || 'pemilihan ini') : ''}"
+           aria-label="Pilih pasangan calon${elTitleForAriaLabel}"
            class="candidates-grid mb-4">
-        <!-- Skeleton -->
+        <!-- Skeleton saat loading -->
         <div class="skeleton-card h-72"></div>
         <div class="skeleton-card h-72 hidden sm:block"></div>
       </div>
 
-      <!-- Submit section (desktop) -->
-      <div id="submit-section-${elId}" class="hidden">
+      <!-- Submit section (desktop only) -->
+      <div id="submit-section-${elIdSafe}" class="hidden">
         <div class="hidden md:flex justify-center mb-8">
           <div class="submit-card p-6 w-full max-w-lg">
+            <!-- Nama pilihan -->
             <div class="text-center mb-4">
               <p class="text-xs font-bold text-primary-600 uppercase tracking-widest mb-1.5">
                 <i class="fa-solid fa-check-circle mr-1" aria-hidden="true"></i>
-                Pilihan Anda${isMulti ? ' · ' + Utils.escapeHtml(el.title || '') : ''}
+                Pilihan Anda${submitTitleNote}
               </p>
-              <p class="font-bold text-gray-900 text-lg leading-tight"
-                 id="submit-name-${elId}"></p>
-              <p class="text-sm text-gray-500 mt-0.5" id="submit-pair-${elId}"></p>
+              <p class="font-bold text-gray-900 text-lg leading-tight break-words"
+                 id="submit-name-${elIdSafe}"></p>
+              <p class="text-sm text-gray-500 mt-0.5" id="submit-pair-${elIdSafe}"></p>
             </div>
+            <!-- Peringatan -->
             <div class="flex items-start gap-2.5 bg-amber-50 border border-amber-200
                         rounded-lg px-4 py-3 mb-4 text-xs text-amber-800">
-              <i class="fa-solid fa-triangle-exclamation flex-shrink-0 mt-0.5 text-amber-500" aria-hidden="true"></i>
+              <i class="fa-solid fa-triangle-exclamation flex-shrink-0 mt-0.5 text-amber-500"
+                 aria-hidden="true"></i>
               <span class="leading-relaxed">
-                Pastikan pilihan sudah benar. Suara <strong>tidak dapat diubah</strong> setelah dikonfirmasi.
+                Pastikan pilihan sudah benar. Suara <strong>tidak dapat diubah</strong>
+                setelah dikonfirmasi.
               </span>
             </div>
-            <button id="submit-btn-desktop-${elId}"
+            <!-- Tombol submit desktop -->
+            <button id="submit-btn-desktop-${elIdSafe}"
                     class="btn btn-primary btn-lg w-full"
-                    data-election-id="${elId}">
+                    data-election-id="${elIdSafe}">
               <i class="fa-solid fa-check-circle" aria-hidden="true"></i>
               Konfirmasi &amp; Kirim Suara
             </button>
@@ -639,21 +777,24 @@ function renderElectionSections() {
         </div>
       </div>
 
-      <!-- Voted overlay (tampil jika election ini sudah divote) -->
-      <div id="voted-section-${elId}" class="${state.hasVoted ? '' : 'hidden'}">
+      <!-- Voted section -->
+      <div id="voted-section-${elIdSafe}" class="${state.hasVoted ? '' : 'hidden'}">
         <div class="card bg-emerald-50 border-emerald-200 p-6 text-center">
-          <div class="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+          <div class="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center
+                      mx-auto mb-3">
             <i class="fa-solid fa-circle-check text-2xl text-emerald-600" aria-hidden="true"></i>
           </div>
           <p class="font-bold text-emerald-800 text-base">Suara Anda telah tercatat!</p>
-          <p class="text-sm text-emerald-600 mt-1">Terima kasih telah berpartisipasi dalam pemilihan ini.</p>
+          <p class="text-sm text-emerald-600 mt-1">
+            Terima kasih telah berpartisipasi dalam pemilihan ini.
+          </p>
         </div>
       </div>
     `;
 
     container.appendChild(section);
 
-    // Attach listener desktop submit
+    // Attach listener tombol submit desktop
     const desktopBtn = section.querySelector('#submit-btn-desktop-' + elId);
     if (desktopBtn) {
       desktopBtn.addEventListener('click', () => handleSubmitVote(elId));
@@ -662,13 +803,12 @@ function renderElectionSections() {
 }
 
 // ── renderCandidatesForSection ────────────────────────────────
-
 function renderCandidatesForSection(elId) {
   const state = _sectionStates[elId];
   const grid  = document.getElementById('grid-' + elId);
   if (!grid) return;
 
-  // FIX #4: hanya pasang error listener satu kali per grid
+  // Pasang error listener gambar satu kali per grid (delegation)
   if (!grid.dataset.errListenerAttached) {
     grid.dataset.errListenerAttached = '1';
     grid.addEventListener('error', e => {
@@ -683,8 +823,8 @@ function renderCandidatesForSection(elId) {
   if (state.loadError) {
     grid.innerHTML = `
       <div class="col-span-full">
-        <div class="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3
-                    text-sm text-red-700">
+        <div class="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl
+                    px-4 py-3 text-sm text-red-700">
           <i class="fa-solid fa-circle-xmark flex-shrink-0 mt-0.5" aria-hidden="true"></i>
           <span>${Utils.escapeHtml(state.loadError)}</span>
         </div>
@@ -692,7 +832,7 @@ function renderCandidatesForSection(elId) {
     return;
   }
 
-  // Jika election sudah divote
+  // Election ini sudah divote — sembunyikan grid
   if (state.hasVoted) {
     grid.innerHTML = '';
     return;
@@ -700,13 +840,17 @@ function renderCandidatesForSection(elId) {
 
   const candidates = state.candidates;
 
+  // Empty state
   if (candidates.length === 0) {
     grid.innerHTML = `
       <div class="col-span-full">
         <div class="card p-10 text-center">
-          <i class="fa-solid fa-users-slash text-4xl text-gray-300 mb-3" aria-hidden="true"></i>
-          <p class="text-sm text-gray-500 font-medium">Belum ada kandidat yang tersedia.</p>
-          <p class="text-xs text-gray-400 mt-1">Hubungi panitia jika ini tidak seharusnya terjadi.</p>
+          <i class="fa-solid fa-users-slash text-4xl text-gray-300 mb-3"
+             aria-hidden="true"></i>
+          <p class="text-sm font-medium text-gray-500">Belum ada kandidat yang tersedia.</p>
+          <p class="text-xs text-gray-400 mt-1">
+            Hubungi panitia jika ini tidak seharusnya terjadi.
+          </p>
         </div>
       </div>`;
     return;
@@ -721,7 +865,7 @@ function renderCandidatesForSection(elId) {
       `<strong>${candidates.length} pasangan calon</strong> tersedia — pilih <strong>satu</strong>`;
   }
 
-  // Click listener kartu
+  // Event listeners kartu
   grid.querySelectorAll('.candidate-card').forEach(card => {
     card.addEventListener('click', () => selectCandidate(elId, card.dataset.id));
     card.addEventListener('keydown', e => {
@@ -732,7 +876,7 @@ function renderCandidatesForSection(elId) {
     });
   });
 
-  // Detail listener — stopPropagation agar tidak trigger selectCandidate
+  // Detail button — stopPropagation agar tidak trigger selectCandidate
   grid.querySelectorAll('[data-detail-id]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -742,11 +886,11 @@ function renderCandidatesForSection(elId) {
 }
 
 // ── candidateCardHtml ─────────────────────────────────────────
-
 function candidateCardHtml(c, elId) {
   const photoSrc     = Utils.buildImgUrl(c.photoUrl);
   const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl);
 
+  // Foto ketua
   const photoHtml = photoSrc
     ? `<img src="${Utils.escapeHtml(photoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.name)}"
@@ -757,6 +901,7 @@ function candidateCardHtml(c, elId) {
          <i class="fa-solid fa-user text-4xl text-gray-300"></i>
        </div>`;
 
+  // Foto wakil
   const pairPhotoHtml = pairPhotoSrc
     ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.pairName || 'Calon Wakil')}"
@@ -767,34 +912,42 @@ function candidateCardHtml(c, elId) {
          <i class="fa-solid fa-user text-4xl text-gray-300"></i>
        </div>`;
 
-  const visionHtml = c.vision
+  // FIX #12: trim() agar string whitespace-only tidak di-render
+  const visionText = (c.vision || '').trim();
+  const visionHtml = visionText
     ? `<div class="mt-3 pt-3 border-t border-gray-100">
          <p class="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1">
            <i class="fa-solid fa-lightbulb text-amber-400" aria-hidden="true"></i>Visi
          </p>
-         <p class="text-xs text-gray-600 line-clamp-3 leading-relaxed">${Utils.escapeHtml(c.vision)}</p>
+         <p class="text-xs text-gray-600 line-clamp-3 leading-relaxed">
+           ${Utils.escapeHtml(visionText)}
+         </p>
        </div>`
     : '';
 
+  const ariaLabel = `Pasangan Calon No. ${c.orderNumber}: ${Utils.escapeHtml(c.name)}` +
+    (c.pairName ? ` dan ${Utils.escapeHtml(c.pairName)}` : '');
+
   return `
-    <div class="candidate-card card p-4 cursor-pointer border-2 border-transparent
-                hover:border-primary-200 hover:shadow-lg select-none"
+    <div class="candidate-card card p-4 border-2 border-transparent hover:border-primary-200"
          data-id="${Utils.escapeHtml(String(c.id))}"
          data-election-id="${Utils.escapeHtml(String(elId))}"
          tabindex="0"
          role="radio"
          aria-checked="false"
-         aria-label="Pasangan Calon No. ${c.orderNumber}: ${Utils.escapeHtml(c.name)}${c.pairName ? ' dan ' + Utils.escapeHtml(c.pairName) : ''}">
+         aria-label="${ariaLabel}">
 
       <!-- Header kartu: nomor urut + checkmark -->
       <div class="flex items-center gap-3 mb-3">
-        <div class="candidate-number w-10 h-10 rounded-full bg-gray-100 text-gray-700
-                    font-bold text-lg flex items-center justify-center flex-shrink-0
-                    transition-colors duration-200">
+        <!-- FIX #5: class candidate-number sinkron dengan CSS global -->
+        <div class="candidate-number w-10 h-10 rounded-full font-bold text-lg
+                    flex items-center justify-center flex-shrink-0">
           ${c.orderNumber}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-bold text-primary-600 uppercase tracking-wide leading-none">Pasangan Calon</p>
+          <p class="text-xs font-bold text-primary-600 uppercase tracking-wide leading-none">
+            Pasangan Calon
+          </p>
           <p class="text-xs text-gray-400 mt-0.5">No. Urut ${c.orderNumber}</p>
         </div>
         <div class="selected-check hidden flex-shrink-0" aria-hidden="true">
@@ -802,7 +955,7 @@ function candidateCardHtml(c, elId) {
         </div>
       </div>
 
-      <!-- Foto pasangan -->
+      <!-- Foto pasangan calon -->
       <div class="grid grid-cols-2 gap-2 mb-1">
         <div>
           ${photoHtml}
@@ -826,6 +979,7 @@ function candidateCardHtml(c, elId) {
 
       ${visionHtml}
 
+      <!-- Tombol detail -->
       <button class="mt-3 w-full text-xs text-primary-600 hover:text-primary-700
                      font-semibold flex items-center justify-center gap-1.5
                      border border-primary-100 hover:border-primary-200
@@ -841,7 +995,6 @@ function candidateCardHtml(c, elId) {
 }
 
 // ── selectCandidate ───────────────────────────────────────────
-
 function selectCandidate(elId, candidateId) {
   const state = _sectionStates[elId];
   if (!state || state.hasVoted || state.isSubmitting) return;
@@ -852,7 +1005,7 @@ function selectCandidate(elId, candidateId) {
   const grid = document.getElementById('grid-' + elId);
   if (!grid) return;
 
-  // Update semua kartu dalam section ini
+  // Update semua kartu di section ini
   grid.querySelectorAll('.candidate-card').forEach(card => {
     const isSelected = card.dataset.id === candidateId;
     card.classList.toggle('selected', isSelected);
@@ -862,20 +1015,15 @@ function selectCandidate(elId, candidateId) {
     if (check) {
       check.classList.toggle('hidden', !isSelected);
       if (isSelected) {
-        // Re-trigger animasi
+        // Re-trigger animasi checkmark
         check.classList.remove('selected-check');
-        void check.offsetWidth;
+        void check.offsetWidth; // force reflow
         check.classList.add('selected-check');
       }
     }
 
-    const numBadge = card.querySelector('.candidate-number');
-    if (numBadge) {
-      numBadge.classList.toggle('bg-primary-600', isSelected);
-      numBadge.classList.toggle('text-white', isSelected);
-      numBadge.classList.toggle('bg-gray-100', !isSelected);
-      numBadge.classList.toggle('text-gray-700', !isSelected);
-    }
+    // FIX #5: number badge — class dikelola langsung oleh CSS (candidate-card.selected .candidate-number)
+    // Tidak perlu toggle manual lagi karena CSS selector sudah mengurus warna via parent .selected
   });
 
   const candidate = state.candidates.find(c => String(c.id) === String(candidateId));
@@ -903,7 +1051,7 @@ function selectCandidate(elId, candidateId) {
     }
     submitSection.classList.remove('hidden');
 
-    // FIX #12: auto-scroll ke submit section setelah pilih (desktop)
+    // Auto-scroll ke submit section (desktop)
     const desktopCard = submitSection.querySelector('.submit-card');
     if (desktopCard && window.innerWidth >= 768) {
       setTimeout(() => desktopCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 200);
@@ -918,12 +1066,11 @@ function selectCandidate(elId, candidateId) {
 
   if (mobileBar) {
     if (mobileBarElection) {
-      const el = _elections.find(e => (e.id || e.electionId) === elId);
+      const elData = _elections.find(e => (e.id || e.electionId) === elId);
       mobileBarElection.textContent = _elections.length > 1
-        ? (el ? el.title : '')
+        ? (elData ? elData.title : '')
         : 'Pilihan Anda';
     }
-    // FIX #1: baris yang sebelumnya terpotong — pastikan textContent diset lengkap
     if (mobileBarCand) mobileBarCand.textContent = fullName;
 
     mobileBar.classList.remove('hidden');
@@ -932,20 +1079,18 @@ function selectCandidate(elId, candidateId) {
 }
 
 // ── _updateMainPadding ────────────────────────────────────────
-
 function _updateMainPadding(hasMobileBar) {
   const main = document.getElementById('main-content');
   if (!main) return;
-  // FIX #10: gunakan nilai yang cukup untuk bar + safe-area
   if (hasMobileBar && window.innerWidth < 768) {
-    main.style.paddingBottom = '96px';
+    // 80px = tinggi bar (~72px) + sedikit ruang napas
+    main.style.paddingBottom = '80px';
   } else {
     main.style.paddingBottom = '';
   }
 }
 
 // ── renderMultiProgress ───────────────────────────────────────
-
 function renderMultiProgress() {
   if (_elections.length <= 1) return;
 
@@ -972,30 +1117,31 @@ function renderMultiProgress() {
   });
 
   progressSteps.innerHTML = _elections.map((e, idx) => {
-    const elId    = e.id || e.electionId;
-    const st      = _sectionStates[elId];
-    const isDone  = st && st.hasVoted;
-    const isCurr  = !isDone && idx === firstPendingIdx;
-    const cls     = isDone ? 'done' : isCurr ? 'current' : '';
+    const elId   = e.id || e.electionId;
+    const st     = _sectionStates[elId];
+    const isDone = st && st.hasVoted;
+    const isCurr = !isDone && idx === firstPendingIdx;
+    const cls    = isDone ? 'done' : isCurr ? 'current' : '';
     return `<div class="progress-step ${cls}"
-                 title="${Utils.escapeHtml(e.title || ('Pemilihan ' + (idx+1)))}"></div>`;
+                 title="${Utils.escapeHtml(e.title || ('Pemilihan ' + (idx + 1)))}"></div>`;
   }).join('');
 
-  // Label nama di bawah step (hanya tampil jika nama pendek)
   if (progressNames) {
-    progressNames.innerHTML = _elections.map((e) => {
+    progressNames.innerHTML = _elections.map(e => {
       const elId   = e.id || e.electionId;
       const st     = _sectionStates[elId];
       const isDone = st && st.hasVoted;
-      return `<div class="flex-1 text-center text-xs truncate ${isDone ? 'text-emerald-600 font-medium' : 'text-gray-400'}">
-        ${isDone ? '<i class="fa-solid fa-check fa-xs mr-0.5" aria-hidden="true"></i>' : ''}${Utils.escapeHtml(e.title || '')}
+      return `<div class="flex-1 text-center text-xs truncate leading-tight
+                          ${isDone ? 'text-emerald-600 font-medium' : 'text-gray-400'}">
+        ${isDone
+          ? '<i class="fa-solid fa-check fa-xs mr-0.5" aria-hidden="true"></i>'
+          : ''}${Utils.escapeHtml(e.title || '')}
       </div>`;
     }).join('');
   }
 }
 
 // ── showCandidateDetail ───────────────────────────────────────
-
 function showCandidateDetail(elId, candidateId) {
   const state = _sectionStates[elId];
   if (!state) return;
@@ -1017,17 +1163,16 @@ function showCandidateDetail(elId, candidateId) {
   const photoSrc     = Utils.buildImgUrl(c.photoUrl);
   const pairPhotoSrc = Utils.buildImgUrl(c.pairPhotoUrl);
 
-  // FIX #20: hanya pasang data-fallback pada <img>, bukan div placeholder
-  const makePhotoHtml = (src, name, role) => {
+  // FIX: detail-photo menggunakan clamp() agar responsif di semua ukuran layar
+  const makeDetailPhotoHtml = (src, name, role) => {
     if (src) {
       return `<img src="${Utils.escapeHtml(src)}"
                    alt="Foto ${Utils.escapeHtml(name)}"
-                   class="w-full h-44 object-cover object-top rounded-xl mb-2"
+                   class="detail-photo mb-2"
                    loading="lazy" referrerpolicy="no-referrer"
                    data-img-fallback="1">`;
     }
-    return `<div class="w-full h-44 bg-gray-100 rounded-xl mb-2
-                        flex flex-col items-center justify-center gap-2" aria-hidden="true">
+    return `<div class="detail-photo-placeholder mb-2" aria-hidden="true">
                <i class="fa-solid fa-user text-5xl text-gray-300"></i>
                <p class="text-xs text-gray-400">${Utils.escapeHtml(role)}</p>
              </div>`;
@@ -1035,6 +1180,7 @@ function showCandidateDetail(elId, candidateId) {
 
   const bodyHtml = `
     <div class="space-y-5">
+      <!-- Nomor urut -->
       <div class="flex items-center justify-center">
         <span class="inline-flex items-center gap-2 bg-primary-100 text-primary-700
                      text-xs font-bold px-4 py-1.5 rounded-full">
@@ -1042,34 +1188,46 @@ function showCandidateDetail(elId, candidateId) {
           No. Urut ${c.orderNumber}
         </span>
       </div>
+      <!-- Foto pasangan -->
       <div class="grid grid-cols-2 gap-3">
         <div class="text-center">
-          ${makePhotoHtml(photoSrc, c.name, 'Calon Ketua')}
-          <p class="font-bold text-sm text-gray-800 leading-tight">${Utils.escapeHtml(c.name)}</p>
+          ${makeDetailPhotoHtml(photoSrc, c.name, 'Calon Ketua')}
+          <p class="font-bold text-sm text-gray-800 leading-tight break-words">
+            ${Utils.escapeHtml(c.name)}
+          </p>
           <p class="text-xs text-gray-500 mt-0.5">Calon Ketua</p>
-          ${c.className ? `<p class="text-xs text-gray-400">${Utils.escapeHtml(c.className)}</p>` : ''}
+          ${c.className
+            ? `<p class="text-xs text-gray-400">${Utils.escapeHtml(c.className)}</p>`
+            : ''}
         </div>
         <div class="text-center">
-          ${makePhotoHtml(pairPhotoSrc, c.pairName || 'Calon Wakil', 'Calon Wakil')}
-          <p class="font-bold text-sm text-gray-800 leading-tight">${Utils.escapeHtml(c.pairName || '—')}</p>
+          ${makeDetailPhotoHtml(pairPhotoSrc, c.pairName || 'Calon Wakil', 'Calon Wakil')}
+          <p class="font-bold text-sm text-gray-800 leading-tight break-words">
+            ${Utils.escapeHtml(c.pairName || '—')}
+          </p>
           <p class="text-xs text-gray-500 mt-0.5">Calon Wakil</p>
-          ${c.pairClassName ? `<p class="text-xs text-gray-400">${Utils.escapeHtml(c.pairClassName)}</p>` : ''}
+          ${c.pairClassName
+            ? `<p class="text-xs text-gray-400">${Utils.escapeHtml(c.pairClassName)}</p>`
+            : ''}
         </div>
       </div>
-      <div class="bg-gray-50 rounded-xl p-4">
+      <!-- Visi -->
+      <div class="bg-amber-50 border border-amber-100 rounded-xl p-4">
         <h4 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
           <i class="fa-solid fa-lightbulb text-amber-400" aria-hidden="true"></i> Visi
         </h4>
         <p class="text-sm text-gray-600 leading-relaxed">
-          ${Utils.escapeHtml(c.vision || 'Belum tersedia.')}
+          ${Utils.escapeHtml((c.vision || '').trim() || 'Belum tersedia.')}
         </p>
       </div>
+      <!-- Misi -->
       <div>
         <h4 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
           <i class="fa-solid fa-bullseye text-red-400" aria-hidden="true"></i> Misi
         </h4>
         ${missionHtml}
       </div>
+      <!-- Program Kerja -->
       <div>
         <h4 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
           <i class="fa-solid fa-list-check text-blue-500" aria-hidden="true"></i> Program Kerja
@@ -1081,14 +1239,18 @@ function showCandidateDetail(elId, candidateId) {
         <h4 class="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
           <i class="fa-solid fa-circle-info text-gray-400" aria-hidden="true"></i> Info Tambahan
         </h4>
-        <p class="text-sm text-gray-600 leading-relaxed">${Utils.escapeHtml(c.additionalInfo)}</p>
+        <p class="text-sm text-gray-600 leading-relaxed">
+          ${Utils.escapeHtml(c.additionalInfo)}
+        </p>
       </div>` : ''}
     </div>`;
 
-  const isAlreadySelected = _sectionStates[elId] &&
-    String(_sectionStates[elId].selectedId) === String(candidateId);
-  const hasVoted = _sectionStates[elId] && _sectionStates[elId].hasVoted;
+  const isAlreadySelected = String(state.selectedId) === String(candidateId);
+  const hasVoted          = state.hasVoted;
 
+  // FIX #2: Hapus HTML dari label action — gunakan teks plain saja
+  // karena Modal.open() memanggil escapeHtml(a.label), sehingga tag HTML
+  // akan tampil sebagai teks literal jika dibiarkan.
   const modal = Modal.open({
     id:    'modal-detail-' + elId,
     title: `Paslon No. ${c.orderNumber} — ${Utils.escapeHtml(c.name)}`,
@@ -1097,16 +1259,14 @@ function showCandidateDetail(elId, candidateId) {
     actions: [
       { label: 'Tutup', class: 'btn-secondary', action: 'close' },
       ...(!hasVoted ? [{
-        label: isAlreadySelected
-          ? `<i class="fa-solid fa-check-circle mr-1"></i> Terpilih`
-          : `<i class="fa-solid fa-hand-pointer mr-1"></i> Pilih Paslon No. ${c.orderNumber}`,
+        label: isAlreadySelected ? 'Sudah Dipilih' : `Pilih Paslon No. ${c.orderNumber}`,
         class: isAlreadySelected ? 'btn-secondary' : 'btn-primary',
         action: 'select',
       }] : []),
     ],
   });
 
-  // FIX #20: attach fallback hanya ke img dengan data-img-fallback
+  // Fallback gambar di dalam modal
   modal.querySelectorAll('img[data-img-fallback]').forEach(img => {
     img.addEventListener('error', () => { img.src = IMG_PLACEHOLDER; }, { once: true });
   });
@@ -1121,7 +1281,6 @@ function showCandidateDetail(elId, candidateId) {
 }
 
 // ── handleSubmitVote ──────────────────────────────────────────
-
 async function handleSubmitVote(elId) {
   const state = _sectionStates[elId];
   if (!state || state.isSubmitting || state.hasVoted) return;
@@ -1137,8 +1296,6 @@ async function handleSubmitVote(elId) {
   const elTitle  = el ? el.title : 'pemilihan ini';
   const fullName = candidate.name + (candidate.pairName ? ' & ' + candidate.pairName : '');
 
-  // FIX #14: gunakan Modal.confirm dengan pesan yang lebih jelas dan terstruktur
-  // White-space diatur via CSS class .modal-confirm-body pada elemen di components.js
   const remaining = _elections.filter(e => {
     const id = e.id || e.electionId;
     return id !== elId && !(_sectionStates[id] && _sectionStates[id].hasVoted);
@@ -1148,6 +1305,9 @@ async function handleSubmitVote(elId) {
     ? '\n\nSetelah konfirmasi, Anda masih perlu memilih di ' + remaining + ' pemilihan lain.'
     : '';
 
+  // FIX #3: Modal.confirm body sekarang menggunakan <p style="white-space:pre-line">
+  // Perubahan ini dilakukan di components.js (lihat catatan di bawah).
+  // Pesan dengan \n akan di-render dengan benar.
   Modal.confirm(
     'Konfirmasi Pilihan',
     'Pemilihan: ' + elTitle + '\n' +
@@ -1160,19 +1320,17 @@ async function handleSubmitVote(elId) {
 }
 
 // ── submitVoteConfirmed ───────────────────────────────────────
-
 async function submitVoteConfirmed(elId) {
   const state = _sectionStates[elId];
   if (!state || state.isSubmitting) return;
 
   state.isSubmitting = true;
 
-  // Simpan referensi tombol sebelum try block agar bisa diakses di finally
-  const desktopBtn = document.getElementById('submit-btn-desktop-' + elId);
-  const mobileBtn  = document.getElementById('submit-btn-mobile');
+  const desktopBtn    = document.getElementById('submit-btn-desktop-' + elId);
+  const mobileBtn     = document.getElementById('submit-btn-mobile');
   const isMobileActive = _mobileActiveElectionId === elId;
 
-  if (desktopBtn) Utils.setLoading(desktopBtn, true, 'Mengirim…');
+  if (desktopBtn)              Utils.setLoading(desktopBtn, true, 'Mengirim…');
   if (mobileBtn && isMobileActive) Utils.setLoading(mobileBtn, true, 'Mengirim…');
 
   let redirecting = false;
@@ -1184,13 +1342,12 @@ async function submitVoteConfirmed(elId) {
       state.hasVoted = true;
       Auth.markElectionVoted(elId);
 
-      // Simpan hasil vote untuk success.html
+      // Simpan hasil untuk success.html
       sessionStorage.setItem('ev_vote_result', JSON.stringify(res.data));
 
       // Sembunyikan submit & selection info
       const submitSection = document.getElementById('submit-section-' + elId);
       if (submitSection) submitSection.classList.add('hidden');
-
       const selInfo = document.getElementById('selection-info-' + elId);
       if (selInfo) selInfo.classList.add('hidden');
 
@@ -1198,17 +1355,14 @@ async function submitVoteConfirmed(elId) {
       const votedSection = document.getElementById('voted-section-' + elId);
       if (votedSection) votedSection.classList.remove('hidden');
 
-      // Kosongkan grid (dan tandai overlay)
+      // Kosongkan grid
       const grid = document.getElementById('grid-' + elId);
       if (grid) {
         grid.innerHTML = '';
         grid.classList.add('grid-voted');
       }
 
-      // Update badge di section header
       _updateSectionVotedBadge(elId);
-
-      // Update progress bar
       renderMultiProgress();
 
       // Cek apakah semua elections sudah divote
@@ -1226,16 +1380,15 @@ async function submitVoteConfirmed(elId) {
         return;
       }
 
-      // Masih ada elections lain
-      // FIX #10: update padding dulu sebelum hide bar
+      // Masih ada elections lain yang belum divote
       if (isMobileActive) {
         _mobileActiveElectionId = null;
-        _updateMainPadding(false);
+        _updateMainPadding(false); // FIX #7: pastikan padding direset
         const mBar = document.getElementById('mobile-submit-bar');
         if (mBar) mBar.classList.add('hidden');
       }
 
-      const elName = el ? el.title : 'pemilihan ini';
+      const elName      = el ? el.title : 'pemilihan ini';
       const pendingCount = _elections.filter(e => {
         const id = e.id || e.electionId;
         return !(_sectionStates[id] && _sectionStates[id].hasVoted);
@@ -1263,7 +1416,7 @@ async function submitVoteConfirmed(elId) {
       return;
     }
 
-    // --- Gagal ---
+    // ── Gagal submit ──
     Modal.alert(
       'Gagal Mengirim Suara',
       res.message || 'Terjadi kesalahan. Silakan coba lagi.',
@@ -1271,14 +1424,23 @@ async function submitVoteConfirmed(elId) {
       'error'
     );
 
-    // Handle ALREADY_VOTED: server sudah punya suara tapi state lokal belum tahu
+    // Handle ALREADY_VOTED dari server
     if (res.errorCode === 'ALREADY_VOTED') {
       state.hasVoted = true;
       Auth.markElectionVoted(elId);
       renderMultiProgress();
       _updateSectionVotedBadge(elId);
+
       const grid2 = document.getElementById('grid-' + elId);
       if (grid2) { grid2.innerHTML = ''; grid2.classList.add('grid-voted'); }
+
+      // FIX #7: reset padding pada path ALREADY_VOTED juga
+      if (isMobileActive) {
+        _mobileActiveElectionId = null;
+        _updateMainPadding(false);
+        const mBar = document.getElementById('mobile-submit-bar');
+        if (mBar) mBar.classList.add('hidden');
+      }
 
       const allDone2 = _elections.every(e => {
         const id = e.id || e.electionId;
@@ -1295,18 +1457,15 @@ async function submitVoteConfirmed(elId) {
   } catch (_err) {
     Toast.error('Gagal menghubungi server. Silakan coba lagi.');
   } finally {
-    // Reset state & tombol kecuali saat redirect
     if (!redirecting) {
       state.isSubmitting = false;
       if (desktopBtn) Utils.setLoading(desktopBtn, false);
-      // FIX #3: reset mobile btn berdasarkan referensi yang di-capture di atas
       if (mobileBtn && isMobileActive) Utils.setLoading(mobileBtn, false);
     }
   }
 }
 
 // ── _updateSectionVotedBadge ──────────────────────────────────
-
 function _updateSectionVotedBadge(elId) {
   if (_elections.length <= 1) return;
   const badgeContainer = document.getElementById('header-badges-' + elId);
@@ -1317,12 +1476,12 @@ function _updateSectionVotedBadge(elId) {
   // Tambah badge baru
   const badge = document.createElement('span');
   badge.className = 'voted-badge';
-  badge.innerHTML = '<i class="fa-solid fa-check-circle fa-xs" aria-hidden="true"></i> Sudah Memilih';
+  badge.innerHTML =
+    '<i class="fa-solid fa-check-circle fa-xs" aria-hidden="true"></i> Sudah Memilih';
   badgeContainer.appendChild(badge);
 }
 
 // ── startCountdown ────────────────────────────────────────────
-
 function startCountdown(endDateIso, electionTitle) {
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
 
@@ -1332,8 +1491,8 @@ function startCountdown(endDateIso, electionTitle) {
   if (!bar || !countEl) return;
 
   bar.classList.remove('hidden');
-  // FIX #7: textContent tidak butuh escapeHtml — isi string mentah langsung
   if (labelEl && electionTitle && _elections.length > 1) {
+    // FIX #7 note: textContent tidak perlu escapeHtml
     labelEl.textContent = ' ' + electionTitle;
   }
 
@@ -1343,14 +1502,12 @@ function startCountdown(endDateIso, electionTitle) {
     if (cd.expired) {
       clearInterval(_timerInterval);
       _timerInterval = null;
-      countEl.textContent = 'Pemilihan telah berakhir';
+      countEl.textContent      = 'Pemilihan telah berakhir';
       bar.style.backgroundColor = '#dc2626';
-
-      // FIX #16: umumkan ke screen reader saat expired
       bar.setAttribute('aria-live', 'assertive');
       bar.setAttribute('role', 'alert');
 
-      // Identifikasi elections yang expired berdasarkan endDate
+      // Nonaktifkan semua tombol submit
       const expiredElIds = _elections
         .filter(e => e.endDate && endDateIso === e.endDate)
         .map(e => e.id || e.electionId);
@@ -1358,15 +1515,15 @@ function startCountdown(endDateIso, electionTitle) {
       if (expiredElIds.length > 0) {
         expiredElIds.forEach(eid => {
           const btn = document.getElementById('submit-btn-desktop-' + eid);
-          if (btn) btn.setAttribute('disabled', 'true');
+          if (btn) btn.disabled = true;
         });
         if (expiredElIds.includes(_mobileActiveElectionId)) {
           const mBtn = document.getElementById('submit-btn-mobile');
-          if (mBtn) mBtn.setAttribute('disabled', 'true');
+          if (mBtn) mBtn.disabled = true;
         }
       } else {
         document.querySelectorAll('[id^="submit-btn-desktop-"], #submit-btn-mobile')
-          .forEach(btn => btn.setAttribute('disabled', 'true'));
+          .forEach(btn => { btn.disabled = true; });
       }
 
       Toast.warning('Waktu pemilihan telah berakhir. Halaman akan diperbarui.', 0);
@@ -1374,18 +1531,25 @@ function startCountdown(endDateIso, electionTitle) {
       return;
     }
 
-    const totalSec = cd.days*86400 + cd.hours*3600 + cd.minutes*60 + cd.seconds;
+    const totalSec = cd.days * 86400 + cd.hours * 3600 + cd.minutes * 60 + cd.seconds;
 
-    // FIX #5: reset warna ke default saat > 300 detik, ubah ke amber saat ≤ 300 detik
+    // Warna bar: merah saat kritis (≤ 5 menit), amber saat ≤ 15 menit, default lainnya
     if (totalSec <= 300) {
-      bar.style.backgroundColor = '#d97706';
+      bar.style.backgroundColor = '#dc2626'; // red-600
+      countEl.classList.add('timer-pulse');
+    } else if (totalSec <= 900) {
+      bar.style.backgroundColor = '#d97706'; // amber-600
+      countEl.classList.remove('timer-pulse');
     } else {
       bar.style.backgroundColor = '';
+      countEl.classList.remove('timer-pulse');
     }
 
     const parts = [];
     if (cd.days  > 0) parts.push(cd.days + ' hr');
-    if (cd.hours > 0 || cd.days > 0) parts.push(String(cd.hours).padStart(2, '0') + ' jam');
+    if (cd.hours > 0 || cd.days > 0) {
+      parts.push(String(cd.hours).padStart(2, '0') + ' jam');
+    }
     parts.push(String(cd.minutes).padStart(2, '0') + ' mnt');
     parts.push(String(cd.seconds).padStart(2, '0') + ' dtk');
     countEl.textContent = parts.join(' ');
@@ -1396,7 +1560,6 @@ function startCountdown(endDateIso, electionTitle) {
 }
 
 // ── showState ─────────────────────────────────────────────────
-
 function showState(state, errorMsg) {
   document.getElementById('loading-state').classList.toggle('hidden', state !== 'loading');
   document.getElementById('error-state').classList.toggle('hidden',   state !== 'error');
@@ -1407,13 +1570,17 @@ function showState(state, errorMsg) {
 }
 
 function showReloginBtn() {
-  document.getElementById('retry-btn').classList.add('hidden');
-  document.getElementById('relogin-btn').classList.remove('hidden');
+  const retryBtn   = document.getElementById('retry-btn');
+  const reloginBtn = document.getElementById('relogin-btn');
+  if (retryBtn)   retryBtn.classList.add('hidden');
+  if (reloginBtn) reloginBtn.classList.remove('hidden');
 }
 
 function hideReloginBtn() {
-  document.getElementById('retry-btn').classList.remove('hidden');
-  document.getElementById('relogin-btn').classList.add('hidden');
+  const retryBtn   = document.getElementById('retry-btn');
+  const reloginBtn = document.getElementById('relogin-btn');
+  if (retryBtn)   retryBtn.classList.remove('hidden');
+  if (reloginBtn) reloginBtn.classList.add('hidden');
 }
 </script>
 </body>
