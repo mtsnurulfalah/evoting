@@ -981,6 +981,14 @@ let _nisnCountMap = new Map();
 // BUG #3 FIX: debounced search stabil, dibuat sekali
 const _debouncedSearch = Utils.debounce(() => { _currentPage = 1; loadVoters(); }, 400);
 
+// [FIX #5] Module-level flag untuk Sinkronisasi PIN.
+// Harus module-level (bukan closure-local) agar tidak bisa di-bypass
+// dengan membuka modal baru saat request masih berjalan.
+// Jika local (_isSyncing di dalam openSyncPinModal), setiap pemanggilan
+// openSyncPinModal() baru membuat closure segar dengan _isSyncing = false,
+// sehingga dua request syncPins bisa berjalan bersamaan.
+let _isSyncPinRunning = false;
+
 // PIN Gate (Panitia)
 const _PIN_ACCESS_KEY = 'ev_panitia_voter_access';
 let   _accessTimerId  = null;
@@ -2320,9 +2328,22 @@ async function openSyncPinModal() {
     return;
   }
 
+  // [FIX #5] Pakai module-level flag, bukan closure-local.
+  // Blok duplikasi request jika user tutup modal (backdrop/ESC) lalu buka lagi
+  // sebelum request selesai — closure baru punya _isSyncing = false sehingga
+  // tanpa flag module-level dua request bisa jalan bersamaan.
+  if (_isSyncPinRunning) {
+    Toast.warning('Sinkronisasi sedang berjalan. Tunggu hingga selesai.');
+    return;
+  }
+
   // Ambil judul election yang sedang aktif di dropdown
-  const elSel      = document.getElementById('election-select');
-  const elTitle    = elSel?.options[elSel.selectedIndex]?.text || _electionId;
+  const elSel   = document.getElementById('election-select');
+  const elTitle = elSel?.options[elSel.selectedIndex]?.text || _electionId;
+
+  // [FIX #7] Snapshot electionId SEBELUM membuka modal dan await API.
+  // GAS bisa butuh 15–30 detik; user mungkin pindah election saat loading.
+  const snapshotElectionId = _electionId;
 
   const modal = Modal.open({
     id:    'modal-sync-pin',
@@ -2373,19 +2394,23 @@ async function openSyncPinModal() {
     ],
   });
 
-  let _isSyncing = false;
-
   modal.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (btn.dataset.action === 'cancel') { Modal.close(); return; }
       if (btn.dataset.action !== 'sync')  return;
-      if (_isSyncing) return;
 
-      _isSyncing = true;
+      // [FIX #5] Guard dengan module-level flag — cegah race condition
+      // jika listener ini entah bagaimana terpanggil dua kali berturutan
+      if (_isSyncPinRunning) return;
+
+      _isSyncPinRunning = true;
       Utils.setLoading(btn, true, 'Menyinkronkan…');
 
       try {
-        const res = await API.voter.syncPins(_electionId);
+        // [FIX #7] Kirim request dengan snapshotElectionId, bukan _electionId
+        // langsung — nilai _electionId bisa berubah selama await (user pindah
+        // election saat GAS masih memproses, yang bisa butuh 15–30 detik).
+        const res = await API.voter.syncPins(snapshotElectionId);
 
         if (!res.success) {
           Toast.error(res.message || 'Gagal menyinkronkan PIN. Silakan coba lagi.');
@@ -2394,16 +2419,24 @@ async function openSyncPinModal() {
 
         Modal.close();
         _showSyncPinResult(res.data, elTitle);
-        // Reload tabel agar PIN yang diperbarui langsung terlihat
-        // (hanya relevan jika user kemudian pindah ke election lain)
-        await loadVoters();
+
+        // [FIX #7] Hanya reload tabel jika user masih berada di election
+        // yang sama dengan yang disinkronkan. Jika sudah pindah, loadVoters()
+        // akan me-reload election baru — bukan election sumber — sehingga
+        // perubahan PIN tidak akan terlihat dan hasilnya membingungkan.
+        if (_electionId === snapshotElectionId) {
+          await loadVoters();
+        }
 
       } catch (err) {
         console.error('[openSyncPinModal] error:', err);
         Toast.error('Terjadi kesalahan tak terduga. Silakan coba lagi.');
       } finally {
-        _isSyncing = false;
-        Utils.setLoading(btn, false);
+        _isSyncPinRunning = false;
+        // [FIX subtle] Cek apakah btn masih di DOM sebelum reset loading state.
+        // Modal.close() melepas elemen dari DOM — setLoading() pada detached
+        // element tidak crash tapi tidak perlu dilakukan.
+        if (btn.isConnected) Utils.setLoading(btn, false);
       }
     });
   });
