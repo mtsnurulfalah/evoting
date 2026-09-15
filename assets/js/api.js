@@ -320,6 +320,14 @@ const API = (() => {
      */
     assignToElection: (nisn, targetElectionIds) =>
       request('voter.assignToElection', { nisn, targetElectionIds }),
+    /**
+     * Sinkronisasi PIN semua voter lintas election berdasarkan NISN.
+     * Voter di election sumber digunakan sebagai acuan PIN.
+     * Semua entri NISN yang sama di election lain akan disamakan PIN-nya.
+     * @param {string} sourceElectionId - ID election sumber PIN
+     */
+    syncPins: (sourceElectionId) =>
+      request('voter.syncPins', { sourceElectionId }),
   };
 
   // ── Voting endpoints ─────────────────────────────────────
