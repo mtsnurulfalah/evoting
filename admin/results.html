@@ -22,10 +22,12 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      min-width: 0;
     }
     .result-stat-icon {
       width: 40px;
       height: 40px;
+      min-width: 40px;
       border-radius: 10px;
       display: flex;
       align-items: center;
@@ -39,12 +41,14 @@
       line-height: 1.1;
       color: #111827;
       display: block;
+      word-break: break-all;
     }
     .result-stat-card .stat-label {
       font-size: 11px;
       color: #6b7280;
       font-weight: 500;
-      margin-top: 1px;
+      margin-top: 2px;
+      white-space: nowrap;
     }
 
     /* ── Winner banner ── */
@@ -63,6 +67,7 @@
       height: 200px;
       background: rgba(255,255,255,0.05);
       border-radius: 50%;
+      pointer-events: none;
     }
     .winner-banner::after {
       content: '';
@@ -73,6 +78,7 @@
       height: 150px;
       background: rgba(255,255,255,0.04);
       border-radius: 50%;
+      pointer-events: none;
     }
     .winner-tie-banner {
       background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
@@ -103,6 +109,7 @@
     .photo-circle {
       width: 36px;
       height: 36px;
+      min-width: 36px;
       border-radius: 50%;
       overflow: hidden;
       background: #e5e7eb;
@@ -133,12 +140,14 @@
       overflow: hidden;
       height: 7px;
       flex: 1;
+      min-width: 0;
     }
 
     /* ── Rank number ── */
     .rank-num {
       width: 28px;
       height: 28px;
+      min-width: 28px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -188,6 +197,7 @@
       height: 6px;
       border-radius: 50%;
       background: #22c55e;
+      flex-shrink: 0;
     }
     .refresh-dot.active { animation: pulse-dot 1.5s ease-in-out infinite; }
     @keyframes pulse-dot {
@@ -236,13 +246,54 @@
       padding: 14px 16px;
       border-bottom: 1px solid #f3f4f6;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     /* ── Mobile overflow guard ── */
     .overflow-x-guard { overflow-x: hidden; }
+
+    /* ── Chart container: scroll internal ── */
+    .chart-scroll-wrapper {
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    .chart-scroll-wrapper canvas {
+      display: block;
+    }
+
+    /* ── Chart type toggle ── */
+    .chart-type-btn {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      color: #6b7280;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      line-height: 1;
+    }
+    .chart-type-btn:hover:not(.active) {
+      background: #f9fafb;
+      border-color: #d1d5db;
+    }
+    .chart-type-btn.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+    }
+    .chart-legend-dot {
+      width: 10px;
+      height: 10px;
+      min-width: 10px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
 
     /* ── Class table responsive ── */
     @media (max-width: 640px) {
@@ -267,34 +318,14 @@
       .class-table td:first-child::before { display: none; }
     }
 
-    /* ── Mobile bottom sheet modal ── */
+    /* ── Stat cards: mobile 2-kolom, tidak overflow ── */
     @media (max-width: 640px) {
-      .modal-backdrop { align-items: flex-end; padding: 0; }
-      .modal-box { border-radius: 20px 20px 0 0; max-height: 92dvh; max-height: 92vh; }
+      .result-stat-card .stat-num { font-size: 17px; }
     }
 
-    /* ── Chart suara per kelas ── */
-    .chart-type-btn {
-      padding: 4px 12px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      border: 1.5px solid #e5e7eb;
-      background: #fff;
-      color: #6b7280;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .chart-type-btn.active {
-      background: #2563eb;
-      border-color: #2563eb;
-      color: #fff;
-    }
-    .chart-legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 3px;
-      flex-shrink: 0;
+    /* ── Winner box: jaga agar votes tidak terpotong di mobile ── */
+    @media (max-width: 480px) {
+      .winner-votes-block { min-width: 0; }
     }
   </style>
 </head>
@@ -325,7 +356,7 @@
       <div id="topbar-user-avatar" class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary-100 flex items-center justify-center"></div>
       <div class="flex-1 min-w-0">
         <p class="text-xs font-semibold text-gray-800 truncate" id="topbar-user-name"></p>
-        <p class="text-xs text-gray-500" id="topbar-user-role"></p>
+        <p class="text-xs text-gray-500 truncate" id="topbar-user-role"></p>
       </div>
       <button id="topbar-logout-btn" class="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded" title="Logout">
         <i class="fa-solid fa-right-from-bracket text-sm"></i>
@@ -341,24 +372,25 @@
 
   <!-- ── Header ── -->
   <header class="bg-white border-b border-gray-200 px-4 h-14 flex items-center gap-2 sticky top-0 z-20 flex-shrink-0">
-    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors">
-      <i class="fa-solid fa-bars text-base"></i>
+    <button id="sidebar-toggle" class="lg:hidden text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors"
+            aria-label="Buka sidebar" aria-expanded="false">
+      <i class="fa-solid fa-bars text-base" aria-hidden="true"></i>
     </button>
     <h1 class="text-sm font-bold text-gray-800 flex-1 truncate">Hasil Pemilihan</h1>
 
     <!-- Auto-refresh indicator -->
-    <div id="auto-refresh-indicator" class="refresh-pulse hidden">
-      <span class="refresh-dot active" id="refresh-dot"></span>
-      <span>Live</span>
+    <div id="auto-refresh-indicator" class="refresh-pulse hidden" aria-live="polite" aria-label="Pembaruan otomatis aktif">
+      <span class="refresh-dot active" aria-hidden="true"></span>
+      <span class="hidden xs:inline">Live</span>
     </div>
 
     <div class="flex items-center gap-2 flex-shrink-0">
-      <button id="btn-refresh" class="btn btn-outline btn-sm gap-1.5" title="Muat ulang data">
-        <i class="fa-solid fa-rotate-right text-xs" id="refresh-icon"></i>
+      <button id="btn-refresh" class="btn btn-outline btn-sm gap-1.5" title="Muat ulang data" aria-label="Refresh data">
+        <i class="fa-solid fa-rotate-right text-xs" id="refresh-icon" aria-hidden="true"></i>
         <span class="hidden sm:inline text-xs">Refresh</span>
       </button>
-      <button id="btn-export-result" class="btn btn-outline btn-sm gap-1.5" title="Export hasil ke CSV">
-        <i class="fa-solid fa-file-export text-xs"></i>
+      <button id="btn-export-result" class="btn btn-outline btn-sm gap-1.5" title="Export hasil ke CSV" aria-label="Export hasil ke CSV">
+        <i class="fa-solid fa-file-export text-xs" aria-hidden="true"></i>
         <span class="hidden sm:inline text-xs">Export</span>
       </button>
     </div>
@@ -372,74 +404,63 @@
       <div class="selector-card">
         <div class="flex flex-col sm:flex-row sm:items-center gap-3">
           <div class="flex items-center gap-2 flex-shrink-0">
-            <i class="fa-solid fa-calendar-check text-primary-500 text-sm w-4 text-center"></i>
+            <i class="fa-solid fa-calendar-check text-primary-500 text-sm w-4 text-center" aria-hidden="true"></i>
             <label class="text-sm font-semibold text-gray-700 whitespace-nowrap" for="election-select">Pemilihan</label>
           </div>
           <select id="election-select" class="form-select flex-1 max-w-md text-sm">
             <option value="">— Memuat... —</option>
           </select>
           <div class="flex items-center gap-2 flex-shrink-0 text-xs text-gray-400" id="last-updated-wrap">
-            <i class="fa-regular fa-clock text-xs"></i>
-            <span id="last-updated">—</span>
+            <i class="fa-regular fa-clock text-xs" aria-hidden="true"></i>
+            <span id="last-updated" aria-label="Terakhir diperbarui">—</span>
           </div>
         </div>
       </div>
 
       <!-- ── Loading skeleton ── -->
-      <div id="loading-state" class="space-y-4">
-        <!-- Stat cards skeleton -->
+      <div id="loading-state" class="space-y-4" aria-label="Memuat data" aria-busy="true">
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div class="sk rounded-xl" style="height:76px"></div>
           <div class="sk rounded-xl" style="height:76px;opacity:.8"></div>
           <div class="sk rounded-xl" style="height:76px;opacity:.6"></div>
           <div class="sk rounded-xl" style="height:76px;opacity:.4"></div>
         </div>
-        <!-- Candidate rows skeleton -->
         <div class="result-card p-4 space-y-3">
           <div class="sk h-4 w-40 rounded mb-4"></div>
           <div class="flex items-center gap-3 py-1">
-            <div class="sk w-8 h-8 rounded-full"></div>
-            <div class="sk w-8 h-8 rounded-full -ml-2" style="opacity:.7"></div>
-            <div class="flex-1">
+            <div class="sk w-8 h-8 rounded-full flex-shrink-0"></div>
+            <div class="sk w-8 h-8 rounded-full -ml-2 flex-shrink-0" style="opacity:.7"></div>
+            <div class="flex-1 min-w-0">
               <div class="sk h-3.5 rounded mb-1.5" style="width:100%"></div>
               <div class="sk h-2 rounded" style="width:80%"></div>
             </div>
-            <div class="sk h-5 w-14 rounded"></div>
+            <div class="sk h-5 w-14 rounded flex-shrink-0"></div>
           </div>
           <div class="flex items-center gap-3 py-1">
-            <div class="sk w-8 h-8 rounded-full"></div>
-            <div class="sk w-8 h-8 rounded-full -ml-2" style="opacity:.7"></div>
-            <div class="flex-1">
+            <div class="sk w-8 h-8 rounded-full flex-shrink-0"></div>
+            <div class="sk w-8 h-8 rounded-full -ml-2 flex-shrink-0" style="opacity:.7"></div>
+            <div class="flex-1 min-w-0">
               <div class="sk h-3.5 rounded mb-1.5" style="width:70%"></div>
               <div class="sk h-2 rounded" style="width:56%"></div>
             </div>
-            <div class="sk h-5 w-14 rounded"></div>
+            <div class="sk h-5 w-14 rounded flex-shrink-0"></div>
           </div>
           <div class="flex items-center gap-3 py-1">
-            <div class="sk w-8 h-8 rounded-full"></div>
-            <div class="sk w-8 h-8 rounded-full -ml-2" style="opacity:.7"></div>
-            <div class="flex-1">
+            <div class="sk w-8 h-8 rounded-full flex-shrink-0"></div>
+            <div class="sk w-8 h-8 rounded-full -ml-2 flex-shrink-0" style="opacity:.7"></div>
+            <div class="flex-1 min-w-0">
               <div class="sk h-3.5 rounded mb-1.5" style="width:45%"></div>
               <div class="sk h-2 rounded" style="width:36%"></div>
             </div>
-            <div class="sk h-5 w-14 rounded"></div>
-          </div>
-          <div class="flex items-center gap-3 py-1">
-            <div class="sk w-8 h-8 rounded-full"></div>
-            <div class="sk w-8 h-8 rounded-full -ml-2" style="opacity:.7"></div>
-            <div class="flex-1">
-              <div class="sk h-3.5 rounded mb-1.5" style="width:30%"></div>
-              <div class="sk h-2 rounded" style="width:24%"></div>
-            </div>
-            <div class="sk h-5 w-14 rounded"></div>
+            <div class="sk h-5 w-14 rounded flex-shrink-0"></div>
           </div>
         </div>
       </div>
 
       <!-- ── Empty state ── -->
-      <div id="empty-state" class="hidden py-16 text-center">
+      <div id="empty-state" class="hidden py-16 text-center" role="status">
         <div class="state-icon-wrap bg-primary-50 text-primary-400 mx-auto">
-          <i class="fa-solid fa-chart-bar"></i>
+          <i class="fa-solid fa-chart-bar" aria-hidden="true"></i>
         </div>
         <h3 class="text-base font-semibold text-gray-700 mb-1" id="empty-title">Pilih pemilihan</h3>
         <p class="text-sm text-gray-400 max-w-xs mx-auto" id="empty-msg">
@@ -448,14 +469,14 @@
       </div>
 
       <!-- ── Error state ── -->
-      <div id="error-state" class="hidden py-16 text-center">
+      <div id="error-state" class="hidden py-16 text-center" role="alert">
         <div class="state-icon-wrap bg-red-50 text-red-400 mx-auto">
-          <i class="fa-solid fa-triangle-exclamation"></i>
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
         </div>
         <h3 class="text-base font-semibold text-gray-700 mb-1">Gagal memuat hasil</h3>
         <p class="text-sm text-gray-400 max-w-xs mx-auto" id="error-msg">Terjadi kesalahan.</p>
         <button id="btn-retry" class="btn btn-secondary mt-5 gap-2 text-sm">
-          <i class="fa-solid fa-rotate-right text-xs"></i> Coba Lagi
+          <i class="fa-solid fa-rotate-right text-xs" aria-hidden="true"></i> Coba Lagi
         </button>
       </div>
 
@@ -463,79 +484,81 @@
       <div id="content-state" class="hidden space-y-4">
 
         <!-- Stat cards row -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <!-- BUG FIX: grid cols dinamis dengan ID r-stats-grid —
+             bila kartu poin tersembunyi tetap 4 slot, kolom menjadi mubazir.
+             Solusi: kolom poin diletakkan di akhir dan secara visual collapse. -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="r-stats-grid">
           <div class="result-stat-card">
             <div class="result-stat-icon bg-primary-50 text-primary-600">
-              <i class="fa-solid fa-check-to-slot"></i>
+              <i class="fa-solid fa-check-to-slot" aria-hidden="true"></i>
             </div>
-            <div>
+            <div class="min-w-0">
               <span class="stat-num" id="r-total-votes">0</span>
               <span class="stat-label">Suara Masuk</span>
             </div>
           </div>
-          <!-- Stat poin — hanya tampil jika sistem poin aktif -->
-          <div class="result-stat-card hidden" id="r-stat-points-card">
-            <div class="result-stat-icon bg-amber-50 text-amber-600">
-              <i class="fa-solid fa-star-half-stroke"></i>
-            </div>
-            <div>
-              <span class="stat-num" id="r-total-points">0</span>
-              <span class="stat-label">Total Poin</span>
-            </div>
-          </div>
           <div class="result-stat-card">
             <div class="result-stat-icon bg-blue-50 text-blue-600">
-              <i class="fa-solid fa-users"></i>
+              <i class="fa-solid fa-users" aria-hidden="true"></i>
             </div>
-            <div>
+            <div class="min-w-0">
               <span class="stat-num" id="r-total-voters">0</span>
               <span class="stat-label">Total Pemilih</span>
             </div>
           </div>
           <div class="result-stat-card">
             <div class="result-stat-icon bg-green-50 text-green-600">
-              <i class="fa-solid fa-circle-check"></i>
+              <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
             </div>
-            <div>
+            <div class="min-w-0">
               <span class="stat-num" id="r-voted">0</span>
               <span class="stat-label">Sudah Memilih</span>
             </div>
           </div>
           <div class="result-stat-card">
             <div class="result-stat-icon bg-orange-50 text-orange-600">
-              <i class="fa-solid fa-chart-pie"></i>
+              <i class="fa-solid fa-chart-pie" aria-hidden="true"></i>
             </div>
-            <div>
+            <div class="min-w-0">
               <span class="stat-num" id="r-participation">0%</span>
               <span class="stat-label">Partisipasi</span>
+            </div>
+          </div>
+          <!-- Kartu poin — hanya muncul jika sistem poin aktif, selalu di posisi terakhir -->
+          <div class="result-stat-card hidden col-span-2 sm:col-span-1" id="r-stat-points-card">
+            <div class="result-stat-icon bg-amber-50 text-amber-600">
+              <i class="fa-solid fa-star-half-stroke" aria-hidden="true"></i>
+            </div>
+            <div class="min-w-0">
+              <span class="stat-num" id="r-total-points">0</span>
+              <span class="stat-label">Total Poin</span>
             </div>
           </div>
         </div>
 
         <!-- Winner banner -->
-        <div id="winner-box" class="hidden winner-banner p-5 text-white relative z-0">
+        <div id="winner-box" class="hidden winner-banner p-5 text-white relative z-0" role="region" aria-label="Paslon unggul">
           <div class="relative z-10">
             <div class="flex items-center gap-4 flex-wrap sm:flex-nowrap">
               <!-- Icon -->
               <div class="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center flex-shrink-0">
-                <i class="fa-solid fa-trophy text-yellow-300 text-xl" id="winner-trophy-icon"></i>
+                <i class="fa-solid fa-trophy text-yellow-300 text-xl" id="winner-trophy-icon" aria-hidden="true"></i>
               </div>
               <!-- Info -->
               <div class="flex-1 min-w-0">
                 <p class="text-xs text-white/65 mb-0.5" id="winner-label">Pasangan Unggul (Sementara)</p>
                 <h2 class="text-base font-extrabold leading-snug break-words" id="winner-name">—</h2>
-                <p class="text-white/75 text-xs mt-0.5" id="winner-detail">—</p>
-                <!-- Partisipasi mini bar -->
+                <p class="text-white/75 text-xs mt-0.5 truncate" id="winner-detail">—</p>
                 <div class="participation-thin mt-2 max-w-[200px]">
                   <div class="participation-thin-fill" id="winner-participation-fill" style="width:0%"></div>
                 </div>
                 <p class="text-white/55 text-xs mt-1" id="winner-participation-text"></p>
               </div>
-              <!-- Votes -->
-              <div class="text-right flex-shrink-0">
-                <p class="text-2xl font-extrabold leading-tight" id="winner-votes">0</p>
-                <p class="text-xs text-white/65">suara</p>
-                <p class="text-sm font-bold mt-0.5" id="winner-pct">0%</p>
+              <!-- Votes/Points — BUG FIX: label suara/poin dikelola via JS, bukan querySelector rapuh -->
+              <div class="text-right flex-shrink-0 winner-votes-block">
+                <p class="text-2xl font-extrabold leading-tight tabular-nums" id="winner-votes">0</p>
+                <p class="text-xs text-white/65" id="winner-score-label">suara</p>
+                <p class="text-sm font-bold mt-0.5 tabular-nums" id="winner-pct">0%</p>
               </div>
             </div>
           </div>
@@ -544,11 +567,11 @@
         <!-- Candidate results card -->
         <div class="result-card" id="candidate-results-card">
           <div class="result-card-header">
-            <div>
+            <div class="min-w-0">
               <h3 class="text-sm font-bold text-gray-800">Perolehan Suara</h3>
-              <p class="text-xs text-gray-400 mt-0.5" id="r-total-text">—</p>
+              <p class="text-xs text-gray-400 mt-0.5 truncate" id="r-total-text">—</p>
             </div>
-            <span class="text-xs text-gray-400 flex-shrink-0" id="r-sort-label">Diurutkan: suara terbanyak</span>
+            <span class="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap" id="r-sort-label">Diurutkan: suara terbanyak</span>
           </div>
           <div class="p-3 sm:p-4 space-y-1" id="candidate-results">
             <!-- diisi JS -->
@@ -558,25 +581,24 @@
         <!-- Participation card -->
         <div class="result-card p-4 sm:p-5">
           <h3 class="text-sm font-bold text-gray-800 mb-4">Tingkat Partisipasi Pemilih</h3>
-          <!-- Main bar -->
           <div class="flex items-center gap-3 mb-4">
             <div class="votes-bar-wrapper h-3 flex-1">
-              <div class="bar-fill bg-primary-500 h-full" id="r-progress" style="width:0%"></div>
+              <div class="bar-fill bg-primary-500 h-full" id="r-progress" style="width:0%" role="progressbar"
+                   aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
             </div>
-            <span class="text-sm font-bold text-primary-600 w-12 text-right tabular-nums" id="r-pct-text">0%</span>
+            <span class="text-sm font-bold text-primary-600 w-12 text-right tabular-nums flex-shrink-0" id="r-pct-text">0%</span>
           </div>
-          <!-- Stats row -->
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-3 gap-2 sm:gap-3">
             <div class="bg-blue-50 rounded-xl p-3 text-center">
-              <p class="text-lg font-extrabold text-blue-700 tabular-nums" id="r-total-v">0</p>
+              <p class="text-base sm:text-lg font-extrabold text-blue-700 tabular-nums" id="r-total-v">0</p>
               <p class="text-xs text-gray-500 mt-0.5">Terdaftar</p>
             </div>
             <div class="bg-green-50 rounded-xl p-3 text-center">
-              <p class="text-lg font-extrabold text-green-700 tabular-nums" id="r-voted-v">0</p>
+              <p class="text-base sm:text-lg font-extrabold text-green-700 tabular-nums" id="r-voted-v">0</p>
               <p class="text-xs text-gray-500 mt-0.5">Sudah Memilih</p>
             </div>
             <div class="bg-orange-50 rounded-xl p-3 text-center">
-              <p class="text-lg font-extrabold text-orange-700 tabular-nums" id="r-not-voted-v">0</p>
+              <p class="text-base sm:text-lg font-extrabold text-orange-700 tabular-nums" id="r-not-voted-v">0</p>
               <p class="text-xs text-gray-500 mt-0.5">Belum Memilih</p>
             </div>
           </div>
@@ -586,7 +608,7 @@
         <div class="result-card hidden" id="class-breakdown-box">
           <div class="result-card-header">
             <h3 class="text-sm font-bold text-gray-800">Partisipasi per Kelas</h3>
-            <span class="text-xs text-gray-400" id="class-count-label"></span>
+            <span class="text-xs text-gray-400 flex-shrink-0" id="class-count-label"></span>
           </div>
           <div class="overflow-x-auto">
             <table class="class-table w-full border-collapse">
@@ -598,7 +620,7 @@
                   <th class="text-right">Belum</th>
                   <th class="text-right hidden" id="th-points-per-vote">Poin/Suara</th>
                   <th class="text-right hidden" id="th-total-points-col">Total Poin</th>
-                  <th class="text-left">Partisipasi</th>
+                  <th class="text-left" style="min-width:120px">Partisipasi</th>
                 </tr>
               </thead>
               <tbody id="class-tbody" class="divide-y divide-gray-50"></tbody>
@@ -609,31 +631,30 @@
         <!-- Class vote chart card -->
         <div class="result-card hidden" id="class-vote-chart-box">
           <div class="result-card-header">
-            <div>
+            <div class="min-w-0">
               <h3 class="text-sm font-bold text-gray-800">Suara per Kelas per Paslon</h3>
               <p class="text-xs text-gray-400 mt-0.5">Distribusi suara dari setiap kelas untuk masing-masing pasangan calon</p>
             </div>
-            <!-- Toggle tipe grafik -->
             <div class="flex items-center gap-1.5 flex-shrink-0">
               <button class="chart-type-btn active" id="chart-btn-bar"
-                      onclick="switchChartType('bar')" title="Grafik batang">
-                <i class="fa-solid fa-chart-column"></i>
+                      aria-pressed="true" title="Grafik batang">
+                <i class="fa-solid fa-chart-column" aria-hidden="true"></i>
               </button>
               <button class="chart-type-btn" id="chart-btn-line"
-                      onclick="switchChartType('line')" title="Grafik garis">
-                <i class="fa-solid fa-chart-line"></i>
+                      aria-pressed="false" title="Grafik garis">
+                <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
               </button>
             </div>
           </div>
           <!-- Legend paslon -->
-          <div class="px-4 pt-3 flex flex-wrap gap-3" id="chart-legend"></div>
-          <!-- Canvas -->
-          <div class="p-4 pt-2" style="position:relative; min-height:260px;">
-            <canvas id="class-vote-chart" style="max-height:360px;"></canvas>
+          <div class="px-4 pt-3 pb-1 flex flex-wrap gap-x-4 gap-y-2" id="chart-legend" aria-label="Legenda grafik"></div>
+          <!-- Canvas wrapper: scroll horizontal jika banyak kelas -->
+          <div class="p-4 pt-2 chart-scroll-wrapper">
+            <canvas id="class-vote-chart" style="min-height:220px;" aria-label="Grafik suara per kelas per paslon" role="img"></canvas>
           </div>
         </div>
 
-        </div><!-- /content-state -->
+      </div><!-- /content-state -->
     </div>
   </main>
 </div>
@@ -648,8 +669,10 @@
 <script src="../assets/js/components.js"></script>
 <script>
 /* ============================================================
-   results.js — Hasil Pemilihan Admin (refactored)
+   results.js — Hasil Pemilihan Admin
    ============================================================ */
+
+'use strict';
 
 // ── Konstanta ─────────────────────────────────────────────────
 const CANDIDATE_COLORS = [
@@ -658,10 +681,24 @@ const CANDIDATE_COLORS = [
 ];
 
 // ── State ─────────────────────────────────────────────────────
-let _electionId   = '';
-let _autoRefresh  = null;
-let _isLoading    = false;   // guard race condition
-let _lastData     = null;    // data terakhir yang dirender (untuk export)
+let _electionId          = '';
+let _autoRefreshTimer    = null;   // ID setInterval — nama jelas bukan _autoRefresh
+let _isLoading           = false;  // guard race condition
+let _lastData            = null;   // data terakhir (untuk export tanpa refetch)
+
+// Chart state
+let _classVoteChart      = null;   // instance Chart.js aktif
+let _classVoteChartType  = 'bar';  // 'bar' | 'line'
+let _classVoteData       = null;   // data breakdown tersimpan
+let _classVoteCandidates = null;   // kandidat tersimpan
+
+// ── Helpers ───────────────────────────────────────────────────
+
+/** Set textContent dengan null-safe. */
+function setText(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v;
+}
 
 // ── Init ──────────────────────────────────────────────────────
 (async () => {
@@ -669,31 +706,40 @@ let _lastData     = null;    // data terakhir yang dirender (untuk export)
   Sidebar.init();
   Topbar.init();
 
-  // Sembunyikan bagian Perolehan Suara untuk role Panitia
+  // Sembunyikan Perolehan Suara untuk role Panitia
   if (Auth.isPanitia()) {
     const candidateCard = document.getElementById('candidate-results-card');
     if (candidateCard) candidateCard.classList.add('hidden');
   }
 
+  // Event listeners — satu kali, tidak perlu guard
   document.getElementById('btn-refresh').addEventListener('click', () => loadResults());
   document.getElementById('btn-export-result').addEventListener('click', exportResults);
   document.getElementById('btn-retry').addEventListener('click', () => loadResults());
 
+  // BUG FIX: event listener chart toggle dipindahkan dari onclick inline ke sini
+  // agar tidak ada risiko ReferenceError saat fungsi belum tersedia.
+  const btnBar  = document.getElementById('chart-btn-bar');
+  const btnLine = document.getElementById('chart-btn-line');
+  if (btnBar)  btnBar.addEventListener('click',  () => switchChartType('bar'));
+  if (btnLine) btnLine.addEventListener('click', () => switchChartType('line'));
+
   document.getElementById('election-select').addEventListener('change', e => {
-    const newId = e.target.value;
-
-    // Ferihentikan auto-refresh untuk pemilihan sebelumnya
     stopAutoRefresh();
-
-    _electionId = newId;
+    _electionId = e.target.value;
     _lastData   = null;
+
+    // Reset chart state saat ganti pemilihan agar tidak leak data lama
+    _destroyChart();
+    _classVoteData       = null;
+    _classVoteCandidates = null;
 
     if (_electionId) {
       loadResults();
     } else {
       showState('empty', {
         title: 'Pilih pemilihan',
-        msg: 'Pilih pemilihan dari daftar di atas untuk melihat hasilnya.',
+        msg:   'Pilih pemilihan dari daftar di atas untuk melihat hasilnya.',
       });
     }
   });
@@ -707,12 +753,21 @@ async function loadElectionOptions() {
   const sel = document.getElementById('election-select');
   sel.disabled = true;
 
-  const res = await API.election.getAll();
+  let res;
+  try {
+    res = await API.election.getAll();
+  } catch (err) {
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">— Gagal memuat —</option>';
+    showState('error', 'Gagal memuat daftar pemilihan. Muat ulang halaman.');
+    return;
+  }
+
   sel.disabled = false;
 
   if (!res.success) {
     sel.innerHTML = '<option value="">— Gagal memuat —</option>';
-    showState('error', 'Gagal memuat daftar pemilihan. Muat ulang halaman.');
+    showState('error', res.message || 'Gagal memuat daftar pemilihan.');
     return;
   }
 
@@ -722,7 +777,7 @@ async function loadElectionOptions() {
     sel.innerHTML = '<option value="">— Belum ada pemilihan —</option>';
     showState('empty', {
       title: 'Belum ada pemilihan',
-      msg: 'Buat pemilihan terlebih dahulu di Manajemen Pemilihan.',
+      msg:   'Buat pemilihan terlebih dahulu di Manajemen Pemilihan.',
     });
     return;
   }
@@ -733,7 +788,7 @@ async function loadElectionOptions() {
       `<option value="${Utils.escapeHtml(e.id)}">${Utils.escapeHtml(e.title)}</option>`
     ).join('');
 
-  // Auto-select: prioritas active → upcoming → pertama
+  // Auto-select: active → upcoming → pertama
   const preferred =
     elections.find(e => e.status === 'active' && e.isActive) ||
     elections.find(e => e.status === 'active')               ||
@@ -745,14 +800,13 @@ async function loadElectionOptions() {
     _electionId = preferred.id;
     await loadResults();
 
-    // Auto-refresh hanya jika pemilihan sedang aktif
     if (preferred.status === 'active' && preferred.isActive) {
       startAutoRefresh();
     }
   } else {
     showState('empty', {
       title: 'Pilih pemilihan',
-      msg: 'Pilih pemilihan dari daftar di atas.',
+      msg:   'Pilih pemilihan dari daftar di atas.',
     });
   }
 }
@@ -761,14 +815,12 @@ async function loadElectionOptions() {
 
 async function loadResults() {
   if (!_electionId) return;
-  if (_isLoading)   return;   // cegah parallel requests
+  if (_isLoading)   return;
   _isLoading = true;
 
-  // Tampilkan spinner kecil pada ikon refresh
   const refreshIcon = document.getElementById('refresh-icon');
   if (refreshIcon) refreshIcon.classList.add('animate-spin');
 
-  // Tampilkan loading hanya jika belum ada data (first load)
   if (!_lastData) showState('loading');
 
   let res;
@@ -778,7 +830,8 @@ async function loadResults() {
     console.error('[loadResults] network error:', err);
     _isLoading = false;
     if (refreshIcon) refreshIcon.classList.remove('animate-spin');
-    showState('error', 'Gagal menghubungi server. Periksa koneksi internet.');
+    if (!_lastData) showState('error', 'Gagal menghubungi server. Periksa koneksi internet.');
+    else Toast.error('Gagal memperbarui data. Periksa koneksi.');
     return;
   }
 
@@ -786,13 +839,10 @@ async function loadResults() {
   if (refreshIcon) refreshIcon.classList.remove('animate-spin');
 
   if (!res.success) {
-    // Jika sudah ada data, jangan ganti ke error state — cukup toast
     if (_lastData) {
       Toast.error(res.message || 'Gagal memperbarui data.');
     } else {
-      document.getElementById('error-msg').textContent =
-        res.message || 'Gagal memuat hasil pemilihan.';
-      showState('error');
+      showState('error', res.message || 'Gagal memuat hasil pemilihan.');
     }
     return;
   }
@@ -815,8 +865,7 @@ async function loadResults() {
 
 function startAutoRefresh() {
   stopAutoRefresh();
-  _autoRefresh = setInterval(() => {
-    // Hanya refresh jika tab aktif (Page Visibility API)
+  _autoRefreshTimer = setInterval(() => {
     if (!document.hidden) loadResults();
   }, 30000);
 
@@ -828,63 +877,51 @@ function startAutoRefresh() {
 }
 
 function stopAutoRefresh() {
-  if (_autoRefresh) {
-    clearInterval(_autoRefresh);
-    _autoRefresh = null;
+  if (_autoRefreshTimer !== null) {
+    clearInterval(_autoRefreshTimer);
+    _autoRefreshTimer = null;
   }
   const indicator = document.getElementById('auto-refresh-indicator');
-  if (indicator) indicator.classList.add('hidden');
+  if (indicator) {
+    indicator.classList.add('hidden');
+    indicator.classList.remove('flex');
+  }
 }
 
-// Hentikan auto-refresh saat tab tidak aktif, lanjutkan saat kembali
+// Refresh segera saat tab kembali aktif (hanya jika auto-refresh sedang berjalan)
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && _autoRefresh !== null) {
-    loadResults(); // langsung refresh saat tab aktif kembali
+  if (!document.hidden && _autoRefreshTimer !== null) {
+    loadResults();
   }
 });
 
-// ── Render ────────────────────────────────────────────────────
+// ── Render master ─────────────────────────────────────────────
 
 function renderResults(data) {
   const stats      = data.stats      || {};
   const candidates = data.candidates || [];
-  const winner     = data.winner;
+  const winner     = data.winner     || null;
   const usePoints  = !!(data.usePoints);
 
-  // Helper: set text content dengan null-safe
-  const setText = (id, v) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = v;
-  };
-
-  // ── Stats cards ──
-  setText('r-total-votes',  Utils.formatNumber(data.totalVotes         || 0));
-  setText('r-total-voters', Utils.formatNumber(stats.totalVoters       || 0));
-  setText('r-voted',        Utils.formatNumber(stats.voted             || 0));
+  // Stat cards
+  setText('r-total-votes',   Utils.formatNumber(data.totalVotes    || 0));
+  setText('r-total-voters',  Utils.formatNumber(stats.totalVoters  || 0));
+  setText('r-voted',         Utils.formatNumber(stats.voted        || 0));
   setText('r-participation', (stats.participationRate || 0) + '%');
 
-  // Tampilkan/sembunyikan kartu poin
+  // Kartu poin
   const pointsCard = document.getElementById('r-stat-points-card');
   if (pointsCard) {
-    if (usePoints) {
-      pointsCard.classList.remove('hidden');
-      setText('r-total-points', Utils.formatNumber(data.totalPoints || 0));
-    } else {
-      pointsCard.classList.add('hidden');
-    }
+    pointsCard.classList.toggle('hidden', !usePoints);
+    if (usePoints) setText('r-total-points', Utils.formatNumber(data.totalPoints || 0));
   }
 
-  // Update label sort
-  const sortLabel = document.getElementById('r-sort-label');
-  if (sortLabel) {
-    sortLabel.textContent = usePoints
-      ? 'Diurutkan: poin terbanyak'
-      : 'Diurutkan: suara terbanyak';
-  }
+  // Label sort
+  setText('r-sort-label', usePoints ? 'Diurutkan: poin terbanyak' : 'Diurutkan: suara terbanyak');
 
-  // ── Participation section ──
+  // Participation section
   const pct = Math.min(stats.participationRate || 0, 100);
-  setText('r-pct-text',    pct + '%');
+  setText('r-pct-text', pct + '%');
   setText('r-total-text',
     usePoints
       ? `${Utils.formatNumber(data.totalVotes || 0)} suara · ${Utils.formatNumber(data.totalPoints || 0)} poin`
@@ -896,28 +933,24 @@ function renderResults(data) {
 
   const progressEl = document.getElementById('r-progress');
   if (progressEl) {
-    // RAF agar animasi width transisi terlihat setelah elemen visible
-    requestAnimationFrame(() => { progressEl.style.width = pct + '%'; });
+    requestAnimationFrame(() => {
+      progressEl.style.width = pct + '%';
+      progressEl.setAttribute('aria-valuenow', pct);
+    });
   }
 
-  // ── Winner banner ──
   renderWinnerBanner(winner, stats, usePoints);
-
-  // ── Candidate results ──
   renderCandidateRows(candidates, winner, data.totalVotes || 0, data.totalPoints || 0, usePoints);
-
-  // ── Class breakdown ──
   renderClassBreakdown(data.classSummary, usePoints);
-
-  // ── Class vote chart ──
   renderClassVoteChart(data.classVoteBreakdown, candidates);
 }
+
+// ── Winner banner ─────────────────────────────────────────────
 
 function renderWinnerBanner(winner, stats, usePoints) {
   const box = document.getElementById('winner-box');
   if (!box) return;
 
-  // Bug #5 fix: gunakan poin sebagai penentu "ada suara" jika usePoints aktif
   const topScore = winner
     ? (usePoints ? (winner.candidate.points || 0) : (winner.candidate.votes || 0))
     : 0;
@@ -929,54 +962,52 @@ function renderWinnerBanner(winner, stats, usePoints) {
 
   box.classList.remove('hidden');
 
-  const setText = (id, v) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = v;
-  };
-
   if (winner.isTied) {
-    // Seri — tampilkan dengan warna amber
-    box.className = box.className.replace('winner-banner', 'winner-banner winner-tie-banner');
-    box.classList.add('winner-tie-banner');
+    // BUG FIX: manipulasi class yang aman — classList saja, tidak replace string
+    box.classList.remove('winner-tie-banner');
+    box.classList.add('winner-banner', 'winner-tie-banner');
+
     setText('winner-label',  'Hasil Sementara: Seri');
     setText('winner-name',   winner.tiedWith.join(' & '));
     setText('winner-detail', `${winner.tiedWith.length} pasangan dengan suara yang sama`);
     setText('winner-votes',  Utils.formatNumber(winner.candidate.votes));
     setText('winner-pct',    winner.candidate.percentage + '%');
+    setText('winner-score-label', 'suara');
 
     const trophy = document.getElementById('winner-trophy-icon');
     if (trophy) trophy.className = 'fa-solid fa-scale-balanced text-white text-xl';
   } else {
-    // Unggul jelas
     box.classList.remove('winner-tie-banner');
-    const w = winner.candidate;
 
+    const w = winner.candidate;
     setText('winner-label',  'Pasangan Unggul (Sementara)');
     setText('winner-name',   w.name + (w.pairName ? ' & ' + w.pairName : ''));
     setText('winner-detail', `No. ${w.orderNumber}${w.className ? ' · ' + w.className : ''}`);
 
-    // Tampilkan poin atau suara sesuai mode
+    // BUG FIX: gunakan elemen ID terpisah #winner-score-label, bukan querySelector
+    // dengan selector class yang rapuh dan rentan patah jika Tailwind berubah.
     if (usePoints) {
-      setText('winner-votes', Utils.formatNumber(w.points));
-      setText('winner-pct',   w.percentage + '%');
-      const votesLabelEl = document.querySelector('#winner-box .text-xs.text-white\\/65:last-of-type');
-      if (votesLabelEl) votesLabelEl.textContent = 'poin';
+      setText('winner-votes',       Utils.formatNumber(w.points || 0));
+      setText('winner-score-label', 'poin');
     } else {
-      setText('winner-votes', Utils.formatNumber(w.votes));
-      setText('winner-pct',   w.percentage + '%');
+      setText('winner-votes',       Utils.formatNumber(w.votes || 0));
+      setText('winner-score-label', 'suara');
     }
+    setText('winner-pct', w.percentage + '%');
 
     const trophy = document.getElementById('winner-trophy-icon');
     if (trophy) trophy.className = 'fa-solid fa-trophy text-yellow-300 text-xl';
   }
 
-  // Participation mini-bar
-  const pct      = Math.min(stats.participationRate || 0, 100);
-  const fillEl   = document.getElementById('winner-participation-fill');
-  const textEl   = document.getElementById('winner-participation-text');
+  const pct    = Math.min(stats.participationRate || 0, 100);
+  const fillEl = document.getElementById('winner-participation-fill');
+  const textEl = document.getElementById('winner-participation-text');
   if (fillEl) requestAnimationFrame(() => { fillEl.style.width = pct + '%'; });
-  if (textEl) textEl.textContent = `Partisipasi: ${pct}% (${Utils.formatNumber(stats.voted || 0)} dari ${Utils.formatNumber(stats.totalVoters || 0)} pemilih)`;
+  if (textEl) textEl.textContent =
+    `Partisipasi: ${pct}% (${Utils.formatNumber(stats.voted || 0)} dari ${Utils.formatNumber(stats.totalVoters || 0)} pemilih)`;
 }
+
+// ── Candidate rows ────────────────────────────────────────────
 
 function renderCandidateRows(candidates, winner, totalVotes, totalPoints, usePoints) {
   const container = document.getElementById('candidate-results');
@@ -985,94 +1016,74 @@ function renderCandidateRows(candidates, winner, totalVotes, totalPoints, usePoi
   if (!candidates.length) {
     container.innerHTML = `
       <div class="py-10 text-center text-gray-400">
-        <i class="fa-solid fa-users-slash text-2xl mb-2 block"></i>
+        <i class="fa-solid fa-users-slash text-2xl mb-2 block" aria-hidden="true"></i>
         <p class="text-sm">Belum ada kandidat terdaftar.</p>
       </div>`;
     return;
   }
 
   container.innerHTML = candidates.map((c, i) => {
-    const isWinner  = winner && !winner.isTied && winner.candidate.id === c.id;
-    const photoSrc  = Utils.buildImgUrl(c.photoUrl     || '');
-    const pairSrc   = Utils.buildImgUrl(c.pairPhotoUrl || '');
-    const color     = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
-    const pct       = c.percentage || 0;
-    const barWidth  = (usePoints ? totalPoints : totalVotes) > 0 ? pct : 0;
+    const isWinner = winner && !winner.isTied && winner.candidate.id === c.id;
+    const photoSrc = Utils.buildImgUrl(c.photoUrl     || '');
+    const pairSrc  = Utils.buildImgUrl(c.pairPhotoUrl || '');
+    const color    = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
+    const pct      = c.percentage || 0;
+    const barWidth = (usePoints ? totalPoints : totalVotes) > 0 ? pct : 0;
 
-    // Rank badge
     const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n';
     const rankLabel = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : String(i + 1);
-
-    // Foto stack
     const photoHtml = buildPhotoStack(photoSrc, pairSrc, c, isWinner);
 
-    // Blok angka kanan: poin (utama) + suara (sub) jika usePoints, suara saja jika tidak
     const scoreHtml = usePoints
-      ? `<p class="text-base font-extrabold text-gray-800 tabular-nums leading-tight">
-           ${Utils.formatNumber(c.points || 0)}
-         </p>
+      ? `<p class="text-base font-extrabold text-gray-800 tabular-nums leading-tight">${Utils.formatNumber(c.points || 0)}</p>
          <p class="text-xs text-amber-500 font-semibold">poin</p>
          <p class="text-xs text-gray-400 tabular-nums">${Utils.formatNumber(c.votes)} suara</p>`
-      : `<p class="text-base font-extrabold text-gray-800 tabular-nums leading-tight">
-           ${Utils.formatNumber(c.votes)}
-         </p>
+      : `<p class="text-base font-extrabold text-gray-800 tabular-nums leading-tight">${Utils.formatNumber(c.votes)}</p>
          <p class="text-xs text-gray-400">suara</p>`;
 
     return `
       <div class="candidate-row ${isWinner ? 'is-winner' : ''}" data-candidate-id="${Utils.escapeHtml(c.id)}">
-
-        <!-- Rank -->
-        <div class="${rankClass} rank-num flex-shrink-0" aria-label="Peringkat ${i + 1}">
+        <div class="${rankClass} rank-num" aria-label="Peringkat ${i + 1}">
           ${Utils.escapeHtml(rankLabel)}
         </div>
-
-        <!-- Foto (desktop) -->
         <div class="hidden sm:block">
           ${photoHtml}
         </div>
-
-        <!-- Nomor urut (mobile fallback) -->
-        <div class="sm:hidden w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0
+        <div class="sm:hidden w-8 h-8 min-w-[2rem] rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0
           ${isWinner ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'}">
           ${Utils.escapeHtml(String(c.orderNumber || i + 1))}
         </div>
-
-        <!-- Nama + bar -->
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-1.5 flex-wrap">
-            <p class="text-sm font-semibold text-gray-800 leading-tight">
-              ${Utils.escapeHtml(c.name || '-')}
-              ${c.pairName
+            <p class="text-sm font-semibold text-gray-800 leading-tight truncate">
+              ${Utils.escapeHtml(c.name || '-')}${c.pairName
                 ? `<span class="text-gray-400 font-normal text-xs"> &amp; ${Utils.escapeHtml(c.pairName)}</span>`
                 : ''}
             </p>
             ${isWinner
-              ? `<span class="badge badge-success" style="font-size:9px;padding:2px 7px">
-                  <i class="fa-solid fa-trophy fa-xs"></i> Unggul
+              ? `<span class="badge badge-success flex-shrink-0" style="font-size:9px;padding:2px 7px">
+                   <i class="fa-solid fa-trophy fa-xs" aria-hidden="true"></i> Unggul
                  </span>`
               : ''}
           </div>
-          <!-- Bar -->
           <div class="flex items-center gap-2">
             <div class="votes-bar-wrapper">
               <div class="bar-fill" style="width:0%; background:${color}"
-                data-target-width="${barWidth}%"
-                id="bar-${Utils.escapeHtml(c.id)}">
+                   data-target-width="${barWidth}%"
+                   id="bar-${Utils.escapeHtml(c.id)}"
+                   role="progressbar" aria-valuenow="${barWidth}" aria-valuemin="0" aria-valuemax="100">
               </div>
             </div>
             <span class="text-xs text-gray-500 tabular-nums w-9 text-right flex-shrink-0">${pct}%</span>
           </div>
         </div>
-
-        <!-- Jumlah poin/suara -->
-        <div class="text-right flex-shrink-0 pl-2">
+        <div class="text-right flex-shrink-0 pl-2 min-w-[52px]">
           ${scoreHtml}
         </div>
-
       </div>`;
   }).join('');
 
-  // Animasikan bar setelah render (RAF untuk smooth transition)
+  // Animasi bar setelah render
   requestAnimationFrame(() => {
     container.querySelectorAll('.bar-fill[data-target-width]').forEach(el => {
       el.style.width = el.dataset.targetWidth;
@@ -1080,38 +1091,35 @@ function renderCandidateRows(candidates, winner, totalVotes, totalPoints, usePoi
   });
 }
 
-/**
- * Build HTML untuk foto stack (paslon: ketua + wakil).
- * Foto disusun overlap kanan.
- */
+/** Foto stack paslon (ketua + wakil overlap). */
 function buildPhotoStack(photoSrc, pairSrc, c, isWinner) {
   const borderClass = isWinner ? 'is-winner-border' : '';
 
   const mainPhoto = photoSrc
     ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="${Utils.escapeHtml(c.name || '')}"
-         referrerpolicy="no-referrer"
-         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xs\\'></i>'">`
-    : `<i class="fa-solid fa-user text-gray-300 text-xs"></i>`;
+           loading="lazy" referrerpolicy="no-referrer"
+           onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xs\\'></i>'">`
+    : `<i class="fa-solid fa-user text-gray-300 text-xs" aria-hidden="true"></i>`;
 
   const pairPhoto = pairSrc
     ? `<img src="${Utils.escapeHtml(pairSrc)}" alt="${Utils.escapeHtml(c.pairName || '')}"
-         referrerpolicy="no-referrer"
-         onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xs\\'></i>'">`
-    : `<i class="fa-solid fa-user text-gray-300 text-xs"></i>`;
+           loading="lazy" referrerpolicy="no-referrer"
+           onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xs\\'></i>'">`
+    : `<i class="fa-solid fa-user text-gray-300 text-xs" aria-hidden="true"></i>`;
 
   if (pairSrc || c.pairName) {
-    return `
-      <div class="photo-stack">
-        <div class="photo-circle ${borderClass}">${mainPhoto}</div>
-        <div class="photo-circle ${borderClass}">${pairPhoto}</div>
-      </div>`;
+    return `<div class="photo-stack">
+      <div class="photo-circle ${borderClass}">${mainPhoto}</div>
+      <div class="photo-circle ${borderClass}">${pairPhoto}</div>
+    </div>`;
   }
 
-  return `
-    <div class="photo-stack">
-      <div class="photo-circle ${borderClass}" style="width:40px;height:40px">${mainPhoto}</div>
-    </div>`;
+  return `<div class="photo-stack">
+    <div class="photo-circle ${borderClass}" style="width:40px;height:40px;min-width:40px">${mainPhoto}</div>
+  </div>`;
 }
+
+// ── Class breakdown table ─────────────────────────────────────
 
 function renderClassBreakdown(classSummary, usePoints) {
   const box   = document.getElementById('class-breakdown-box');
@@ -1125,7 +1133,6 @@ function renderClassBreakdown(classSummary, usePoints) {
 
   box.classList.remove('hidden');
 
-  // Tampilkan/sembunyikan kolom poin
   const thPpv = document.getElementById('th-points-per-vote');
   const thTp  = document.getElementById('th-total-points-col');
   if (thPpv) thPpv.classList.toggle('hidden', !usePoints);
@@ -1146,7 +1153,7 @@ function renderClassBreakdown(classSummary, usePoints) {
       : '';
 
     return `
-      <tr class="border-b border-gray-50 last:border-0">
+      <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
         <td class="font-semibold text-gray-800" data-label="">${Utils.escapeHtml(cs.className)}</td>
         <td class="text-right tabular-nums text-gray-700" data-label="Total">${Utils.formatNumber(cs.total)}</td>
         <td class="text-right tabular-nums text-green-700 font-medium" data-label="Memilih">${Utils.formatNumber(cs.voted)}</td>
@@ -1154,158 +1161,167 @@ function renderClassBreakdown(classSummary, usePoints) {
         ${pointsCols}
         <td data-label="Partisipasi">
           <div class="flex items-center gap-2">
-            <div class="class-participation-bar flex-1" style="min-width:50px">
-              <div style="height:100%;width:${pct}%;background:${barColor};border-radius:99px"></div>
+            <div class="class-participation-bar flex-1">
+              <div style="height:100%;width:${pct}%;background:${barColor};border-radius:99px;transition:width .4s ease"></div>
             </div>
-            <span class="tabular-nums text-gray-700 font-medium flex-shrink-0">${pct}%</span>
+            <span class="tabular-nums text-gray-700 font-medium flex-shrink-0 text-xs">${pct}%</span>
           </div>
         </td>
       </tr>`;
   }).join('');
 }
 
-// ── Class Vote Chart ──────────────────────────────────────────
+// ── Chart: Suara per Kelas per Paslon ─────────────────────────
 
-// Instance Chart.js aktif — disimpan agar bisa di-destroy sebelum re-render
-let _classVoteChart     = null;
-let _classVoteChartType = 'bar';   // 'bar' | 'line'
-// Data terakhir untuk chart — dipakai ulang saat switchChartType
-let _classVoteData      = null;
-let _classVoteCandidates = null;
-
-/**
- * Render grafik suara per kelas per paslon.
- * @param {Array}   classVoteBreakdown  - data.classVoteBreakdown dari API
- * @param {Array}   candidates          - data.candidates dari API
- */
 function renderClassVoteChart(classVoteBreakdown, candidates) {
   const box = document.getElementById('class-vote-chart-box');
   if (!box) return;
 
-  // Sembunyikan jika tidak ada data
   if (!classVoteBreakdown || !classVoteBreakdown.length || !candidates || !candidates.length) {
     box.classList.add('hidden');
+    _destroyChart();
     _classVoteData       = null;
     _classVoteCandidates = null;
     return;
   }
 
-  // Simpan untuk dipakai ulang saat toggle tipe grafik
   _classVoteData       = classVoteBreakdown;
   _classVoteCandidates = candidates;
-
   box.classList.remove('hidden');
   _buildChart(_classVoteChartType);
 }
 
 /**
- * Ganti tipe grafik (bar ↔ line) tanpa fetch ulang.
- * Dipanggil dari onclick tombol toggle.
+ * Ganti tipe grafik bar ↔ line tanpa fetch ulang.
+ * Dipanggil dari event listener (bukan onclick inline).
  */
 function switchChartType(type) {
   if (_classVoteChartType === type) return;
   _classVoteChartType = type;
 
-  // Update tampilan tombol
-  document.getElementById('chart-btn-bar') .classList.toggle('active', type === 'bar');
-  document.getElementById('chart-btn-line').classList.toggle('active', type === 'line');
+  const btnBar  = document.getElementById('chart-btn-bar');
+  const btnLine = document.getElementById('chart-btn-line');
+  if (btnBar) {
+    btnBar.classList.toggle('active', type === 'bar');
+    btnBar.setAttribute('aria-pressed', String(type === 'bar'));
+  }
+  if (btnLine) {
+    btnLine.classList.toggle('active', type === 'line');
+    btnLine.setAttribute('aria-pressed', String(type === 'line'));
+  }
 
-  // Rebuild chart dengan tipe baru
   if (_classVoteData && _classVoteCandidates) {
     _buildChart(type);
   }
 }
 
+/** Destroy instance Chart.js yang sedang aktif. */
+function _destroyChart() {
+  if (_classVoteChart) {
+    _classVoteChart.destroy();
+    _classVoteChart = null;
+  }
+}
+
 /**
- * Build / rebuild instance Chart.js.
- * @param {'bar'|'line'} type
+ * Build atau rebuild Chart.js.
+ * BUG FIX: minWidth dihitung dari wrapper aktual bukan clientWidth yang bisa 0
+ * saat element baru muncul; gunakan scrollWidth sebagai fallback.
+ * BUG FIX: maintainAspectRatio dinonaktifkan agar canvas tidak overflow container
+ * pada mode scroll horizontal.
  */
 function _buildChart(type) {
   const breakdown  = _classVoteData;
   const candidates = _classVoteCandidates;
 
-  // Label sumbu X = nama kelas
-  const labels = breakdown.map(d => d.className);
-
-  // Satu dataset per kandidat
+  const labels   = breakdown.map(d => d.className);
   const datasets = candidates.map((c, i) => {
     const color = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
     const label = c.name + (c.pairName ? ' & ' + c.pairName : '');
     const data  = breakdown.map(d => d.votes[c.id] || 0);
 
-    const base = {
+    return {
       label,
       data,
-      backgroundColor: color + (type === 'bar' ? 'cc' : '22'),
-      borderColor:     color,
-      borderWidth:     type === 'bar' ? 0 : 2.5,
-      borderRadius:    type === 'bar' ? 5 : 0,
-      pointRadius:     type === 'line' ? 4 : 0,
-      pointHoverRadius: type === 'line' ? 6 : 0,
-      fill:            type === 'line',
-      tension:         0.35,
+      backgroundColor: type === 'bar'
+        ? color + 'cc'
+        : color + '28',
+      borderColor:      color,
+      borderWidth:      type === 'bar' ? 0 : 2.5,
+      borderRadius:     type === 'bar' ? 5 : 0,
+      pointRadius:      type === 'line' ? 4 : 0,
+      pointHoverRadius: type === 'line' ? 7 : 0,
+      fill:             type === 'line',
+      tension:          0.35,
     };
-    return base;
   });
 
-  // Render legend kustom
+  // Legend kustom
   const legendEl = document.getElementById('chart-legend');
   if (legendEl) {
     legendEl.innerHTML = candidates.map((c, i) => {
       const color = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
-      const label = `No. ${c.orderNumber} · ${Utils.escapeHtml(c.name)}` +
+      const name  = `No.${c.orderNumber} ${Utils.escapeHtml(c.name)}` +
                     (c.pairName ? ` &amp; ${Utils.escapeHtml(c.pairName)}` : '');
-      return `<div class="flex items-center gap-1.5 text-xs text-gray-600">
-        <span class="chart-legend-dot" style="background:${color}"></span>
-        <span>${label}</span>
+      return `<div class="flex items-center gap-1.5 text-xs text-gray-600 leading-none">
+        <span class="chart-legend-dot" style="background:${color}" aria-hidden="true"></span>
+        <span>${name}</span>
       </div>`;
     }).join('');
   }
 
-  // Destroy instance lama sebelum membuat yang baru
-  if (_classVoteChart) {
-    _classVoteChart.destroy();
-    _classVoteChart = null;
-  }
+  _destroyChart();
 
   const ctx = document.getElementById('class-vote-chart');
   if (!ctx) return;
 
-  // Hitung jumlah kelas — jika banyak, paksa scroll horizontal
-  const classCount  = labels.length;
-  const minBarWidth = 56;  // px per kelas per dataset
-  const candCount   = candidates.length;
-  const minWidth    = classCount * candCount * minBarWidth;
-  const wrapper     = ctx.parentElement;
-  if (wrapper && minWidth > wrapper.clientWidth) {
-    wrapper.style.overflowX = 'auto';
-    ctx.style.minWidth      = minWidth + 'px';
-  } else if (wrapper) {
-    wrapper.style.overflowX = '';
-    ctx.style.minWidth      = '';
+  // Hitung lebar minimum canvas
+  const classCount = labels.length;
+  const candCount  = candidates.length;
+  // Lebar per group (px): makin banyak kandidat butuh ruang lebih
+  const groupW     = type === 'bar' ? Math.max(48, candCount * 28) : 60;
+  const minCanvasW = classCount * groupW + 60; // +60 untuk sumbu Y
+
+  const wrapper = ctx.parentElement;
+  const wrapperW = wrapper ? (wrapper.clientWidth || wrapper.scrollWidth || 300) : 300;
+
+  if (minCanvasW > wrapperW) {
+    ctx.style.width    = minCanvasW + 'px';
+    ctx.style.minWidth = minCanvasW + 'px';
+  } else {
+    ctx.style.width    = '';
+    ctx.style.minWidth = '';
   }
+
+  // Tinggi tetap — tidak ikut stretch
+  ctx.style.height = '280px';
 
   _classVoteChart = new Chart(ctx, {
     type: type,
     data: { labels, datasets },
     options: {
-      responsive:          true,
-      maintainAspectRatio: true,
+      responsive:          false,  // BUG FIX: false agar canvas tidak overflow wrapper
+      maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: false },   // legend kustom di atas
+        legend: { display: false },
         tooltip: {
           callbacks: {
-            title:  (items) => 'Kelas: ' + items[0].label,
-            label:  (item)  => ` ${item.dataset.label}: ${item.parsed.y} suara`,
+            title: (items) => 'Kelas: ' + items[0].label,
+            label: (item)  => ` ${item.dataset.label}: ${item.parsed.y} suara`,
           },
         },
       },
       scales: {
         x: {
-          grid:    { display: false },
-          ticks:   { font: { size: 11 }, color: '#6b7280', maxRotation: 45, minRotation: 0 },
-          stacked: false,
+          grid:  { display: false },
+          ticks: {
+            font:         { size: 11 },
+            color:        '#6b7280',
+            maxRotation:  45,
+            minRotation:  0,
+            autoSkip:     false,
+          },
         },
         y: {
           beginAtZero: true,
@@ -1314,7 +1330,9 @@ function _buildChart(type) {
             font:      { size: 11 },
             color:     '#6b7280',
             precision: 0,
-            stepSize:  1,
+            // BUG FIX: stepSize dihitung dari data agar tidak muncul desimal
+            // pada data dengan rentang kecil.
+            callback: (v) => Number.isInteger(v) ? v : null,
           },
           title: {
             display: true,
@@ -1336,25 +1354,30 @@ async function exportResults() {
     return;
   }
 
-  Loader.show('Mengekspor hasil...');
-
-  let res;
-  try {
-    res = await API.result.getAdmin(_electionId);
-  } catch (err) {
+  // BUG FIX: gunakan _lastData jika ada untuk menghindari fetch ganda.
+  // Hanya fetch ulang jika belum ada data di cache.
+  let data;
+  if (_lastData) {
+    data = _lastData;
+  } else {
+    Loader.show('Mengekspor hasil...');
+    let res;
+    try {
+      res = await API.result.getAdmin(_electionId);
+    } catch (err) {
+      Loader.hide();
+      Toast.error('Gagal mengekspor data. Periksa koneksi.');
+      return;
+    }
     Loader.hide();
-    Toast.error('Gagal mengekspor data. Periksa koneksi.');
-    return;
+
+    if (!res.success) {
+      Toast.error(res.message || 'Gagal mengambil data untuk ekspor.');
+      return;
+    }
+    data = res.data || {};
   }
 
-  Loader.hide();
-
-  if (!res.success) {
-    Toast.error(res.message || 'Gagal mengambil data untuk ekspor.');
-    return;
-  }
-
-  const data       = res.data || {};
   const candidates = data.candidates || [];
   const usePoints  = !!(data.usePoints);
 
@@ -1363,34 +1386,40 @@ async function exportResults() {
     return;
   }
 
-  // Baris kandidat
   const candidateRows = candidates.map((c, i) => {
     const row = {
       peringkat:    i + 1,
-      no_urut:      c.orderNumber  || '',
-      nama_ketua:   c.name         || '',
-      kelas_ketua:  c.className    || '',
-      nama_wakil:   c.pairName     || '',
+      no_urut:      c.orderNumber   || '',
+      nama_ketua:   c.name          || '',
+      kelas_ketua:  c.className     || '',
+      nama_wakil:   c.pairName      || '',
       kelas_wakil:  c.pairClassName || '',
-      jumlah_suara: c.votes        || 0,
-      persentase:   (c.percentage  || 0) + '%',
+      jumlah_suara: c.votes         || 0,
+      persentase:   (c.percentage   || 0) + '%',
     };
     if (usePoints) row.total_poin = c.points || 0;
     return row;
   });
 
-  // Row statistik di akhir
   const stats = data.stats || {};
-  candidateRows.push({});  // baris kosong separator
+  candidateRows.push({});
   candidateRows.push({
     peringkat:    '---',
     no_urut:      'STATISTIK',
-    nama_ketua:   'Total Suara: ' + (data.totalVotes || 0),
-    kelas_ketua:  usePoints ? 'Total Poin: ' + (data.totalPoints || 0) : 'Total Pemilih: ' + (stats.totalVoters || 0),
-    nama_wakil:   usePoints ? 'Total Pemilih: ' + (stats.totalVoters || 0) : 'Sudah Memilih: ' + (stats.voted || 0),
-    kelas_wakil:  usePoints ? 'Sudah Memilih: ' + (stats.voted || 0) : 'Belum Memilih: ' + (stats.notVoted || 0),
-    jumlah_suara: usePoints ? 'Belum Memilih: ' + (stats.notVoted || 0) : '',
-    persentase:   'Partisipasi: ' + (stats.participationRate || 0) + '%',
+    nama_ketua:   'Total Suara: '   + (data.totalVotes    || 0),
+    kelas_ketua:  usePoints
+      ? 'Total Poin: '   + (data.totalPoints   || 0)
+      : 'Total Pemilih: '+ (stats.totalVoters  || 0),
+    nama_wakil:   usePoints
+      ? 'Total Pemilih: '+ (stats.totalVoters  || 0)
+      : 'Sudah Memilih: '+ (stats.voted        || 0),
+    kelas_wakil:  usePoints
+      ? 'Sudah Memilih: '+ (stats.voted        || 0)
+      : 'Belum Memilih: '+ (stats.notVoted     || 0),
+    jumlah_suara: usePoints
+      ? 'Belum Memilih: '+ (stats.notVoted     || 0)
+      : '',
+    persentase:   'Partisipasi: '   + (stats.participationRate || 0) + '%',
   });
 
   const el    = document.getElementById('election-select');
@@ -1398,14 +1427,14 @@ async function exportResults() {
   const fname = `hasil-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.csv`;
 
   Utils.exportCSV(candidateRows, fname);
-  Toast.success(`Hasil pemilihan berhasil diekspor.`);
+  Toast.success('Hasil pemilihan berhasil diekspor.');
 }
 
 // ── Show State ────────────────────────────────────────────────
 
 /**
- * @param {string} s  - 'loading' | 'content' | 'empty' | 'error'
- * @param {Object|string} [cfg] - konfigurasi empty/error
+ * Tampilkan salah satu state: 'loading' | 'content' | 'empty' | 'error'
+ * Sembunyikan yang lain.
  */
 function showState(s, cfg) {
   ['loading', 'content', 'empty', 'error'].forEach(name => {
@@ -1414,17 +1443,14 @@ function showState(s, cfg) {
   });
 
   if (s === 'empty' && cfg) {
-    const config = typeof cfg === 'string' ? { title: '', msg: cfg } : cfg;
-    const titleEl = document.getElementById('empty-title');
-    const msgEl   = document.getElementById('empty-msg');
-    if (titleEl) titleEl.textContent = config.title || '';
-    if (msgEl)   msgEl.textContent   = config.msg   || '';
+    const config  = typeof cfg === 'string' ? { title: '', msg: cfg } : cfg;
+    setText('empty-title', config.title || '');
+    setText('empty-msg',   config.msg   || '');
   }
 
   if (s === 'error' && cfg) {
-    const msg   = typeof cfg === 'string' ? cfg : (cfg.msg || '');
-    const errEl = document.getElementById('error-msg');
-    if (errEl) errEl.textContent = msg;
+    const msg = typeof cfg === 'string' ? cfg : (cfg.msg || '');
+    setText('error-msg', msg);
   }
 }
 </script>
