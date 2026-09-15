@@ -556,18 +556,31 @@ function applyLoginFields(fields) {
    ============================================================= */
 
 /**
+ * Buat href ke halaman kandidat.
+ * Dipusatkan di sini agar tidak ada duplikasi dan perubahan path cukup di satu tempat.
+ * @param {string|null} electionId
+ * @returns {string}
+ */
+function _candidateHref(electionId) {
+  return electionId
+    ? '/candidates.html?electionId=' + encodeURIComponent(electionId)
+    : '/candidates.html';
+}
+
+/**
  * Render link "Kenali Pasangan Calon" di footer card login.
  *
  * @param {Array<{href: string, title: string|null, isUpcoming?: boolean}>} items
- *   - Single item (title null)  → satu link "Kenali Pasangan Calon"
- *   - Multiple items            → label + satu link per election (nama sebagai teks)
- *                                 item upcoming diberi suffix "(Akan Datang)"
+ *   - Kosong         → satu link generik ke /candidates.html
+ *   - Single item    → satu link "Kenali Pasangan Calon" (title tidak ditampilkan)
+ *   - Multiple items → label + daftar link vertikal, tiap link pakai nama election;
+ *                      item upcoming diberi suffix "(Akan Datang)"
  */
 function _renderCardCandidateLinks(items) {
   const wrap = document.getElementById('candidates-card-wrap');
   if (!wrap) return;
 
-  // Reset class wrapper ke default (bisa berubah dari render sebelumnya)
+  // Reset class wrapper ke default (bisa berubah dari render sebelumnya ke mode multi)
   wrap.className = 'inline-flex items-center justify-center gap-1.5 flex-wrap';
 
   const linkCls =
@@ -585,15 +598,16 @@ function _renderCardCandidateLinks(items) {
 
   if (items.length === 1) {
     const icon = items[0].isUpcoming ? 'fa-clock' : 'fa-users';
+    // Escape href untuk mencegah injection meski ID dari GAS biasanya aman
     wrap.innerHTML =
-      '<a href="' + items[0].href + '" class="' + linkCls + '">' +
+      '<a href="' + Utils.escapeHtml(items[0].href) + '" class="' + linkCls + '">' +
         '<i class="fa-solid ' + icon + ' fa-sm" aria-hidden="true"></i>' +
         ' Kenali Pasangan Calon' +
       '</a>';
     return;
   }
 
-  // Beberapa election: label + daftar link vertikal
+  // Mode multi: flex-col agar tidak melebar horizontal
   wrap.className = 'flex flex-col items-center gap-1';
   wrap.innerHTML =
     '<span class="text-xs text-gray-400 font-medium">' +
@@ -601,45 +615,42 @@ function _renderCardCandidateLinks(items) {
       'Kenali Pasangan Calon:' +
     '</span>' +
     items.map(function(item) {
+      // Suffix hardcoded — tidak perlu di-escape, tapi dipisah dari data user
+      const label  = Utils.escapeHtml(item.title || 'Lihat Kandidat');
       const suffix = item.isUpcoming
         ? ' <span class="text-gray-400 font-normal">(Akan Datang)</span>'
         : '';
       return (
-        '<a href="' + item.href + '" class="' + linkCls + '">' +
-          Utils.escapeHtml(item.title || 'Lihat Kandidat') + suffix +
+        '<a href="' + Utils.escapeHtml(item.href) + '" class="' + linkCls + '">' +
+          label + suffix +
         '</a>'
       );
     }).join('');
 }
 
 /**
- * Render isi banner upcoming (#upcoming-elections-list).
- * Dipanggil baik dari cabang "hanya upcoming" maupun dari cabang
- * "ada aktif + ada upcoming" (sebagai seksi tambahan).
+ * Render isi banner upcoming (#upcoming-elections-list) lalu tampilkan banner-nya.
  *
- * @param {Array} upList  — array election upcoming dari d.upcomingElections
+ * @param {Element}  upBannerEl  — elemen #upcoming-info (sudah di-query di loadElectionInfo)
+ * @param {Element}  listEl      — elemen #upcoming-elections-list
+ * @param {Object[]} upList      — array election upcoming dari d.upcomingElections
  */
-function _renderUpcomingBanner(upList) {
-  const upBanner = document.getElementById('upcoming-info');
-  const listEl   = document.getElementById('upcoming-elections-list');
-  if (!upBanner || !listEl || !upList || upList.length === 0) return;
+function _renderUpcomingBanner(upBannerEl, listEl, upList) {
+  if (!upBannerEl || !listEl || !upList || upList.length === 0) return;
 
-  // Link style untuk banner upcoming (warna kuning)
   const linkCls =
     'inline-flex items-center gap-1.5 mt-2 text-yellow-200 hover:text-white ' +
     'text-xs font-semibold underline underline-offset-2 transition-colors';
 
   if (upList.length === 1) {
     const e    = upList[0];
-    const href = e.id
-      ? '/candidates.html?electionId=' + encodeURIComponent(e.id)
-      : '/candidates.html';
+    const href = _candidateHref(e.id);
     listEl.innerHTML =
       '<p class="font-semibold">Pemilihan Akan Segera Dimulai</p>' +
       '<p class="text-yellow-100/80 text-xs mt-0.5 leading-relaxed">' +
         'Dimulai pada ' + Utils.escapeHtml(Utils.formatDateTime(e.startDate)) +
       '</p>' +
-      '<a href="' + href + '" class="' + linkCls + '">' +
+      '<a href="' + Utils.escapeHtml(href) + '" class="' + linkCls + '">' +
         '<i class="fa-solid fa-users fa-xs" aria-hidden="true"></i>' +
         ' Kenali Pasangan Calon' +
       '</a>';
@@ -647,9 +658,7 @@ function _renderUpcomingBanner(upList) {
     listEl.innerHTML =
       '<p class="font-semibold">' + upList.length + ' Pemilihan Akan Datang</p>' +
       upList.map(function(e, idx) {
-        const href = e.id
-          ? '/candidates.html?electionId=' + encodeURIComponent(e.id)
-          : '/candidates.html';
+        const href      = _candidateHref(e.id);
         const separator = idx < upList.length - 1
           ? '<div class="border-t border-yellow-300/20 my-2"></div>'
           : '';
@@ -661,7 +670,7 @@ function _renderUpcomingBanner(upList) {
             '<p class="text-yellow-100/60 text-xs mt-0.5">' +
               'Dimulai ' + Utils.escapeHtml(Utils.formatDateTime(e.startDate)) +
             '</p>' +
-            '<a href="' + href + '" class="' + linkCls + '">' +
+            '<a href="' + Utils.escapeHtml(href) + '" class="' + linkCls + '">' +
               '<i class="fa-solid fa-users fa-xs" aria-hidden="true"></i>' +
               ' Kenali Pasangan Calon' +
             '</a>' +
@@ -671,7 +680,7 @@ function _renderUpcomingBanner(upList) {
       }).join('');
   }
 
-  upBanner.classList.remove('hidden');
+  upBannerEl.classList.remove('hidden');
 }
 
 async function loadElectionInfo() {
@@ -679,6 +688,9 @@ async function loadElectionInfo() {
   const elBanner = document.getElementById('election-info');
   const upBanner = document.getElementById('upcoming-info');
   const noBanner = document.getElementById('no-election-info');
+  // Cache elemen yang dipakai oleh sub-render agar tidak query ulang
+  const activeListEl   = document.getElementById('active-elections-list');
+  const upcomingListEl = document.getElementById('upcoming-elections-list');
 
   function hideSkeleton() {
     if (skeleton) skeleton.style.display = 'none';
@@ -692,32 +704,14 @@ async function loadElectionInfo() {
     if (res.success && res.data) {
       const d = res.data;
 
-      // Normalkan array dari response (guard untuk backward-compat)
-      const activeList   = Array.isArray(d.elections)         && d.elections.length > 0
+      // Normalkan array dari response (guard untuk backward-compat dengan shape lama)
+      const activeList = Array.isArray(d.elections) && d.elections.length > 0
         ? d.elections
         : (d.active && d.election ? [d.election] : []);
-      const upcomingList = Array.isArray(d.upcomingElections)  && d.upcomingElections.length > 0
+
+      const upcomingList = Array.isArray(d.upcomingElections) && d.upcomingElections.length > 0
         ? d.upcomingElections
         : (d.upcoming && d.election && !d.active ? [d.election] : []);
-
-      // ── Bangun daftar link untuk footer card ──────────────
-      // Aktif terlebih dulu, lalu upcoming (diberi flag isUpcoming)
-      const cardItems = [
-        ...activeList.map(function(e) {
-          return {
-            href:       e.id ? '/candidates.html?electionId=' + encodeURIComponent(e.id) : '/candidates.html',
-            title:      e.title || 'Pemilihan',
-            isUpcoming: false,
-          };
-        }),
-        ...upcomingList.map(function(e) {
-          return {
-            href:       e.id ? '/candidates.html?electionId=' + encodeURIComponent(e.id) : '/candidates.html',
-            title:      e.title || 'Pemilihan',
-            isUpcoming: true,
-          };
-        }),
-      ];
 
       if (activeList.length === 0 && upcomingList.length === 0) {
         noBanner.classList.remove('hidden');
@@ -726,76 +720,76 @@ async function loadElectionInfo() {
       }
 
       // ── Banner aktif ──────────────────────────────────────
-      if (activeList.length > 0) {
-        const listEl = document.getElementById('active-elections-list');
-        if (listEl) {
-          if (activeList.length === 1) {
-            const e     = activeList[0];
-            const href  = e.id
-              ? '/candidates.html?electionId=' + encodeURIComponent(e.id)
-              : '/candidates.html';
-            listEl.innerHTML =
-              '<p class="font-semibold text-white truncate">' +
-                Utils.escapeHtml(e.title || 'Pemilihan sedang berlangsung') +
-              '</p>' +
-              '<p class="text-white/70 text-xs mt-0.5 leading-relaxed">' +
-                Utils.escapeHtml(Utils.formatDateTime(e.startDate) + ' s/d ' + Utils.formatDateTime(e.endDate)) +
-              '</p>' +
-              '<a href="' + href + '" ' +
-                 'class="inline-flex items-center gap-1.5 mt-2 text-white/80 hover:text-white ' +
-                 'text-xs font-semibold underline underline-offset-2 transition-colors">' +
-                '<i class="fa-solid fa-users fa-xs" aria-hidden="true"></i>' +
-                ' Kenali Pasangan Calon' +
-              '</a>';
-          } else {
-            listEl.innerHTML =
-              '<p class="font-semibold text-white mb-2">' +
-                activeList.length + ' Pemilihan Sedang Berlangsung' +
-              '</p>' +
-              activeList.map(function(e, idx) {
-                const href = e.id
-                  ? '/candidates.html?electionId=' + encodeURIComponent(e.id)
-                  : '/candidates.html';
-                const separator = idx < activeList.length - 1
-                  ? '<div class="border-t border-white/15 my-2"></div>'
-                  : '';
-                return (
-                  '<div>' +
-                    '<p class="text-white/90 text-xs font-semibold truncate">' +
-                      Utils.escapeHtml(e.title || 'Pemilihan') +
-                    '</p>' +
-                    '<p class="text-white/60 text-xs mt-0.5">' +
-                      Utils.escapeHtml(Utils.formatDateTime(e.startDate) + ' s/d ' + Utils.formatDateTime(e.endDate)) +
-                    '</p>' +
-                    '<a href="' + href + '" ' +
-                       'class="inline-flex items-center gap-1.5 mt-1.5 text-white/80 hover:text-white ' +
-                       'text-xs font-semibold underline underline-offset-2 transition-colors">' +
-                      '<i class="fa-solid fa-users fa-xs" aria-hidden="true"></i>' +
-                      ' Kenali Pasangan Calon' +
-                    '</a>' +
-                  '</div>' +
-                  separator
-                );
-              }).join('');
-          }
+      if (activeList.length > 0 && activeListEl) {
+        if (activeList.length === 1) {
+          const e    = activeList[0];
+          const href = _candidateHref(e.id);
+          activeListEl.innerHTML =
+            '<p class="font-semibold text-white truncate">' +
+              Utils.escapeHtml(e.title || 'Pemilihan sedang berlangsung') +
+            '</p>' +
+            '<p class="text-white/70 text-xs mt-0.5 leading-relaxed">' +
+              Utils.escapeHtml(Utils.formatDateTime(e.startDate) + ' s/d ' + Utils.formatDateTime(e.endDate)) +
+            '</p>' +
+            '<a href="' + Utils.escapeHtml(href) + '" ' +
+               'class="inline-flex items-center gap-1.5 mt-2 text-white/80 hover:text-white ' +
+               'text-xs font-semibold underline underline-offset-2 transition-colors">' +
+              '<i class="fa-solid fa-users fa-xs" aria-hidden="true"></i>' +
+              ' Kenali Pasangan Calon' +
+            '</a>';
+        } else {
+          activeListEl.innerHTML =
+            '<p class="font-semibold text-white mb-2">' +
+              activeList.length + ' Pemilihan Sedang Berlangsung' +
+            '</p>' +
+            activeList.map(function(e, idx) {
+              const href      = _candidateHref(e.id);
+              const separator = idx < activeList.length - 1
+                ? '<div class="border-t border-white/15 my-2"></div>'
+                : '';
+              return (
+                '<div>' +
+                  '<p class="text-white/90 text-xs font-semibold truncate">' +
+                    Utils.escapeHtml(e.title || 'Pemilihan') +
+                  '</p>' +
+                  '<p class="text-white/60 text-xs mt-0.5">' +
+                    Utils.escapeHtml(Utils.formatDateTime(e.startDate) + ' s/d ' + Utils.formatDateTime(e.endDate)) +
+                  '</p>' +
+                  '<a href="' + Utils.escapeHtml(href) + '" ' +
+                     'class="inline-flex items-center gap-1.5 mt-1.5 text-white/80 hover:text-white ' +
+                     'text-xs font-semibold underline underline-offset-2 transition-colors">' +
+                    '<i class="fa-solid fa-users fa-xs" aria-hidden="true"></i>' +
+                    ' Kenali Pasangan Calon' +
+                  '</a>' +
+                '</div>' +
+                separator
+              );
+            }).join('');
         }
         elBanner.classList.remove('hidden');
       }
 
-      // ── Banner upcoming (selalu tampil jika ada, bahkan saat ada aktif) ──
+      // ── Banner upcoming — tampil bahkan saat ada election aktif ──
       if (upcomingList.length > 0) {
-        _renderUpcomingBanner(upcomingList);
+        _renderUpcomingBanner(upBanner, upcomingListEl, upcomingList);
       }
 
-      // ── Footer card login ─────────────────────────────────
-      _renderCardCandidateLinks(cardItems);
+      // ── Footer card login: aktif dulu, lalu upcoming ──────
+      _renderCardCandidateLinks([
+        ...activeList.map(function(e) {
+          return { href: _candidateHref(e.id), title: e.title || 'Pemilihan', isUpcoming: false };
+        }),
+        ...upcomingList.map(function(e) {
+          return { href: _candidateHref(e.id), title: e.title || 'Pemilihan', isUpcoming: true };
+        }),
+      ]);
 
     } else if (res.errorCode === 'NETWORK_ERROR' || res.errorCode === 'CONFIG_ERROR') {
-      // Jaringan bermasalah / GAS URL belum dikonfigurasi — silent fail
-      hideSkeleton();
+      // GAS URL belum dikonfigurasi atau jaringan bermasalah — biarkan kosong (silent fail)
+      // skeleton sudah disembunyikan di atas, tidak perlu menampilkan banner apapun
 
     } else {
-      // Respons sukses:false tapi bukan network error → anggap tidak ada election
+      // success:false bukan network error → tidak ada election yang bisa ditampilkan
       noBanner.classList.remove('hidden');
     }
 
