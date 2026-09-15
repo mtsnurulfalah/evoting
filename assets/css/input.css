@@ -230,22 +230,34 @@
     @apply text-sm text-gray-500 mt-0.5;
   }
 
-  /* --- Candidate Card (Voting) --- */
+  /* --- Candidate Card (Voting) ---
+     CATATAN: Definisi visual detail (.selected state, transform, box-shadow, dll.)
+     ada di voting.html <style> agar tidak tumpang tindih (specificity conflict).
+     Di sini hanya properti dasar yang dipakai halaman lain jika merender kartu. */
   .candidate-card {
-    @apply card cursor-pointer border-2 border-transparent p-4 hover:border-primary-400
-           transition-all duration-200 hover:shadow-md select-none;
+    @apply card cursor-pointer border-2 border-transparent p-4
+           transition-all duration-200 select-none;
+  }
+  .candidate-card:hover {
+    @apply border-primary-200 shadow-md;
   }
   .candidate-card.selected {
-    @apply border-primary-600 bg-primary-50 shadow-md;
-  }
-  .candidate-card.selected .candidate-number {
-    @apply bg-primary-600 text-white;
+    @apply border-primary-600 shadow-md;
+    background: linear-gradient(150deg, #eff6ff 0%, #ffffff 60%);
   }
 
-  /* --- Number Badge --- */
+  /* --- Number Badge ---
+     FIX #5: bg-gray-200 adalah default; voting.html mengatur selected state via
+     .candidate-card.selected .candidate-number (CSS specificity lebih tinggi). */
   .candidate-number {
-    @apply w-10 h-10 rounded-full bg-gray-200 text-gray-700 font-bold text-lg
+    @apply w-10 h-10 rounded-full font-bold text-lg
            flex items-center justify-center flex-shrink-0 transition-colors duration-200;
+    background-color: #e5e7eb; /* gray-200 */
+    color: #374151;            /* gray-700 */
+  }
+  .candidate-card.selected .candidate-number {
+    background-color: #2563eb; /* primary-600 */
+    color: #ffffff;
   }
 
   /* --- Upload Area --- */
