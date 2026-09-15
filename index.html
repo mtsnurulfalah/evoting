@@ -142,24 +142,20 @@
       <!-- Skeleton: tampil dulu, disembunyikan setelah data datang -->
       <div id="election-skeleton" class="skeleton-shimmer h-14 w-full"></div>
 
-      <!-- Banner: Pemilihan Aktif -->
+      <!-- Banner: Pemilihan Aktif (diisi dinamis oleh loadElectionInfo) -->
+      <!--
+        Untuk satu election: menampilkan judul, periode, dan satu link "Kenali Pasangan Calon".
+        Untuk beberapa election aktif bersamaan: menampilkan daftar election dengan
+        link "Kenali Pasangan Calon" masing-masing di bawah setiap entri.
+      -->
       <div id="election-info"
            class="hidden banner-active backdrop-blur rounded-2xl p-4 text-sm">
         <div class="flex items-start gap-3">
           <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
             <i class="fa-solid fa-calendar-check text-white text-sm"></i>
           </div>
-          <div class="min-w-0 flex-1">
-            <p class="font-semibold text-white truncate" id="election-title">Pemilihan berlangsung</p>
-            <p class="text-white/70 text-xs mt-0.5 leading-relaxed" id="election-period"></p>
-            <a id="btn-view-candidates-active"
-               href="/candidates.html"
-               class="inline-flex items-center gap-1.5 mt-2 text-white/80 hover:text-white
-                      text-xs font-semibold underline underline-offset-2 transition-colors">
-              <i class="fa-solid fa-users fa-xs"></i>
-              Kenali Pasangan Calon
-            </a>
-          </div>
+          <!-- Konten diisi JS: satu blok teks untuk single, daftar untuk multi -->
+          <div id="active-elections-list" class="min-w-0 flex-1"></div>
         </div>
       </div>
 
@@ -556,10 +552,10 @@ function applyLoginFields(fields) {
    ============================================================= */
 
 async function loadElectionInfo() {
-  const skeleton     = document.getElementById('election-skeleton');
-  const elBanner     = document.getElementById('election-info');
-  const upBanner     = document.getElementById('upcoming-info');
-  const noBanner     = document.getElementById('no-election-info');
+  const skeleton = document.getElementById('election-skeleton');
+  const elBanner = document.getElementById('election-info');
+  const upBanner = document.getElementById('upcoming-info');
+  const noBanner = document.getElementById('no-election-info');
 
   function hideSkeleton() {
     if (skeleton) skeleton.style.display = 'none';
@@ -573,50 +569,117 @@ async function loadElectionInfo() {
     if (res.success && res.data) {
       const d = res.data;
 
-      if (d.active && d.election) {
-        // Pemilihan sedang berlangsung
-        document.getElementById('election-title').textContent =
-          d.election.title || 'Pemilihan sedang berlangsung';
-        const start = Utils.formatDateTime(d.election.startDate);
-        const end   = Utils.formatDateTime(d.election.endDate);
-        document.getElementById('election-period').textContent =
-          start + ' s/d ' + end;
-        elBanner.classList.remove('hidden');
-        // Teruskan electionId ke link "Kenali Pasangan Calon"
-        const btnActive = document.getElementById('btn-view-candidates-active');
-        if (btnActive && d.election.id) {
-          btnActive.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
-        }
-        // Sinkronkan juga link di footer card login
-        const btnCard = document.getElementById('btn-candidates-card');
-        if (btnCard && d.election.id) {
-          btnCard.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
+      if (d.active) {
+        // ── Satu atau lebih election sedang berlangsung ──────────
+        // Normalkan: pakai d.elections[] jika tersedia, fallback ke [d.election]
+        const activeList = (Array.isArray(d.elections) && d.elections.length > 0)
+          ? d.elections
+          : (d.election ? [d.election] : []);
+
+        if (activeList.length === 0) {
+          noBanner.classList.remove('hidden');
+          return;
         }
 
+        const listEl = document.getElementById('active-elections-list');
+        if (!listEl) return;
+
+        if (activeList.length === 1) {
+          // ── Single active election — tampilan ringkas seperti semula ──
+          const e     = activeList[0];
+          const start = Utils.formatDateTime(e.startDate);
+          const end   = Utils.formatDateTime(e.endDate);
+          const href  = e.id
+            ? '/candidates.html?electionId=' + encodeURIComponent(e.id)
+            : '/candidates.html';
+
+          listEl.innerHTML =
+            '<p class="font-semibold text-white truncate">' +
+              Utils.escapeHtml(e.title || 'Pemilihan sedang berlangsung') +
+            '</p>' +
+            '<p class="text-white/70 text-xs mt-0.5 leading-relaxed">' +
+              Utils.escapeHtml(start + ' s/d ' + end) +
+            '</p>' +
+            '<a href="' + href + '" ' +
+               'class="inline-flex items-center gap-1.5 mt-2 text-white/80 hover:text-white ' +
+               'text-xs font-semibold underline underline-offset-2 transition-colors">' +
+              '<i class="fa-solid fa-users fa-xs" aria-hidden="true"></i>' +
+              ' Kenali Pasangan Calon' +
+            '</a>';
+
+          // Sinkronkan link footer card login
+          const btnCard = document.getElementById('btn-candidates-card');
+          if (btnCard && e.id) {
+            btnCard.href = href;
+          }
+
+        } else {
+          // ── Multiple active elections — daftar per election ──────
+          const btnCard = document.getElementById('btn-candidates-card');
+          if (btnCard) {
+            // Footer card: tanpa electionId, biarkan candidates.html pilih sendiri
+            btnCard.href = '/candidates.html';
+          }
+
+          listEl.innerHTML =
+            '<p class="font-semibold text-white mb-2">' +
+              activeList.length + ' Pemilihan Sedang Berlangsung' +
+            '</p>' +
+            activeList.map(function(e, idx) {
+              const start = Utils.formatDateTime(e.startDate);
+              const end   = Utils.formatDateTime(e.endDate);
+              const href  = e.id
+                ? '/candidates.html?electionId=' + encodeURIComponent(e.id)
+                : '/candidates.html';
+              const separator = idx < activeList.length - 1
+                ? '<div class="border-t border-white/15 my-2"></div>'
+                : '';
+              return (
+                '<div>' +
+                  '<p class="text-white/90 text-xs font-semibold truncate">' +
+                    Utils.escapeHtml(e.title || 'Pemilihan') +
+                  '</p>' +
+                  '<p class="text-white/60 text-xs mt-0.5">' +
+                    Utils.escapeHtml(start + ' s/d ' + end) +
+                  '</p>' +
+                  '<a href="' + href + '" ' +
+                     'class="inline-flex items-center gap-1.5 mt-1.5 text-white/80 hover:text-white ' +
+                     'text-xs font-semibold underline underline-offset-2 transition-colors">' +
+                    '<i class="fa-solid fa-users fa-xs" aria-hidden="true"></i>' +
+                    ' Kenali Pasangan Calon' +
+                  '</a>' +
+                '</div>' +
+                separator
+              );
+            }).join('');
+        }
+
+        elBanner.classList.remove('hidden');
+
       } else if (d.upcoming && d.election) {
-        // Pemilihan akan datang
+        // ── Pemilihan akan datang ────────────────────────────────
         document.getElementById('upcoming-text').textContent =
           'Dimulai pada ' + Utils.formatDateTime(d.election.startDate);
         upBanner.classList.remove('hidden');
+
         // Teruskan electionId ke link "Kenali Pasangan Calon"
         const btnUpcoming = document.getElementById('btn-view-candidates-upcoming');
         if (btnUpcoming && d.election.id) {
           btnUpcoming.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
         }
-        // Sinkronkan juga link di footer card login
+        // Sinkronkan link di footer card login
         const btnCardUp = document.getElementById('btn-candidates-card');
         if (btnCardUp && d.election.id) {
           btnCardUp.href = '/candidates.html?electionId=' + encodeURIComponent(d.election.id);
         }
 
       } else {
-        // Tidak ada pemilihan aktif/upcoming (active:false, upcoming:false)
+        // Tidak ada pemilihan aktif/upcoming
         noBanner.classList.remove('hidden');
       }
 
     } else if (res.errorCode === 'NETWORK_ERROR' || res.errorCode === 'CONFIG_ERROR') {
-      // Jaringan bermasalah / GAS URL belum dikonfigurasi —
-      // Jangan tampilkan "belum ada pemilihan", biarkan kosong (silent fail).
+      // Jaringan bermasalah / GAS URL belum dikonfigurasi — silent fail
       hideSkeleton();
 
     } else {
