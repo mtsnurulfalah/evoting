@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="../assets/css/tailwind.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
     /* ── Stat cards ── */
     .result-stat-card {
@@ -270,6 +271,30 @@
     @media (max-width: 640px) {
       .modal-backdrop { align-items: flex-end; padding: 0; }
       .modal-box { border-radius: 20px 20px 0 0; max-height: 92dvh; max-height: 92vh; }
+    }
+
+    /* ── Chart suara per kelas ── */
+    .chart-type-btn {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chart-type-btn.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+    }
+    .chart-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      flex-shrink: 0;
     }
   </style>
 </head>
@@ -581,7 +606,34 @@
           </div>
         </div>
 
-      </div><!-- /content-state -->
+        <!-- Class vote chart card -->
+        <div class="result-card hidden" id="class-vote-chart-box">
+          <div class="result-card-header">
+            <div>
+              <h3 class="text-sm font-bold text-gray-800">Suara per Kelas per Paslon</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Distribusi suara dari setiap kelas untuk masing-masing pasangan calon</p>
+            </div>
+            <!-- Toggle tipe grafik -->
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <button class="chart-type-btn active" id="chart-btn-bar"
+                      onclick="switchChartType('bar')" title="Grafik batang">
+                <i class="fa-solid fa-chart-column"></i>
+              </button>
+              <button class="chart-type-btn" id="chart-btn-line"
+                      onclick="switchChartType('line')" title="Grafik garis">
+                <i class="fa-solid fa-chart-line"></i>
+              </button>
+            </div>
+          </div>
+          <!-- Legend paslon -->
+          <div class="px-4 pt-3 flex flex-wrap gap-3" id="chart-legend"></div>
+          <!-- Canvas -->
+          <div class="p-4 pt-2" style="position:relative; min-height:260px;">
+            <canvas id="class-vote-chart" style="max-height:360px;"></canvas>
+          </div>
+        </div>
+
+        </div><!-- /content-state -->
     </div>
   </main>
 </div>
@@ -856,6 +908,9 @@ function renderResults(data) {
 
   // ── Class breakdown ──
   renderClassBreakdown(data.classSummary, usePoints);
+
+  // ── Class vote chart ──
+  renderClassVoteChart(data.classVoteBreakdown, candidates);
 }
 
 function renderWinnerBanner(winner, stats, usePoints) {
@@ -1107,6 +1162,170 @@ function renderClassBreakdown(classSummary, usePoints) {
         </td>
       </tr>`;
   }).join('');
+}
+
+// ── Class Vote Chart ──────────────────────────────────────────
+
+// Instance Chart.js aktif — disimpan agar bisa di-destroy sebelum re-render
+let _classVoteChart     = null;
+let _classVoteChartType = 'bar';   // 'bar' | 'line'
+// Data terakhir untuk chart — dipakai ulang saat switchChartType
+let _classVoteData      = null;
+let _classVoteCandidates = null;
+
+/**
+ * Render grafik suara per kelas per paslon.
+ * @param {Array}   classVoteBreakdown  - data.classVoteBreakdown dari API
+ * @param {Array}   candidates          - data.candidates dari API
+ */
+function renderClassVoteChart(classVoteBreakdown, candidates) {
+  const box = document.getElementById('class-vote-chart-box');
+  if (!box) return;
+
+  // Sembunyikan jika tidak ada data
+  if (!classVoteBreakdown || !classVoteBreakdown.length || !candidates || !candidates.length) {
+    box.classList.add('hidden');
+    _classVoteData       = null;
+    _classVoteCandidates = null;
+    return;
+  }
+
+  // Simpan untuk dipakai ulang saat toggle tipe grafik
+  _classVoteData       = classVoteBreakdown;
+  _classVoteCandidates = candidates;
+
+  box.classList.remove('hidden');
+  _buildChart(_classVoteChartType);
+}
+
+/**
+ * Ganti tipe grafik (bar ↔ line) tanpa fetch ulang.
+ * Dipanggil dari onclick tombol toggle.
+ */
+function switchChartType(type) {
+  if (_classVoteChartType === type) return;
+  _classVoteChartType = type;
+
+  // Update tampilan tombol
+  document.getElementById('chart-btn-bar') .classList.toggle('active', type === 'bar');
+  document.getElementById('chart-btn-line').classList.toggle('active', type === 'line');
+
+  // Rebuild chart dengan tipe baru
+  if (_classVoteData && _classVoteCandidates) {
+    _buildChart(type);
+  }
+}
+
+/**
+ * Build / rebuild instance Chart.js.
+ * @param {'bar'|'line'} type
+ */
+function _buildChart(type) {
+  const breakdown  = _classVoteData;
+  const candidates = _classVoteCandidates;
+
+  // Label sumbu X = nama kelas
+  const labels = breakdown.map(d => d.className);
+
+  // Satu dataset per kandidat
+  const datasets = candidates.map((c, i) => {
+    const color = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
+    const label = c.name + (c.pairName ? ' & ' + c.pairName : '');
+    const data  = breakdown.map(d => d.votes[c.id] || 0);
+
+    const base = {
+      label,
+      data,
+      backgroundColor: color + (type === 'bar' ? 'cc' : '22'),
+      borderColor:     color,
+      borderWidth:     type === 'bar' ? 0 : 2.5,
+      borderRadius:    type === 'bar' ? 5 : 0,
+      pointRadius:     type === 'line' ? 4 : 0,
+      pointHoverRadius: type === 'line' ? 6 : 0,
+      fill:            type === 'line',
+      tension:         0.35,
+    };
+    return base;
+  });
+
+  // Render legend kustom
+  const legendEl = document.getElementById('chart-legend');
+  if (legendEl) {
+    legendEl.innerHTML = candidates.map((c, i) => {
+      const color = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
+      const label = `No. ${c.orderNumber} · ${Utils.escapeHtml(c.name)}` +
+                    (c.pairName ? ` &amp; ${Utils.escapeHtml(c.pairName)}` : '');
+      return `<div class="flex items-center gap-1.5 text-xs text-gray-600">
+        <span class="chart-legend-dot" style="background:${color}"></span>
+        <span>${label}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Destroy instance lama sebelum membuat yang baru
+  if (_classVoteChart) {
+    _classVoteChart.destroy();
+    _classVoteChart = null;
+  }
+
+  const ctx = document.getElementById('class-vote-chart');
+  if (!ctx) return;
+
+  // Hitung jumlah kelas — jika banyak, paksa scroll horizontal
+  const classCount  = labels.length;
+  const minBarWidth = 56;  // px per kelas per dataset
+  const candCount   = candidates.length;
+  const minWidth    = classCount * candCount * minBarWidth;
+  const wrapper     = ctx.parentElement;
+  if (wrapper && minWidth > wrapper.clientWidth) {
+    wrapper.style.overflowX = 'auto';
+    ctx.style.minWidth      = minWidth + 'px';
+  } else if (wrapper) {
+    wrapper.style.overflowX = '';
+    ctx.style.minWidth      = '';
+  }
+
+  _classVoteChart = new Chart(ctx, {
+    type: type,
+    data: { labels, datasets },
+    options: {
+      responsive:          true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },   // legend kustom di atas
+        tooltip: {
+          callbacks: {
+            title:  (items) => 'Kelas: ' + items[0].label,
+            label:  (item)  => ` ${item.dataset.label}: ${item.parsed.y} suara`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid:    { display: false },
+          ticks:   { font: { size: 11 }, color: '#6b7280', maxRotation: 45, minRotation: 0 },
+          stacked: false,
+        },
+        y: {
+          beginAtZero: true,
+          grid:        { color: '#f3f4f6' },
+          ticks: {
+            font:      { size: 11 },
+            color:     '#6b7280',
+            precision: 0,
+            stepSize:  1,
+          },
+          title: {
+            display: true,
+            text:    'Jumlah Suara',
+            font:    { size: 11 },
+            color:   '#9ca3af',
+          },
+        },
+      },
+    },
+  });
 }
 
 // ── Export ────────────────────────────────────────────────────
