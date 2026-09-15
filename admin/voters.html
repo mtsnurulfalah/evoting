@@ -287,6 +287,55 @@
       transition: width 1s linear, background-color 0.5s ease;
     }
 
+    /* ── Batch selection ── */
+    .batch-toolbar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      background: #eff6ff;
+      border-bottom: 1px solid #bfdbfe;
+      flex-wrap: wrap;
+    }
+    .batch-toolbar.batch-visible {
+      display: flex;
+    }
+    .batch-count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 5px;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    /* Checkbox kolom: lebar tetap agar rapat */
+    .th-check, .td-check {
+      width: 40px;
+      padding-left: 14px !important;
+      flex-shrink: 0;
+    }
+    /* Highlight baris yang dipilih */
+    .voters-table tbody tr.row-selected {
+      background-color: #eff6ff !important;
+    }
+    .voters-table tbody tr.row-selected:hover {
+      background-color: #dbeafe !important;
+    }
+    /* Checkbox mobile: tetap tampil */
+    @media (max-width: 767px) {
+      .voters-table td.td-check {
+        display: flex !important;
+        align-items: center;
+      }
+      .voters-table td.td-check::before { display: none !important; }
+    }
+
     /* ── Upload area ── */
     .upload-area {
       display: flex;
@@ -809,12 +858,45 @@
             </div>
           </div>
 
+          <!-- Batch delete toolbar (muncul saat ada baris dipilih) -->
+          <div id="batch-toolbar" class="batch-toolbar" role="toolbar" aria-label="Toolbar aksi batch pemilih">
+            <input type="checkbox" id="cb-select-all"
+                   class="cb-select-all w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
+                   title="Pilih / batalkan semua baris yang terlihat"
+                   aria-label="Pilih semua pemilih di halaman ini"/>
+            <span class="text-sm font-semibold text-blue-800">
+              <span id="batch-selected-count" class="batch-count-badge mr-1">0</span>
+              pemilih dipilih
+            </span>
+            <button id="btn-batch-delete"
+                    class="btn btn-danger btn-sm gap-1.5 ml-2"
+                    title="Hapus semua pemilih yang dipilih"
+                    aria-label="Hapus batch pemilih yang dipilih">
+              <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+              Hapus Batch
+            </button>
+            <button id="btn-batch-clear"
+                    class="btn btn-secondary btn-sm gap-1.5"
+                    title="Batalkan semua pilihan"
+                    aria-label="Batalkan pilihan batch">
+              <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+              Batalkan
+            </button>
+          </div>
+
           <!-- Table -->
           <div class="overflow-x-auto">
             <table class="table voters-table w-full min-w-0" role="table" aria-label="Daftar pemilih">
               <thead>
                 <tr>
-                  <th class="pl-4 text-left">Nama / NISN</th>
+                  <th class="th-check" id="th-check-cell">
+                    <!-- Checkbox select-all duplikat di header tabel (visible di atas kolom) -->
+                    <input type="checkbox" id="cb-select-all-th"
+                           class="cb-select-all w-4 h-4 accent-blue-600 cursor-pointer hidden"
+                           title="Pilih / batalkan semua baris yang terlihat"
+                           aria-label="Pilih semua pemilih di halaman ini"/>
+                  </th>
+                  <th class="text-left">Nama / NISN</th>
                   <th class="hidden md:table-cell text-left">Kelas</th>
                   <th class="hidden lg:table-cell text-left">Tgl Lahir</th>
                   <th class="hidden xl:table-cell text-left">PIN</th>
@@ -989,6 +1071,15 @@ const _debouncedSearch = Utils.debounce(() => { _currentPage = 1; loadVoters(); 
 // sehingga dua request syncPins bisa berjalan bersamaan.
 let _isSyncPinRunning = false;
 
+// Batch delete: Set berisi voter ID yang sedang dipilih.
+// Dikosongkan setiap kali loadVoters() dipanggil.
+/** @type {Set<string>} */
+let _selectedVoterIds = new Set();
+
+// Guard flag: mencegah double-call confirmBatchDelete (misal double-click tombol).
+// Pola sama dengan _isSyncPinRunning di fitur Sinkronisasi PIN.
+let _isBatchDeleting = false;
+
 // PIN Gate (Panitia)
 const _PIN_ACCESS_KEY = 'ev_panitia_voter_access';
 let   _accessTimerId  = null;
@@ -1060,6 +1151,24 @@ let   _accessTimerId  = null;
 
   document.getElementById('btn-export').addEventListener('click', exportVoters);
   document.getElementById('btn-reset-filter').addEventListener('click', resetFilter);
+
+  // ── Batch delete listeners ────────────────────────────────
+  // Tombol Hapus Batch
+  document.getElementById('btn-batch-delete')?.addEventListener('click', confirmBatchDelete);
+
+  // Tombol Batalkan seleksi
+  document.getElementById('btn-batch-clear')?.addEventListener('click', clearBatchSelection);
+
+  // Checkbox select-all di toolbar (cb-select-all)
+  document.getElementById('cb-select-all')?.addEventListener('change', e => {
+    toggleSelectAll(e.target.checked);
+  });
+
+  // Checkbox select-all di header tabel (cb-select-all-th) — sinkronisasi dua arah
+  document.getElementById('cb-select-all-th')?.addEventListener('change', e => {
+    toggleSelectAll(e.target.checked);
+  });
+  // ─────────────────────────────────────────────────────────
 
   // BUG #10 FIX: retry memanggil fungsi yang tepat
   document.getElementById('btn-retry').addEventListener('click', () => {
@@ -1432,6 +1541,10 @@ async function loadVoters() {
   _nisnDuplicates = null;     // invalidasi duplikat NISN — akan dicek ulang setelah data masuk
   _nisnCountMap   = new Map();
 
+  // Reset seleksi batch saat data dimuat ulang
+  _selectedVoterIds.clear();
+  updateBatchUI();
+
   let tableRes;
   let lastErr;
 
@@ -1605,6 +1718,9 @@ function renderTable(voters) {
     // Tentukan apakah NISN voter ini adalah duplikat
     const isDuplicate = _nisnDuplicates !== null && _nisnDuplicates.has(String(v.nisn || '').trim());
 
+    // Apakah baris ini sedang dipilih untuk batch (pertahankan seleksi lintas render)
+    const isSelected = _selectedVoterIds.has(v.id);
+
     const pinHtml = v.pin
       ? `<span class="pin-badge">${Utils.escapeHtml(v.pin)}</span>`
       : `<span class="text-gray-400 text-xs">—</span>`;
@@ -1616,6 +1732,17 @@ function renderTable(voters) {
       : `<span class="badge badge-warning gap-1">
            <i class="fa-solid fa-clock fa-xs" aria-hidden="true"></i>Belum
          </span>`;
+
+    // Checkbox seleksi baris (hanya untuk non-readonly)
+    const checkCell = !isReadonly
+      ? `<td class="td-check" data-label="">
+           <input type="checkbox"
+                  class="cb-voter-row w-4 h-4 accent-blue-600 cursor-pointer"
+                  data-voter-id="${Utils.escapeHtml(v.id)}"
+                  ${isSelected ? 'checked' : ''}
+                  aria-label="Pilih ${Utils.escapeHtml(v.name)}"/>
+         </td>`
+      : `<td class="td-check hidden" data-label=""></td>`;
 
     const editBtn = !isReadonly
       ? `<button class="btn btn-icon btn-sm btn-outline voter-edit-btn"
@@ -1659,9 +1786,15 @@ function renderTable(voters) {
       ? `<span class="text-xs text-gray-400 italic">—</span>`
       : '';
 
+    // Kelas baris: duplikat + seleksi batch
+    let rowClass = '';
+    if (isSelected)    rowClass += ' row-selected';
+    else if (isDuplicate) rowClass += ' bg-amber-50 hover:bg-amber-100';
+
     return `
-      <tr class="${isDuplicate ? 'bg-amber-50 hover:bg-amber-100' : ''}">
-        <td class="pl-4" data-label="">
+      <tr class="${rowClass.trim()}" data-voter-id="${Utils.escapeHtml(v.id)}">
+        ${checkCell}
+        <td data-label="">
           <div>
             <p class="font-semibold text-gray-800 text-sm leading-tight">${Utils.escapeHtml(v.name || '-')}</p>
             <p class="text-xs font-mono mt-0.5 ${isDuplicate ? 'text-amber-600 font-semibold' : 'text-gray-400'}">
@@ -1687,7 +1820,7 @@ function renderTable(voters) {
       </tr>`;
   }).join('');
 
-  // Bind event listeners
+  // Bind event listeners — aksi per baris
   tbody.querySelectorAll('.voter-edit-btn').forEach(btn =>
     btn.addEventListener('click', () => openVoterModal(btn.dataset.voterId))
   );
@@ -1700,6 +1833,14 @@ function renderTable(voters) {
   tbody.querySelectorAll('.voter-delete-btn').forEach(btn =>
     btn.addEventListener('click', () => confirmDeleteVoter(btn.dataset.voterId, btn.dataset.voterName))
   );
+
+  // Bind checkbox per baris
+  tbody.querySelectorAll('.cb-voter-row').forEach(cb => {
+    cb.addEventListener('change', () => toggleVoterSelection(cb.dataset.voterId, cb.checked));
+  });
+
+  // Sync state UI batch setelah render (handles kasus re-render dengan seleksi aktif)
+  updateBatchUI();
 }
 
 // ── Stats ─────────────────────────────────────────────────────
@@ -1756,6 +1897,123 @@ function _showStats() {
 function hideStats() {
   const statsEl = document.getElementById('voter-stats');
   if (statsEl) statsEl.classList.remove('stats-visible');
+}
+
+// ── Batch selection helpers ───────────────────────────────────
+
+/**
+ * Perbarui UI batch toolbar:
+ * - Tampilkan/sembunyikan toolbar
+ * - Update badge jumlah
+ * - Update state checkbox select-all (checked / indeterminate / unchecked)
+ * - Toggle kolom checkbox di header tabel
+ */
+function updateBatchUI() {
+  const isReadonly = Auth.getAdminRole() === 'viewer' || Auth.isPanitia();
+  const toolbar    = document.getElementById('batch-toolbar');
+  const countEl    = document.getElementById('batch-selected-count');
+  const cbAll      = document.getElementById('cb-select-all');
+  const cbAllTh    = document.getElementById('cb-select-all-th');
+  const thCheckCell = document.getElementById('th-check-cell');
+
+  // Semua checkbox baris yang saat ini ada di DOM
+  const rowCbs = [...document.querySelectorAll('.cb-voter-row')];
+  const total  = rowCbs.length;
+  const sel    = _selectedVoterIds.size;
+
+  // Tampilkan/sembunyikan toolbar
+  if (toolbar) toolbar.classList.toggle('batch-visible', sel > 0 && !isReadonly);
+
+  // Badge
+  if (countEl) countEl.textContent = String(sel);
+
+  // Checkbox select-all state
+  [cbAll, cbAllTh].forEach(cb => {
+    if (!cb) return;
+    if (sel === 0) {
+      cb.checked       = false;
+      cb.indeterminate = false;
+    } else if (sel === total && total > 0) {
+      cb.checked       = true;
+      cb.indeterminate = false;
+    } else {
+      cb.checked       = false;
+      cb.indeterminate = true;
+    }
+  });
+
+  // Tampilkan kolom checkbox di header hanya saat tidak readonly
+  if (thCheckCell) {
+    thCheckCell.classList.toggle('hidden', isReadonly);
+  }
+  if (cbAllTh) {
+    cbAllTh.classList.toggle('hidden', isReadonly);
+  }
+}
+
+/**
+ * Toggle pilihan satu voter.
+ * @param {string}  voterId
+ * @param {boolean} checked
+ */
+function toggleVoterSelection(voterId, checked) {
+  if (checked) {
+    _selectedVoterIds.add(voterId);
+  } else {
+    _selectedVoterIds.delete(voterId);
+  }
+  // Highlight baris
+  const tr = document.querySelector(`tr[data-voter-id="${CSS.escape(voterId)}"]`);
+  if (tr) {
+    tr.classList.toggle('row-selected', checked);
+    // B6 FIX: saat uncheck, restore highlight amber jika voter ini juga duplikat NISN.
+    // class amber di-set via template string saat render (bukan live class), sehingga
+    // hilang begitu row-selected ditambahkan. Restore secara eksplisit saat di-uncheck.
+    if (!checked && _nisnDuplicates !== null) {
+      const v = _voterCache.get(voterId);
+      const nisn = String(v?.nisn || '').trim();
+      if (nisn && _nisnDuplicates.has(nisn)) {
+        tr.classList.add('bg-amber-50');
+      }
+    }
+  }
+  updateBatchUI();
+}
+
+/**
+ * Pilih / batalkan semua voter yang saat ini tampil di tabel.
+ * @param {boolean} selectAll
+ */
+function toggleSelectAll(selectAll) {
+  // B5 FIX: saat de-select, kosongkan SELURUH Set (bukan hanya halaman saat ini).
+  // Tanpa ini, voter dari halaman lain yang sudah masuk Set tidak terhapus
+  // saat user klik "batalkan semua" di halaman yang berbeda.
+  if (!selectAll) {
+    _selectedVoterIds.clear();
+    document.querySelectorAll('.cb-voter-row').forEach(cb => { cb.checked = false; });
+    document.querySelectorAll('tr[data-voter-id]').forEach(tr => tr.classList.remove('row-selected'));
+    updateBatchUI();
+    return;
+  }
+
+  // select: tambahkan semua voter di halaman ini ke Set
+  document.querySelectorAll('.cb-voter-row').forEach(cb => {
+    const id = cb.dataset.voterId;
+    if (!id) return;
+    cb.checked = true;
+    _selectedVoterIds.add(id);
+    const tr = document.querySelector(`tr[data-voter-id="${CSS.escape(id)}"]`);
+    if (tr) tr.classList.add('row-selected');
+  });
+  updateBatchUI();
+}
+
+/** Kosongkan seluruh seleksi batch (tanpa reload data). */
+function clearBatchSelection() {
+  _selectedVoterIds.clear();
+  document.querySelectorAll('.cb-voter-row').forEach(cb => { cb.checked = false; });
+  document.querySelectorAll('tr[data-voter-id]').forEach(tr => tr.classList.remove('row-selected'));
+  updateBatchUI();
 }
 
 // ── Reset filter ──────────────────────────────────────────────
@@ -2275,6 +2533,287 @@ async function confirmDeleteVoter(id, name) {
   } else {
     Toast.error(res.message || 'Gagal menghapus pemilih.');
   }
+}
+
+// ── Batch Delete ──────────────────────────────────────────────
+
+/**
+ * Tampilkan modal konfirmasi Hapus Batch, lalu proses penghapusan
+ * satu per satu dengan progress bar real-time.
+ *
+ * Alur:
+ *   1. Kumpulkan data voter yang dipilih dari _voterCache.
+ *   2. Pisahkan: deletable (belum memilih) vs blocked (sudah memilih).
+ *   3. Tampilkan modal konfirmasi + peringatan jika ada yang diblokir.
+ *   4. Setelah konfirmasi: hapus satu per satu, update progress bar.
+ *   5. Tampilkan ringkasan: berhasil / gagal / dilewati.
+ *   6. Reload tabel + kosongkan seleksi.
+ */
+async function confirmBatchDelete() {
+  // B1 FIX: guard double-call (double-click) — pola sama dengan _isSyncPinRunning
+  if (_isBatchDeleting) {
+    Toast.warning('Proses hapus batch sedang berjalan. Tunggu hingga selesai.');
+    return;
+  }
+
+  const ids = [..._selectedVoterIds];
+  if (!ids.length) return;
+
+  // Kumpulkan data dari cache — pisahkan yang bisa dihapus vs tidak
+  const deletable = [];   // { id, name }
+  const blocked   = [];   // { id, name } — sudah memilih
+
+  ids.forEach(id => {
+    const v = _voterCache.get(id);
+    if (!v) {
+      // B2 FIX: cache miss (voter dari halaman lain yang tidak ter-cache) —
+      // tandai dengan label "(data tidak tersedia)" agar tidak tampil sebagai ID mentah
+      // di preview list. Tetap masuk deletable agar dicoba hapus oleh backend.
+      deletable.push({ id, name: `(ID: ${id})` });
+      return;
+    }
+    if (v.hasVoted) {
+      blocked.push({ id, name: v.name || id });
+    } else {
+      deletable.push({ id, name: v.name || id });
+    }
+  });
+
+  if (!deletable.length) {
+    // Semua dipilih sudah memilih — tidak bisa dihapus
+    Modal.open({
+      id:    'modal-batch-blocked',
+      title: 'Tidak Dapat Dihapus',
+      size:  'sm',
+      body: `
+        <div class="space-y-3">
+          <div class="alert alert-warning text-sm">
+            <i class="fa-solid fa-triangle-exclamation flex-shrink-0" aria-hidden="true"></i>
+            <span>Semua pemilih yang dipilih sudah memberikan suara dan tidak dapat dihapus. Nonaktifkan akun jika diperlukan.</span>
+          </div>
+          <ul class="text-sm text-gray-700 space-y-1 max-h-40 overflow-y-auto pl-1">
+            ${blocked.map(b =>
+              `<li class="flex items-center gap-2">
+                 <i class="fa-solid fa-circle-check fa-xs text-green-500" aria-hidden="true"></i>
+                 ${Utils.escapeHtml(b.name)}
+               </li>`
+            ).join('')}
+          </ul>
+        </div>`,
+      actions: [{ label: 'Tutup', class: 'btn-primary', action: 'close' }],
+    });
+    document.querySelector('#modal-batch-blocked [data-action="close"]')
+      ?.addEventListener('click', () => Modal.close());
+    return;
+  }
+
+  // Bangun body modal konfirmasi
+  const blockedWarning = blocked.length
+    ? `<div class="alert alert-warning text-xs mt-2">
+         <i class="fa-solid fa-triangle-exclamation flex-shrink-0" aria-hidden="true"></i>
+         <span><strong>${blocked.length}</strong> pemilih sudah memberikan suara dan akan <strong>dilewati</strong> (tidak dihapus).</span>
+       </div>`
+    : '';
+
+  const previewList = deletable.slice(0, 8).map(d =>
+    `<li class="text-sm text-gray-700 flex items-center gap-2">
+       <i class="fa-solid fa-user fa-xs text-gray-400" aria-hidden="true"></i>
+       ${Utils.escapeHtml(d.name)}
+     </li>`
+  ).join('') + (deletable.length > 8
+    ? `<li class="text-xs text-gray-400 italic pl-5">… dan ${deletable.length - 8} pemilih lainnya</li>`
+    : '');
+
+  const modal = Modal.open({
+    id:    'modal-batch-confirm',
+    title: 'Konfirmasi Hapus Batch',
+    size:  'sm',
+    body: `
+      <div class="space-y-3">
+        <div class="alert alert-error text-sm">
+          <i class="fa-solid fa-trash flex-shrink-0" aria-hidden="true"></i>
+          <span>Anda akan menghapus <strong>${deletable.length}</strong> pemilih secara permanen. Tindakan ini tidak dapat dibatalkan.</span>
+        </div>
+        ${blockedWarning}
+        <div>
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Pemilih yang akan dihapus:</p>
+          <ul class="space-y-1 max-h-40 overflow-y-auto border border-gray-100 rounded-lg px-3 py-2">
+            ${previewList}
+          </ul>
+        </div>
+      </div>`,
+    actions: [
+      { label: 'Batal',        class: 'btn-secondary', action: 'cancel' },
+      { label: `Hapus ${deletable.length} Pemilih`, class: 'btn-danger', action: 'confirm', id: 'btn-batch-confirm' },
+    ],
+  });
+
+  modal.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.action === 'cancel') { Modal.close(); return; }
+      if (btn.dataset.action !== 'confirm') return;
+
+      // B1 FIX: set flag sebelum proses dimulai
+      _isBatchDeleting = true;
+
+      // Ganti body modal dengan progress
+      Modal.updateBody('modal-batch-confirm', `
+        <div class="space-y-4 py-2">
+          <div class="flex items-center gap-3 text-sm text-gray-700">
+            <div class="w-5 h-5 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin flex-shrink-0"></div>
+            <span id="batch-progress-label">Mempersiapkan…</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+            <div id="batch-progress-bar"
+                 class="h-2.5 rounded-full bg-red-500 transition-all duration-200"
+                 style="width:0%"
+                 role="progressbar"
+                 aria-valuemin="0"
+                 aria-valuemax="${deletable.length}"
+                 aria-valuenow="0"></div>
+          </div>
+          <p class="text-xs text-gray-400 text-right" id="batch-progress-text">0 / ${deletable.length}</p>
+        </div>`);
+
+      // Disable semua tombol aksi selama proses
+      modal.querySelectorAll('[data-action]').forEach(b => { b.disabled = true; });
+
+      let successCount = 0;
+      let failCount    = 0;
+      const failDetails = []; // { name, reason }
+
+      try {
+        // B3 FIX: concurrent batching — hapus BATCH_SIZE permintaan secara paralel
+        // sekaligus, bukan satu per satu. GAS mendukung beberapa koneksi bersamaan
+        // dari browser yang sama. BATCH_SIZE=5 menjaga keseimbangan antara kecepatan
+        // dan keandalan (tidak membanjiri GAS / melampaui batas koneksi browser).
+        const BATCH_SIZE = 5;
+
+        for (let batchStart = 0; batchStart < deletable.length; batchStart += BATCH_SIZE) {
+          const chunk = deletable.slice(batchStart, batchStart + BATCH_SIZE);
+
+          // B7 FIX: progress dihitung dari batchStart (sebelum chunk ini), bukan i.
+          // Menampilkan progress yang sudah selesai sehingga selalu akurat.
+          const doneSoFar = batchStart;
+          const pct       = Math.round((doneSoFar / deletable.length) * 100);
+
+          const labelEl = document.getElementById('batch-progress-label');
+          const barEl   = document.getElementById('batch-progress-bar');
+          const textEl  = document.getElementById('batch-progress-text');
+          if (labelEl) labelEl.textContent = `Menghapus ${doneSoFar + 1}–${Math.min(doneSoFar + BATCH_SIZE, deletable.length)} dari ${deletable.length}…`;
+          if (barEl)   { barEl.style.width = pct + '%'; barEl.setAttribute('aria-valuenow', String(doneSoFar)); }
+          if (textEl)  textEl.textContent  = `${doneSoFar} / ${deletable.length}`;
+
+          // Jalankan chunk secara paralel
+          const chunkResults = await Promise.allSettled(
+            chunk.map(({ id }) => API.voter.delete(id))
+          );
+
+          // Proses hasil setiap item dalam chunk
+          chunkResults.forEach((result, idx) => {
+            const { id, name } = chunk[idx];
+            if (result.status === 'fulfilled' && result.value?.success) {
+              successCount++;
+              _selectedVoterIds.delete(id);
+            } else {
+              failCount++;
+              const reason = result.status === 'rejected'
+                ? 'Kesalahan jaringan'
+                : (result.value?.message || 'Gagal');
+              failDetails.push({ name, reason });
+            }
+          });
+        }
+
+        // B7 FIX: set progress 100% setelah seluruh loop selesai
+        const barFinal   = document.getElementById('batch-progress-bar');
+        const textFinal  = document.getElementById('batch-progress-text');
+        const labelFinal = document.getElementById('batch-progress-label');
+        if (barFinal)   { barFinal.style.width = '100%'; barFinal.setAttribute('aria-valuenow', String(deletable.length)); }
+        if (textFinal)  textFinal.textContent  = `${deletable.length} / ${deletable.length}`;
+        if (labelFinal) labelFinal.textContent = 'Selesai.';
+
+        Modal.close();
+        _showBatchDeleteResult({ success: successCount, failed: failCount, skipped: blocked.length, failDetails });
+
+      } catch (unexpectedErr) {
+        // Error tak terduga di luar try/catch individual (misal DOM manipulation error)
+        console.error('[confirmBatchDelete] unexpected error:', unexpectedErr);
+        Modal.close();
+        Toast.error('Terjadi kesalahan tak terduga saat proses hapus batch.');
+      } finally {
+        // B1 FIX: pastikan flag selalu di-reset, bahkan jika terjadi error di tengah proses
+        _isBatchDeleting = false;
+      }
+
+      // B4 FIX: hapus komentar yang menyesatkan.
+      // loadVoters() akan _selectedVoterIds.clear() — semua sisa (termasuk yang gagal)
+      // dikosongkan. Ini perilaku yang diinginkan: setelah reload admin mulai dari
+      // seleksi bersih, dan bisa memilih ulang voter yang gagal jika perlu.
+      await loadVoters();
+    });
+  });
+}
+
+/**
+ * Tampilkan ringkasan hasil hapus batch.
+ * @param {{success:number, failed:number, skipped:number, failDetails:Array}} result
+ */
+function _showBatchDeleteResult(result) {
+  const { success, failed, skipped, failDetails } = result;
+
+  const failHtml = failDetails.length
+    ? `<div class="mt-2 border border-red-100 rounded-lg overflow-hidden">
+         <p class="text-xs font-semibold text-red-600 bg-red-50 px-3 py-2 border-b border-red-100">
+           Detail Gagal:
+         </p>
+         <div class="max-h-32 overflow-y-auto">
+           ${failDetails.map(f =>
+             `<div class="flex items-start gap-2 px-3 py-2 border-b border-red-50 last:border-0 text-xs">
+                <i class="fa-solid fa-circle-xmark text-red-400 flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+                <span class="flex-1 min-w-0">
+                  <span class="font-semibold text-gray-700">${Utils.escapeHtml(f.name)}</span>
+                  <span class="text-red-500 ml-1">— ${Utils.escapeHtml(f.reason)}</span>
+                </span>
+              </div>`
+           ).join('')}
+         </div>
+       </div>`
+    : '';
+
+  Modal.open({
+    id:    'modal-batch-result',
+    title: 'Hasil Hapus Batch',
+    size:  'sm',
+    body: `
+      <div class="space-y-2">
+        ${success > 0
+          ? `<div class="import-result-row ok">
+               <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+               <span>${success} pemilih berhasil dihapus</span>
+             </div>`
+          : ''}
+        ${skipped > 0
+          ? `<div class="import-result-row skip">
+               <i class="fa-solid fa-forward" aria-hidden="true"></i>
+               <span>${skipped} pemilih dilewati (sudah memilih)</span>
+             </div>`
+          : ''}
+        ${failed > 0
+          ? `<div class="import-result-row fail">
+               <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+               <span>${failed} pemilih gagal dihapus</span>
+             </div>
+             ${failHtml}`
+          : ''}
+        ${success === 0 && failed === 0 && skipped === 0
+          ? `<p class="text-sm text-gray-500 text-center py-3">Tidak ada perubahan.</p>`
+          : ''}
+      </div>`,
+    actions: [{ label: 'Tutup', class: 'btn-primary', action: 'close' }],
+  });
+  document.querySelector('#modal-batch-result [data-action="close"]')
+    ?.addEventListener('click', () => Modal.close());
 }
 
 // ── Lazy-load SheetJS ─────────────────────────────────────────
