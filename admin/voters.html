@@ -784,6 +784,24 @@
             <div id="active-class-chips"></div>
           </div>
 
+          <!-- Banner duplikat NISN — ditampilkan otomatis jika ada duplikat -->
+          <div id="duplicate-nisn-banner" class="hidden mx-4 mt-3 mb-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm" role="alert" aria-live="polite">
+            <div class="flex items-start gap-2.5">
+              <i class="fa-solid fa-triangle-exclamation text-amber-500 flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-amber-800" id="duplicate-nisn-title">NISN Duplikat Terdeteksi</p>
+                <p class="text-amber-700 text-xs mt-0.5 leading-relaxed" id="duplicate-nisn-msg"></p>
+                <div id="duplicate-nisn-list" class="mt-2 flex flex-wrap gap-1.5"></div>
+              </div>
+              <button id="duplicate-nisn-close"
+                      class="flex-shrink-0 text-amber-400 hover:text-amber-600 p-0.5 rounded transition-colors"
+                      title="Tutup peringatan"
+                      aria-label="Tutup peringatan duplikat NISN">
+                <i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
           <!-- Table -->
           <div class="overflow-x-auto">
             <table class="table voters-table w-full min-w-0" role="table" aria-label="Daftar pemilih">
@@ -943,6 +961,16 @@ let _voterCache = new Map();
 /** @type {Set<string>|null} */
 let _usedPinsCache = null;
 
+// Duplikat NISN — diisi oleh checkDuplicateNisns() yang berjalan background.
+// Set berisi NISN (string) yang muncul lebih dari satu kali di election ini.
+// null = belum dicek; Set kosong = tidak ada duplikat.
+/** @type {Set<string>|null} */
+let _nisnDuplicates = null;
+
+// Map NISN → jumlah kemunculan, untuk membangun detail daftar duplikat.
+/** @type {Map<string, number>} */
+let _nisnCountMap = new Map();
+
 // BUG #3 FIX: debounced search stabil, dibuat sekali
 const _debouncedSearch = Utils.debounce(() => { _currentPage = 1; loadVoters(); }, 400);
 
@@ -1033,6 +1061,8 @@ let   _accessTimerId  = null;
     _availableClasses = [];
     _voterCache       = new Map(); // invalidasi cache voter saat election berganti
     _usedPinsCache    = null;       // invalidasi cache PIN saat election berganti
+    _nisnDuplicates   = null;       // invalidasi cek duplikat NISN saat election berganti
+    _nisnCountMap     = new Map();
     updateClassFilterButton();
     renderClassChips();
     refreshClassDropdownList();
@@ -1046,6 +1076,8 @@ let   _accessTimerId  = null;
       // filter/search/pagination yg sedang aktif. Fetch pageSize besar tanpa filter.
       populateAvailableClasses(_electionId);
     } else {
+      // Sembunyikan banner duplikat saat tidak ada election dipilih
+      document.getElementById('duplicate-nisn-banner')?.classList.add('hidden');
       showState('empty', { title: 'Pilih pemilihan', msg: 'Pilih pemilihan dari daftar di atas untuk mengelola pemilihnya.' });
       hideStats();
     }
@@ -1132,6 +1164,138 @@ async function fetchUsedPins() {
   return usedPins;
 }
 
+// ── NISN Duplicate Checker ────────────────────────────────────
+
+/**
+ * Fetch semua voter di election ini secara background, bangun
+ * _nisnCountMap dan _nisnDuplicates, lalu render banner.
+ *
+ * Dipanggil: (1) setelah loadVoters selesai render, (2) saat election dipilih.
+ * Race-condition safe: guard electionId dicek sebelum commit ke state.
+ *
+ * @param {string} electionId - ID election yang sedang aktif saat check dimulai
+ */
+async function checkDuplicateNisns(electionId) {
+  if (!electionId) return;
+
+  const PAGE_SIZE = 9999;
+  const countMap  = new Map(); // nisn → jumlah kemunculan
+  let page        = 1;
+  let totalPages  = 1;
+
+  try {
+    do {
+      const res = await API.voter.getAll({
+        electionId,
+        pageSize: PAGE_SIZE,
+        page,
+      });
+
+      // Race-condition guard: election sudah berganti saat fetch berjalan
+      if (electionId !== _electionId) return;
+      if (!res.success || !res.data || !res.data.items) break;
+
+      res.data.items.forEach(v => {
+        const nisn = String(v.nisn || '').trim();
+        if (nisn) countMap.set(nisn, (countMap.get(nisn) || 0) + 1);
+      });
+
+      totalPages = res.data.totalPages || 1;
+      page++;
+    } while (page <= totalPages);
+  } catch (_) {
+    return; // non-fatal: gagal cek duplikat tidak boleh crash halaman
+  }
+
+  // Guard akhir setelah seluruh loop selesai
+  if (electionId !== _electionId) return;
+
+  // Commit ke state global
+  _nisnCountMap   = countMap;
+  _nisnDuplicates = new Set(
+    [...countMap.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([nisn]) => nisn)
+  );
+
+  renderDuplicateBanner();
+
+  // Re-render tabel agar highlight duplikat muncul/hilang tanpa reload
+  // (hanya jika content-state sedang tampil)
+  const contentState = document.getElementById('content-state');
+  if (contentState && !contentState.classList.contains('hidden')) {
+    const votersInView = [..._voterCache.values()].filter(v =>
+      String(v.electionId || '') === electionId
+    );
+    if (votersInView.length) renderTable(votersInView);
+  }
+}
+
+/**
+ * Tampilkan atau sembunyikan banner duplikat NISN berdasarkan _nisnDuplicates.
+ * Aman dipanggil kapan saja — idempoten.
+ */
+function renderDuplicateBanner() {
+  const banner  = document.getElementById('duplicate-nisn-banner');
+  const msgEl   = document.getElementById('duplicate-nisn-msg');
+  const listEl  = document.getElementById('duplicate-nisn-list');
+  const closeBtn = document.getElementById('duplicate-nisn-close');
+  if (!banner) return;
+
+  if (!_nisnDuplicates || _nisnDuplicates.size === 0) {
+    banner.classList.add('hidden');
+    return;
+  }
+
+  const count = _nisnDuplicates.size;
+  msgEl.textContent =
+    `${count} NISN terdaftar lebih dari satu kali di pemilihan ini. ` +
+    `Periksa dan hapus data yang duplikat untuk menjaga integritas data.`;
+
+  // Tampilkan chip setiap NISN duplikat
+  listEl.innerHTML = [..._nisnDuplicates]
+    .sort()
+    .map(nisn => {
+      const total = _nisnCountMap.get(nisn) || 2;
+      return `<button type="button"
+                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-mono font-medium hover:bg-amber-200 transition-colors cursor-pointer"
+                      title="Cari NISN ${Utils.escapeHtml(nisn)}"
+                      onclick="searchNisnDuplicate('${Utils.escapeHtml(nisn)}')"
+                      aria-label="Cari NISN ${Utils.escapeHtml(nisn)}, ${total} entri">
+                ${Utils.escapeHtml(nisn)}
+                <span class="bg-amber-300 text-amber-900 rounded-full px-1 leading-tight font-bold" aria-hidden="true">${total}×</span>
+              </button>`;
+    })
+    .join('');
+
+  banner.classList.remove('hidden');
+
+  // Bind tombol tutup (sekali saja — lepas listener lama dulu)
+  const freshClose = closeBtn.cloneNode(true);
+  closeBtn.parentNode.replaceChild(freshClose, closeBtn);
+  freshClose.addEventListener('click', () => banner.classList.add('hidden'));
+}
+
+/**
+ * Isi kotak pencarian dengan NISN yang dipilih dari banner duplikat
+ * dan trigger reload tabel.
+ * @param {string} nisn
+ */
+function searchNisnDuplicate(nisn) {
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) {
+    searchInput.value = nisn;
+    searchInput.dispatchEvent(new Event('input'));
+    // Scroll ke tabel agar user langsung melihat hasil
+    document.getElementById('voters-tbody')?.closest('table')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+/**
+ * Generate a unique 5-digit PIN not already in the usedPins set.
+ * @param {Set<string>} usedPins
+ * @returns {string|null}
+ */
 function generateUniquePin(usedPins) {
   const MAX_ATTEMPTS = 200;
   const hasCrypto    = typeof crypto !== 'undefined' && crypto.getRandomValues;
@@ -1248,6 +1412,8 @@ async function loadVoters() {
 
   _voterCache    = new Map(); // invalidasi cache sebelum fetch baru
   _usedPinsCache = null;      // invalidasi cache PIN
+  _nisnDuplicates = null;     // invalidasi duplikat NISN — akan dicek ulang setelah data masuk
+  _nisnCountMap   = new Map();
 
   let tableRes;
   let lastErr;
@@ -1392,6 +1558,10 @@ async function loadVoters() {
     p => { _currentPage = p; loadVoters(); }
   );
   showState('content');
+
+  // Cek duplikat NISN secara background setelah tabel tampil.
+  // Tidak di-await agar tidak menunda rendering.
+  checkDuplicateNisns(_electionId);
 }
 
 // ── Render table ──────────────────────────────────────────────
@@ -1415,6 +1585,9 @@ function renderTable(voters) {
   });
 
   tbody.innerHTML = voters.map(v => {
+    // Tentukan apakah NISN voter ini adalah duplikat
+    const isDuplicate = _nisnDuplicates !== null && _nisnDuplicates.has(String(v.nisn || '').trim());
+
     const pinHtml = v.pin
       ? `<span class="pin-badge">${Utils.escapeHtml(v.pin)}</span>`
       : `<span class="text-gray-400 text-xs">—</span>`;
@@ -1470,11 +1643,13 @@ function renderTable(voters) {
       : '';
 
     return `
-      <tr>
+      <tr class="${isDuplicate ? 'bg-amber-50 hover:bg-amber-100' : ''}">
         <td class="pl-4" data-label="">
           <div>
             <p class="font-semibold text-gray-800 text-sm leading-tight">${Utils.escapeHtml(v.name || '-')}</p>
-            <p class="text-xs text-gray-400 font-mono mt-0.5">${Utils.escapeHtml(v.nisn || '-')}</p>
+            <p class="text-xs font-mono mt-0.5 ${isDuplicate ? 'text-amber-600 font-semibold' : 'text-gray-400'}">
+              ${Utils.escapeHtml(v.nisn || '-')}${isDuplicate ? ' <span class="inline-flex items-center gap-0.5 text-amber-600 ml-1" title="NISN ini terdaftar lebih dari satu kali"><i class="fa-solid fa-clone fa-xs" aria-hidden="true"></i></span>' : ''}
+            </p>
           </div>
         </td>
         <td class="hidden md:table-cell text-sm text-gray-700" data-label="Kelas">
