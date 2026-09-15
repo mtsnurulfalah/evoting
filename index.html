@@ -457,6 +457,58 @@ let _isSubmitting = false;
     });
   }
 
+  // Paksa input PIN hanya menerima angka (0–9).
+  // Tiga layer perlindungan:
+  //   1. keydown  — blokir karakter non-angka sebelum masuk ke input
+  //   2. input    — bersihkan karakter non-angka jika lolos (paste, autocomplete, voice input)
+  //   3. paste    — strip non-angka dari teks yang di-paste sebelum dimasukkan
+  if (pinInput) {
+    // Layer 1: blokir tombol non-angka saat penekanan.
+    // Izinkan: angka (0–9), Backspace, Delete, Tab, Enter, Arrow keys, Home, End.
+    pinInput.addEventListener('keydown', (ev) => {
+      const allowed = [
+        'Backspace', 'Delete', 'Tab', 'Enter',
+        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+        'Home', 'End',
+      ];
+      // Izinkan shortcut Ctrl/Cmd (copy, paste, select all, dll.)
+      if (ev.ctrlKey || ev.metaKey) return;
+      if (allowed.includes(ev.key)) return;
+      // Blokir jika bukan digit 0–9
+      if (!/^\d$/.test(ev.key)) ev.preventDefault();
+    });
+
+    // Layer 2: bersihkan nilai saat terjadi perubahan (paste, autocomplete, voice input).
+    // Simpan posisi kursor agar tidak loncat ke akhir setelah strip.
+    pinInput.addEventListener('input', () => {
+      const pos   = pinInput.selectionStart;
+      const clean = pinInput.value.replace(/\D/g, '');
+      if (pinInput.value !== clean) {
+        pinInput.value = clean;
+        // Kembalikan posisi kursor; clamp ke panjang nilai bersih
+        const newPos = Math.min(pos, clean.length);
+        pinInput.setSelectionRange(newPos, newPos);
+      }
+    });
+
+    // Layer 3: intercept paste — strip semua karakter non-angka dari clipboard.
+    pinInput.addEventListener('paste', (ev) => {
+      ev.preventDefault();
+      const raw   = (ev.clipboardData || window.clipboardData).getData('text');
+      const clean = raw.replace(/\D/g, '').slice(0, 5); // maks 5 digit
+      // Sisipkan di posisi kursor saat ini
+      const start = pinInput.selectionStart;
+      const end   = pinInput.selectionEnd;
+      const current = pinInput.value;
+      const next = (current.slice(0, start) + clean + current.slice(end)).slice(0, 5);
+      pinInput.value = next;
+      const newPos = Math.min(start + clean.length, next.length);
+      pinInput.setSelectionRange(newPos, newPos);
+      // Trigger _clearFieldError agar error lama tersembunyi
+      _clearFieldError('pin');
+    });
+  }
+
   // Clear error per-field saat user mulai mengetik
   ['nisn', 'birthPlace', 'birthDate', 'pin'].forEach(fieldId => {
     const el = document.getElementById(fieldId);
