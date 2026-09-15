@@ -682,9 +682,52 @@ const CANDIDATE_COLORS = [
 
 // ── State ─────────────────────────────────────────────────────
 let _electionId          = '';
-let _autoRefreshTimer    = null;   // ID setInterval — nama jelas bukan _autoRefresh
+let _autoRefreshTimer    = null;   // ID setInterval
 let _isLoading           = false;  // guard race condition
-let _lastData            = null;   // data terakhir (untuk export tanpa refetch)
+let _lastData            = null;   // data terakhir (untuk export + stale render)
+
+// ── Cache frontend (stale-while-revalidate) ───────────────────
+// Key: electionId, Value: { data, savedAt (ms), electionStatus }
+// Digunakan untuk menampilkan data lama secara instan saat refresh,
+// sambil request baru berjalan di background.
+const _CACHE_PREFIX    = 'evresult_';
+const _CACHE_TTL_MS    = 5 * 60 * 1000;  // 5 menit — cache di sessionStorage
+
+/** Simpan hasil ke sessionStorage. */
+function _saveCache(electionId, data) {
+  try {
+    sessionStorage.setItem(_CACHE_PREFIX + electionId, JSON.stringify({
+      data,
+      savedAt: Date.now(),
+    }));
+  } catch (_) { /* storage penuh — abaikan */ }
+}
+
+/** Baca cache dari sessionStorage. Kembalikan null jika expired/tidak ada. */
+function _readCache(electionId) {
+  try {
+    const raw = sessionStorage.getItem(_CACHE_PREFIX + electionId);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (!entry || !entry.data || !entry.savedAt) return null;
+    if (Date.now() - entry.savedAt > _CACHE_TTL_MS) return null;
+    return entry.data;
+  } catch (_) { return null; }
+}
+
+/** Hapus cache untuk electionId tertentu (misal saat ganti pemilihan). */
+function _clearCache(electionId) {
+  try { sessionStorage.removeItem(_CACHE_PREFIX + electionId); } catch (_) {}
+}
+
+// ── Auto-refresh backoff ──────────────────────────────────────
+// Interval auto-refresh diperpanjang secara bertahap jika tidak ada
+// perubahan data (suara tidak bertambah) untuk mengurangi request sia-sia.
+// Reset ke interval dasar setiap kali ada perubahan data.
+const _AR_INTERVAL_BASE = 20 * 1000;  // 20 detik — interval awal
+const _AR_INTERVAL_MAX  = 60 * 1000;  // 60 detik — interval maksimum
+let   _arInterval        = _AR_INTERVAL_BASE;
+let   _arLastVoteCount   = -1;        // suara terakhir yang diobservasi
 
 // Chart state
 let _classVoteChart      = null;   // instance Chart.js aktif
@@ -728,6 +771,9 @@ function setText(id, v) {
     stopAutoRefresh();
     _electionId = e.target.value;
     _lastData   = null;
+
+    // Bersihkan cache pemilihan lama agar tidak muncul data stale yang salah
+    if (e.target.value) _clearCache(e.target.value);
 
     // Reset chart state saat ganti pemilihan agar tidak leak data lama
     _destroyChart();
@@ -813,6 +859,21 @@ async function loadElectionOptions() {
 
 // ── Load results ──────────────────────────────────────────────
 
+/**
+ * Muat hasil pemilihan.
+ *
+ * Strategi stale-while-revalidate:
+ *   1. Cek sessionStorage — jika ada data yang belum expired,
+ *      render langsung (tampil instan, ~0 ms) sambil lanjut ke langkah 2.
+ *   2. Kirim request ke GAS di background.
+ *   3. Setelah response tiba, render ulang dengan data segar
+ *      dan simpan ke cache.
+ *
+ * Efek yang dirasakan user:
+ *   - Kunjungan pertama : tampil setelah request selesai (normal, ~2–5 detik)
+ *   - Refresh / auto-refresh: data lama tampil SEGERA, lalu diperbarui
+ *     diam-diam tanpa loading skeleton.
+ */
 async function loadResults() {
   if (!_electionId) return;
   if (_isLoading)   return;
@@ -821,8 +882,20 @@ async function loadResults() {
   const refreshIcon = document.getElementById('refresh-icon');
   if (refreshIcon) refreshIcon.classList.add('animate-spin');
 
-  if (!_lastData) showState('loading');
+  // ── Langkah 1: Tampilkan data cache jika ada ──────────
+  const stale = _readCache(_electionId);
+  if (stale) {
+    // Render data lama segera — UI langsung terisi tanpa menunggu network
+    _lastData = stale;
+    renderResults(stale);
+    showState('content');
+    _updateTimestamp(/* isStale */ true);
+  } else {
+    // Tidak ada cache — tampilkan skeleton loading
+    if (!_lastData) showState('loading');
+  }
 
+  // ── Langkah 2: Request segar ke GAS ──────────────────
   let res;
   try {
     res = await API.result.getAdmin(_electionId);
@@ -830,8 +903,12 @@ async function loadResults() {
     console.error('[loadResults] network error:', err);
     _isLoading = false;
     if (refreshIcon) refreshIcon.classList.remove('animate-spin');
-    if (!_lastData) showState('error', 'Gagal menghubungi server. Periksa koneksi internet.');
-    else Toast.error('Gagal memperbarui data. Periksa koneksi.');
+    // Jika sudah ada data (stale atau sebelumnya), cukup toast — jangan tukar UI
+    if (_lastData) {
+      Toast.error('Gagal memperbarui data. Menampilkan data terakhir.');
+    } else {
+      showState('error', 'Gagal menghubungi server. Periksa koneksi internet.');
+    }
     return;
   }
 
@@ -847,27 +924,57 @@ async function loadResults() {
     return;
   }
 
-  _lastData = res.data;
-  renderResults(res.data);
+  // ── Langkah 3: Render data segar + update cache ───────
+  const freshData    = res.data;
+  const freshVotes   = freshData.totalVotes || 0;
 
-  // Update timestamp
-  const lastUpdatedEl = document.getElementById('last-updated');
-  if (lastUpdatedEl) {
-    lastUpdatedEl.textContent = new Date().toLocaleTimeString('id-ID', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-    });
-  }
+  // Hitung apakah ada perubahan dibanding render sebelumnya
+  // untuk menentukan penyesuaian interval auto-refresh
+  const hasNewVotes = (_arLastVoteCount >= 0) && (freshVotes !== _arLastVoteCount);
+  _arLastVoteCount  = freshVotes;
 
+  _lastData = freshData;
+  _saveCache(_electionId, freshData);
+  renderResults(freshData);
+  _updateTimestamp(/* isStale */ false);
   showState('content');
+
+  // ── Langkah 4: Sesuaikan interval auto-refresh ────────
+  // Ada suara baru → reset ke interval cepat.
+  // Tidak ada perubahan → perlambat bertahap (backoff) hingga _AR_INTERVAL_MAX.
+  if (_autoRefreshTimer !== null) {
+    if (hasNewVotes) {
+      // Ada aktivitas — restart dengan interval dasar
+      _arInterval = _AR_INTERVAL_BASE;
+      _restartAutoRefresh();
+    } else {
+      // Tidak ada perubahan — naikkan interval (max 60 detik)
+      const next = Math.min(_arInterval + 10000, _AR_INTERVAL_MAX);
+      if (next !== _arInterval) {
+        _arInterval = next;
+        _restartAutoRefresh();
+      }
+    }
+  }
+}
+
+/** Update teks "Terakhir diperbarui". isStale = data dari cache lokal. */
+function _updateTimestamp(isStale) {
+  const el = document.getElementById('last-updated');
+  if (!el) return;
+  const time = new Date().toLocaleTimeString('id-ID', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  el.textContent = isStale ? `${time} (cache)` : time;
 }
 
 // ── Auto refresh ──────────────────────────────────────────────
 
 function startAutoRefresh() {
-  stopAutoRefresh();
-  _autoRefreshTimer = setInterval(() => {
-    if (!document.hidden) loadResults();
-  }, 30000);
+  // Reset backoff saat mulai dari nol
+  _arInterval      = _AR_INTERVAL_BASE;
+  _arLastVoteCount = -1;
+  _scheduleAutoRefresh();
 
   const indicator = document.getElementById('auto-refresh-indicator');
   if (indicator) {
@@ -876,11 +983,40 @@ function startAutoRefresh() {
   }
 }
 
-function stopAutoRefresh() {
+/** Jadwalkan satu siklus auto-refresh dengan interval saat ini. */
+function _scheduleAutoRefresh() {
   if (_autoRefreshTimer !== null) {
-    clearInterval(_autoRefreshTimer);
+    clearTimeout(_autoRefreshTimer);
     _autoRefreshTimer = null;
   }
+  _autoRefreshTimer = setTimeout(() => {
+    _autoRefreshTimer = null;  // bersihkan dulu sebelum load
+    if (!document.hidden) {
+      loadResults();   // loadResults akan memanggil _restartAutoRefresh jika perlu
+    } else {
+      // Tab tersembunyi — jadwal ulang dengan interval saat ini, tidak perlu load
+      _scheduleAutoRefresh();
+    }
+  }, _arInterval);
+}
+
+/** Restart auto-refresh dengan interval _arInterval terbaru. */
+function _restartAutoRefresh() {
+  // Hanya lanjut jika auto-refresh sedang aktif (indikator tampil)
+  const indicator = document.getElementById('auto-refresh-indicator');
+  if (!indicator || indicator.classList.contains('hidden')) return;
+  _scheduleAutoRefresh();
+}
+
+function stopAutoRefresh() {
+  if (_autoRefreshTimer !== null) {
+    clearTimeout(_autoRefreshTimer);
+    _autoRefreshTimer = null;
+  }
+  // Reset backoff state agar sesi berikutnya mulai segar
+  _arInterval      = _AR_INTERVAL_BASE;
+  _arLastVoteCount = -1;
+
   const indicator = document.getElementById('auto-refresh-indicator');
   if (indicator) {
     indicator.classList.add('hidden');
@@ -890,8 +1026,10 @@ function stopAutoRefresh() {
 
 // Refresh segera saat tab kembali aktif (hanya jika auto-refresh sedang berjalan)
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && _autoRefreshTimer !== null) {
-    loadResults();
+  if (!document.hidden) {
+    const indicator = document.getElementById('auto-refresh-indicator');
+    const isRunning = indicator && !indicator.classList.contains('hidden');
+    if (isRunning) loadResults();
   }
 });
 
