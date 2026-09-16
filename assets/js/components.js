@@ -882,13 +882,23 @@ const LightboxPhoto = (() => {
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.22s ease;
+        /* FIX zoom: overlay menjadi scroll container saat mode zoom */
+        overflow: hidden;
       }
       #lightbox-photo-overlay.lb-open {
         opacity: 1;
         pointer-events: all;
       }
+      /* FIX zoom: saat zoomed, overlay bisa discroll ke segala arah */
+      #lightbox-photo-overlay.lb-zoomed-mode {
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 0;
+      }
 
-      /* Inner container */
+      /* Inner container — normal mode */
       .lb-inner {
         position: relative;
         display: flex;
@@ -899,12 +909,23 @@ const LightboxPhoto = (() => {
         transform: scale(0.93);
         transition: transform 0.22s cubic-bezier(0.34,1.36,0.64,1);
         outline: none;
+        flex-shrink: 0;
       }
       #lightbox-photo-overlay.lb-open .lb-inner {
         transform: scale(1);
       }
+      /* FIX zoom: saat zoomed, inner tidak dibatasi ukurannya */
+      #lightbox-photo-overlay.lb-zoomed-mode .lb-inner {
+        max-width: none;
+        max-height: none;
+        width: auto;
+        height: auto;
+        /* Margin auto untuk centering saat gambar lebih kecil dari viewport */
+        margin: auto;
+        padding: 24px;
+      }
 
-      /* Gambar */
+      /* Gambar — normal mode */
       .lb-img-wrap {
         position: relative;
         width: 100%;
@@ -917,10 +938,13 @@ const LightboxPhoto = (() => {
         cursor: zoom-in;
         min-height: 120px;
       }
+      /* FIX zoom: saat zoomed, wrap mengikuti ukuran gambar asli */
       .lb-img-wrap.lb-zoomed {
         cursor: zoom-out;
-        overflow: auto;
-        -webkit-overflow-scrolling: touch;
+        overflow: visible;
+        width: auto;
+        height: auto;
+        min-height: 0;
       }
       .lb-img {
         display: block;
@@ -929,15 +953,17 @@ const LightboxPhoto = (() => {
         object-fit: contain;
         object-position: top center;
         border-radius: 12px;
-        transition: opacity 0.18s ease, transform 0.22s ease;
+        transition: opacity 0.18s ease;
         user-select: none;
         -webkit-user-drag: none;
       }
+      /* FIX zoom: gambar tampil dalam ukuran aslinya, tidak dibatasi */
       .lb-img-wrap.lb-zoomed .lb-img {
         max-width: none;
         max-height: none;
         width: auto;
         height: auto;
+        border-radius: 8px;
       }
 
       /* Spinner */
@@ -960,7 +986,7 @@ const LightboxPhoto = (() => {
       }
       @keyframes lb-spin { to { transform: rotate(360deg); } }
 
-      /* Caption */
+      /* Caption & hint — disembunyikan saat zoom */
       .lb-caption {
         margin-top: 10px;
         font-size: 13px;
@@ -972,6 +998,11 @@ const LightboxPhoto = (() => {
         text-overflow: ellipsis;
         white-space: nowrap;
         line-height: 1.4;
+        transition: opacity 0.15s ease;
+      }
+      #lightbox-photo-overlay.lb-zoomed-mode .lb-caption,
+      #lightbox-photo-overlay.lb-zoomed-mode .lb-hint {
+        display: none;
       }
 
       /* Tombol tutup */
@@ -996,6 +1027,13 @@ const LightboxPhoto = (() => {
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
       }
+      /* FIX zoom: posisi tombol tutup fixed saat mode zoom agar selalu terlihat */
+      #lightbox-photo-overlay.lb-zoomed-mode .lb-close {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        background: rgba(0,0,0,0.55);
+      }
       .lb-close:hover  { background: rgba(255,255,255,0.28); }
       .lb-close:focus-visible {
         outline: 2px solid #60a5fa;
@@ -1009,6 +1047,7 @@ const LightboxPhoto = (() => {
         color: rgba(255,255,255,0.35);
         text-align: center;
         letter-spacing: 0.02em;
+        transition: opacity 0.15s ease;
       }
 
       /* Kursor klik pada foto kandidat — tanda bisa diperbesar */
@@ -1058,8 +1097,29 @@ const LightboxPhoto = (() => {
     // Zoom toggle saat klik foto
     document.getElementById('lb-img-wrap').addEventListener('click', e => {
       e.stopPropagation();
-      const wrap = document.getElementById('lb-img-wrap');
-      if (wrap) wrap.classList.toggle('lb-zoomed');
+      const overlay = document.getElementById(OVERLAY_ID);
+      const wrap    = document.getElementById('lb-img-wrap');
+      if (!wrap || !overlay) return;
+
+      const isZoomed = wrap.classList.toggle('lb-zoomed');
+      // FIX zoom: toggle class di overlay agar CSS scroll container aktif
+      overlay.classList.toggle('lb-zoomed-mode', isZoomed);
+
+      if (isZoomed) {
+        // Saat masuk zoom: scroll ke posisi atas-tengah
+        requestAnimationFrame(() => {
+          const imgEl = document.getElementById('lb-img');
+          if (!imgEl) return;
+          // Scroll overlay ke tengah horizontal, atas vertikal
+          const scrollLeft = Math.max(0, (overlay.scrollWidth  - overlay.clientWidth)  / 2);
+          overlay.scrollTop  = 0;
+          overlay.scrollLeft = scrollLeft;
+        });
+      } else {
+        // Kembali ke normal: reset scroll
+        overlay.scrollTop  = 0;
+        overlay.scrollLeft = 0;
+      }
     });
 
     return overlay;
@@ -1086,6 +1146,10 @@ const LightboxPhoto = (() => {
     if (wrapEl)    wrapEl.classList.remove('lb-zoomed');
     if (spinnerEl) spinnerEl.style.display = 'flex';
     if (captionEl) captionEl.textContent = caption || '';
+    // Reset zoom mode di overlay
+    overlay.classList.remove('lb-zoomed-mode');
+    overlay.scrollTop  = 0;
+    overlay.scrollLeft = 0;
 
     // Buka overlay dulu agar spinner langsung terlihat
     overlay.classList.add('lb-open');
@@ -1156,6 +1220,13 @@ const LightboxPhoto = (() => {
       if (imgEl)  { imgEl.removeAttribute('src'); imgEl.alt = ''; }
       if (wrapEl) { wrapEl.classList.remove('lb-zoomed'); wrapEl.style.minHeight = ''; }
       if (icoEl)  icoEl.remove();
+      // FIX zoom: reset class zoom mode di overlay dan scroll position
+      const ov = document.getElementById(OVERLAY_ID);
+      if (ov) {
+        ov.classList.remove('lb-zoomed-mode');
+        ov.scrollTop  = 0;
+        ov.scrollLeft = 0;
+      }
     }, 250);
   }
 
