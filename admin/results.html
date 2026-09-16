@@ -255,6 +255,283 @@
     /* ── Mobile overflow guard ── */
     .overflow-x-guard { overflow-x: hidden; }
 
+    /* ── Class group modal ── */
+    .group-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .group-modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .group-modal {
+      background: #fff;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      transform: translateY(16px) scale(0.97);
+      transition: transform 0.2s ease;
+      overflow: hidden;
+    }
+    .group-modal-overlay.open .group-modal {
+      transform: translateY(0) scale(1);
+    }
+    .group-modal-header {
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .group-modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .group-modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Create group form */
+    .group-create-section {
+      background: #f9fafb;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .group-create-section h4 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .class-checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .class-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 7px;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      font-size: 12px;
+      font-weight: 500;
+      color: #374151;
+      user-select: none;
+    }
+    .class-checkbox-item:hover { border-color: #93c5fd; background: #eff6ff; }
+    .class-checkbox-item.selected {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+    .class-checkbox-item input[type="checkbox"] {
+      width: 13px;
+      height: 13px;
+      accent-color: #3b82f6;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    /* Existing groups list */
+    .group-list-section h4 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .group-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      margin-bottom: 6px;
+      transition: border-color 0.15s;
+    }
+    .group-item:hover { border-color: #d1d5db; }
+    .group-item-color {
+      width: 10px;
+      height: 10px;
+      min-width: 10px;
+      border-radius: 50%;
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+    .group-item-body { flex: 1; min-width: 0; }
+    .group-item-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+      line-height: 1.3;
+    }
+    .group-item-classes {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    .group-item-del {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: #d1d5db;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .group-item-del:hover { background: #fee2e2; color: #ef4444; }
+    .group-item-edit {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: #d1d5db;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .group-item-edit:hover { background: #eff6ff; color: #3b82f6; }
+
+    /* Inline rename input */
+    .group-name-input {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+      border: 1.5px solid #93c5fd;
+      border-radius: 6px;
+      padding: 2px 7px;
+      outline: none;
+      background: #eff6ff;
+      width: 100%;
+      line-height: 1.5;
+      transition: border-color 0.15s;
+    }
+    .group-name-input:focus { border-color: #3b82f6; background: #fff; }
+    .group-name-confirm {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      border: none;
+      background: #22c55e;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .group-name-confirm:hover { background: #16a34a; }
+    .group-name-cancel {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      border: none;
+      background: #e5e7eb;
+      color: #6b7280;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .group-name-cancel:hover { background: #d1d5db; color: #374151; }
+
+    /* Active group chips below chart */
+    .group-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px 3px 7px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.4;
+    }
+    .group-chip-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.7);
+      flex-shrink: 0;
+    }
+
+    /* Kelola Grup button */
+    .btn-kelola-grup {
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      color: #6b7280;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .btn-kelola-grup:hover {
+      background: #f0f9ff;
+      border-color: #93c5fd;
+      color: #2563eb;
+    }
+    .btn-kelola-grup.has-groups {
+      border-color: #93c5fd;
+      color: #2563eb;
+      background: #eff6ff;
+    }
+
     /* ── Chart container: scroll internal ── */
     .chart-scroll-wrapper {
       overflow-x: auto;
@@ -635,7 +912,16 @@
               <h3 class="text-sm font-bold text-gray-800">Suara per Kelas per Paslon</h3>
               <p class="text-xs text-gray-400 mt-0.5">Distribusi suara dari setiap kelas untuk masing-masing pasangan calon</p>
             </div>
-            <div class="flex items-center gap-1.5 flex-shrink-0">
+            <div class="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+              <!-- Tombol Kelola Grup -->
+              <button class="btn-kelola-grup" id="btn-kelola-grup"
+                      title="Gabungkan beberapa kelas menjadi satu grup di grafik"
+                      aria-haspopup="dialog">
+                <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+                <span>Kelola Grup</span>
+                <span id="grup-badge" class="hidden bg-blue-600 text-white rounded-full text-[9px] font-bold px-1.5 py-px leading-none"></span>
+              </button>
+              <div class="w-px h-4 bg-gray-200 flex-shrink-0"></div>
               <button class="chart-type-btn active" id="chart-btn-bar"
                       aria-pressed="true" title="Grafik batang">
                 <i class="fa-solid fa-chart-column" aria-hidden="true"></i>
@@ -648,6 +934,8 @@
           </div>
           <!-- Legend paslon -->
           <div class="px-4 pt-3 pb-1 flex flex-wrap gap-x-4 gap-y-2" id="chart-legend" aria-label="Legenda grafik"></div>
+          <!-- Active groups indicator -->
+          <div class="px-4 pb-1 flex flex-wrap gap-2 hidden" id="chart-groups-indicator" aria-label="Grup kelas aktif"></div>
           <!-- Canvas wrapper: scroll horizontal jika banyak kelas -->
           <div class="p-4 pt-2 chart-scroll-wrapper">
             <canvas id="class-vote-chart" style="min-height:220px;" aria-label="Grafik suara per kelas per paslon" role="img"></canvas>
@@ -657,6 +945,110 @@
       </div><!-- /content-state -->
     </div>
   </main>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL KELOLA GRUP KELAS
+════════════════════════════════════════════ -->
+<div class="group-modal-overlay" id="group-modal-overlay" role="dialog" aria-modal="true"
+     aria-labelledby="group-modal-title">
+  <div class="group-modal">
+    <!-- Header -->
+    <div class="group-modal-header">
+      <div>
+        <h3 class="text-sm font-bold text-gray-800" id="group-modal-title">
+          <i class="fa-solid fa-layer-group text-blue-500 mr-1.5" aria-hidden="true"></i>
+          Kelola Grup Kelas
+        </h3>
+        <p class="text-xs text-gray-400 mt-0.5">Gabungkan beberapa kelas agar tampil sebagai satu kolom di grafik</p>
+      </div>
+      <button id="btn-close-group-modal" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400
+              hover:text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0 ml-3"
+              aria-label="Tutup modal">
+        <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="group-modal-body">
+
+      <!-- Form buat grup baru -->
+      <div class="group-create-section">
+        <h4><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Buat Grup Baru</h4>
+
+        <!-- Nama grup -->
+        <div class="mb-2.5">
+          <label class="block text-xs font-semibold text-gray-600 mb-1" for="input-group-name">
+            Nama Grup
+          </label>
+          <input type="text" id="input-group-name"
+                 placeholder="Contoh: Kelas 7, Kelas Senior, dll."
+                 maxlength="40"
+                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none
+                        focus:ring-2 focus:ring-blue-300 focus:border-blue-400 bg-white"
+                 autocomplete="off" />
+        </div>
+
+        <!-- Pilih kelas -->
+        <div class="mb-2.5">
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs font-semibold text-gray-600">
+              Pilih Kelas yang Digabung
+              <span class="text-gray-400 font-normal ml-1">(min. 2 kelas)</span>
+            </label>
+            <button id="btn-select-all-classes" class="text-xs text-blue-500 hover:text-blue-700 font-medium"
+                    type="button">Pilih Semua</button>
+          </div>
+          <div class="class-checkbox-grid" id="class-checkbox-grid">
+            <!-- diisi JS -->
+            <p class="text-xs text-gray-400 col-span-full py-2 text-center">Belum ada data kelas.</p>
+          </div>
+          <p class="text-xs text-gray-400 mt-1" id="class-select-hint">0 kelas dipilih</p>
+        </div>
+
+        <!-- Tombol tambah -->
+        <button id="btn-add-group" type="button"
+                class="w-full btn btn-primary btn-sm gap-1.5 justify-center opacity-50 cursor-not-allowed"
+                disabled>
+          <i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>
+          Tambah Grup
+        </button>
+        <p class="text-xs text-red-500 mt-1.5 hidden" id="group-form-error"></p>
+      </div>
+
+      <!-- Daftar grup yang sudah ada -->
+      <div class="group-list-section" id="group-list-section">
+        <div class="flex items-center justify-between mb-2">
+          <h4>Grup Aktif</h4>
+          <button id="btn-clear-all-groups" type="button"
+                  class="text-xs text-red-400 hover:text-red-600 font-medium hidden">
+            Hapus Semua
+          </button>
+        </div>
+        <div id="group-list-container">
+          <div class="py-6 text-center text-gray-400 text-xs" id="group-list-empty">
+            <i class="fa-solid fa-layer-group text-xl mb-2 block opacity-30" aria-hidden="true"></i>
+            Belum ada grup. Buat grup di atas untuk menggabungkan kelas.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="group-modal-footer">
+      <p class="text-xs text-gray-400 flex-1 mr-2" id="group-modal-status"></p>
+      <button id="btn-reset-groups" type="button"
+              class="btn btn-outline btn-sm gap-1.5 text-red-500 border-red-200 hover:bg-red-50">
+        <i class="fa-solid fa-rotate-left text-xs" aria-hidden="true"></i>
+        Reset
+      </button>
+      <button id="btn-apply-groups" type="button" class="btn btn-primary btn-sm gap-1.5">
+        <i class="fa-solid fa-check text-xs" aria-hidden="true"></i>
+        Terapkan
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- ─────────────────────────────────────────────
@@ -735,6 +1127,18 @@ let _classVoteChartType  = 'bar';  // 'bar' | 'line'
 let _classVoteData       = null;   // data breakdown tersimpan
 let _classVoteCandidates = null;   // kandidat tersimpan
 
+// ── Class group state ─────────────────────────────────────────
+// Setiap grup: { id: string, name: string, classes: string[] }
+// _classGroups = grup yang sedang DITERAPKAN (memengaruhi grafik)
+// _classGroupsDraft = salinan saat modal dibuka (belum diterapkan)
+const GROUP_COLORS = [
+  '#8b5cf6', '#f59e0b', '#10b981', '#ef4444',
+  '#06b6d4', '#ec4899', '#64748b', '#f97316',
+];
+let _classGroups      = [];   // grup aktif (diterapkan ke grafik)
+let _classGroupsDraft = [];   // draft dalam modal (belum apply)
+let _selectedClasses  = new Set(); // kelas yang dicentang di form
+
 // ── Helpers ───────────────────────────────────────────────────
 
 /** Set textContent dengan null-safe. */
@@ -767,6 +1171,69 @@ function setText(id, v) {
   if (btnBar)  btnBar.addEventListener('click',  () => switchChartType('bar'));
   if (btnLine) btnLine.addEventListener('click', () => switchChartType('line'));
 
+  // Kelola Grup — buka modal
+  const btnKelola = document.getElementById('btn-kelola-grup');
+  if (btnKelola) btnKelola.addEventListener('click', openGroupModal);
+
+  // Modal — tutup via overlay klik / tombol X
+  const overlay = document.getElementById('group-modal-overlay');
+  if (overlay) {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) closeGroupModal(false);
+    });
+  }
+  const btnClose = document.getElementById('btn-close-group-modal');
+  if (btnClose) btnClose.addEventListener('click', () => closeGroupModal(false));
+
+  // Modal — tombol Terapkan & Reset
+  const btnApply = document.getElementById('btn-apply-groups');
+  if (btnApply) btnApply.addEventListener('click', applyGroups);
+
+  const btnReset = document.getElementById('btn-reset-groups');
+  if (btnReset) btnReset.addEventListener('click', resetGroups);
+
+  const btnClearAll = document.getElementById('btn-clear-all-groups');
+  if (btnClearAll) btnClearAll.addEventListener('click', clearAllDraftGroups);
+
+  // Form: nama grup input & tombol tambah
+  const inputName = document.getElementById('input-group-name');
+  if (inputName) {
+    inputName.addEventListener('input', _validateGroupForm);
+    inputName.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const btn = document.getElementById('btn-add-group');
+        if (btn && !btn.disabled) addDraftGroup();
+      }
+    });
+  }
+
+  const btnAdd = document.getElementById('btn-add-group');
+  if (btnAdd) btnAdd.addEventListener('click', addDraftGroup);
+
+  // Pilih Semua kelas
+  const btnSelAll = document.getElementById('btn-select-all-classes');
+  if (btnSelAll) btnSelAll.addEventListener('click', () => {
+    const grid = document.getElementById('class-checkbox-grid');
+    if (!grid) return;
+    const allItems = grid.querySelectorAll('.class-checkbox-item');
+    const allChecked = [...allItems].every(el => el.classList.contains('selected'));
+    allItems.forEach(el => {
+      const cb  = el.querySelector('input[type="checkbox"]');
+      const cls = el.dataset.className;
+      if (allChecked) {
+        el.classList.remove('selected');
+        if (cb) cb.checked = false;
+        _selectedClasses.delete(cls);
+      } else {
+        el.classList.add('selected');
+        if (cb) cb.checked = true;
+        _selectedClasses.add(cls);
+      }
+    });
+    _validateGroupForm();
+  });
+
   document.getElementById('election-select').addEventListener('change', e => {
     stopAutoRefresh();
     _electionId = e.target.value;
@@ -779,6 +1246,12 @@ function setText(id, v) {
     _destroyChart();
     _classVoteData       = null;
     _classVoteCandidates = null;
+    // Reset grup kelas saat ganti pemilihan
+    _classGroups      = [];
+    _classGroupsDraft = [];
+    _selectedClasses  = new Set();
+    _updateGroupBadge();
+    _renderGroupChips();
 
     if (_electionId) {
       loadResults();
@@ -1326,6 +1799,7 @@ function renderClassVoteChart(classVoteBreakdown, candidates) {
   _classVoteData       = classVoteBreakdown;
   _classVoteCandidates = candidates;
   box.classList.remove('hidden');
+  _updateGroupBadge();
   _buildChart(_classVoteChartType);
 }
 
@@ -1361,22 +1835,521 @@ function _destroyChart() {
   }
 }
 
+// ── Grup Kelas — Modal & State ────────────────────────────────
+
+/** Buka modal. Salin grup aktif ke draft lalu render UI. */
+function openGroupModal() {
+  // Salin array grup aktif ke draft (deep copy sederhana)
+  _classGroupsDraft = _classGroups.map(g => ({ ...g, classes: [...g.classes] }));
+  _selectedClasses  = new Set();
+
+  _renderClassCheckboxGrid();
+  _renderDraftGroupList();
+  _validateGroupForm();
+
+  const overlay = document.getElementById('group-modal-overlay');
+  if (overlay) {
+    overlay.classList.add('open');
+    // Fokus ke input nama setelah animasi
+    setTimeout(() => {
+      const inp = document.getElementById('input-group-name');
+      if (inp) inp.focus();
+    }, 180);
+  }
+}
+
+/** Tutup modal. Jika save=true terapkan draft → aktif. */
+function closeGroupModal(save) {
+  if (save) {
+    _classGroups = _classGroupsDraft.map(g => ({ ...g, classes: [...g.classes] }));
+    _rebuildChartWithGroups();
+    _updateGroupBadge();
+    _renderGroupChips();
+  }
+  const overlay = document.getElementById('group-modal-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+/** Terapkan (tombol "Terapkan"). */
+function applyGroups() {
+  closeGroupModal(true);
+  const statusEl = document.getElementById('group-modal-status');
+  // status sudah tersembunyi, tapi set dulu sebelum close
+}
+
+/** Reset semua grup aktif + draft. */
+function resetGroups() {
+  _classGroupsDraft = [];
+  _renderDraftGroupList();
+  _renderClassCheckboxGrid();
+  _validateGroupForm();
+
+  const statusEl = document.getElementById('group-modal-status');
+  if (statusEl) statusEl.textContent = 'Semua grup dihapus.';
+}
+
+/** Hapus semua draft (tombol "Hapus Semua" di dalam list). */
+function clearAllDraftGroups() {
+  _classGroupsDraft = [];
+  _renderDraftGroupList();
+  _validateGroupForm();
+}
+
+/** Tambahkan grup baru ke draft dari form. */
+function addDraftGroup() {
+  const nameEl = document.getElementById('input-group-name');
+  const errEl  = document.getElementById('group-form-error');
+  if (!nameEl) return;
+
+  const name    = nameEl.value.trim();
+  const classes = [..._selectedClasses];
+
+  // Validasi
+  if (!name) {
+    _showGroupFormError('Nama grup tidak boleh kosong.');
+    nameEl.focus();
+    return;
+  }
+  if (classes.length < 2) {
+    _showGroupFormError('Pilih minimal 2 kelas untuk digabung.');
+    return;
+  }
+  // Cek nama duplikat
+  if (_classGroupsDraft.some(g => g.name.toLowerCase() === name.toLowerCase())) {
+    _showGroupFormError('Nama grup sudah digunakan. Gunakan nama lain.');
+    nameEl.focus();
+    return;
+  }
+  // Cek kelas yang sudah masuk grup lain
+  const usedInOther = classes.filter(cls =>
+    _classGroupsDraft.some(g => g.classes.includes(cls))
+  );
+  if (usedInOther.length) {
+    _showGroupFormError(`Kelas "${usedInOther[0]}" sudah ada di grup lain.`);
+    return;
+  }
+
+  if (errEl) errEl.classList.add('hidden');
+
+  const newGroup = {
+    id:      'grp_' + Date.now(),
+    name,
+    classes,
+    color:   GROUP_COLORS[_classGroupsDraft.length % GROUP_COLORS.length],
+  };
+  _classGroupsDraft.push(newGroup);
+
+  // Reset form
+  nameEl.value     = '';
+  _selectedClasses = new Set();
+  _renderClassCheckboxGrid();
+  _renderDraftGroupList();
+  _validateGroupForm();
+
+  const statusEl = document.getElementById('group-modal-status');
+  if (statusEl) statusEl.textContent = `Grup "${name}" ditambahkan.`;
+}
+
+function _showGroupFormError(msg) {
+  const errEl = document.getElementById('group-form-error');
+  if (errEl) {
+    errEl.textContent = msg;
+    errEl.classList.remove('hidden');
+  }
+}
+
+/** Validasi form & update state tombol Tambah. */
+function _validateGroupForm() {
+  const nameEl  = document.getElementById('input-group-name');
+  const btnAdd  = document.getElementById('btn-add-group');
+  const hintEl  = document.getElementById('class-select-hint');
+  const errEl   = document.getElementById('group-form-error');
+
+  const name    = nameEl ? nameEl.value.trim() : '';
+  const count   = _selectedClasses.size;
+
+  if (hintEl) hintEl.textContent = count > 0
+    ? `${count} kelas dipilih`
+    : '0 kelas dipilih';
+
+  const valid = name.length > 0 && count >= 2;
+  if (btnAdd) {
+    btnAdd.disabled = !valid;
+    btnAdd.classList.toggle('opacity-50',      !valid);
+    btnAdd.classList.toggle('cursor-not-allowed', !valid);
+  }
+
+  // Sembunyikan error saat user mengetik
+  if (errEl && !errEl.classList.contains('hidden')) {
+    if (name.length > 0 || count >= 2) errEl.classList.add('hidden');
+  }
+}
+
+/** Render checkbox grid kelas berdasarkan _classVoteData. */
+function _renderClassCheckboxGrid() {
+  const grid = document.getElementById('class-checkbox-grid');
+  if (!grid) return;
+
+  if (!_classVoteData || !_classVoteData.length) {
+    grid.innerHTML = '<p class="text-xs text-gray-400 col-span-full py-2 text-center">Belum ada data kelas.</p>';
+    return;
+  }
+
+  // Kelas yang sudah dipakai di draft
+  const usedClasses = new Set(
+    _classGroupsDraft.flatMap(g => g.classes)
+  );
+
+  grid.innerHTML = _classVoteData.map(d => {
+    const cls       = d.className;
+    const isUsed    = usedClasses.has(cls);
+    const isChecked = _selectedClasses.has(cls);
+    const disabledAttr = isUsed ? 'data-used="true"' : '';
+    const usedLabel    = isUsed
+      ? `<span class="text-[9px] text-orange-400 font-semibold ml-auto">sudah</span>` : '';
+
+    return `<label class="class-checkbox-item${isChecked ? ' selected' : ''}${isUsed ? ' opacity-50 cursor-not-allowed' : ''}"
+                   data-class-name="${Utils.escapeHtml(cls)}" ${disabledAttr}>
+      <input type="checkbox" ${isChecked ? 'checked' : ''} ${isUsed ? 'disabled' : ''}
+             aria-label="${Utils.escapeHtml(cls)}" />
+      <span class="truncate flex-1">${Utils.escapeHtml(cls)}</span>
+      ${usedLabel}
+    </label>`;
+  }).join('');
+
+  // Attach click handler ke setiap item
+  grid.querySelectorAll('.class-checkbox-item:not([data-used])').forEach(el => {
+    el.addEventListener('click', () => {
+      const cls = el.dataset.className;
+      const cb  = el.querySelector('input[type="checkbox"]');
+      if (!cls) return;
+
+      if (_selectedClasses.has(cls)) {
+        _selectedClasses.delete(cls);
+        el.classList.remove('selected');
+        if (cb) cb.checked = false;
+      } else {
+        _selectedClasses.add(cls);
+        el.classList.add('selected');
+        if (cb) cb.checked = true;
+      }
+      _validateGroupForm();
+    });
+  });
+}
+
+/** Render daftar grup draft di modal. */
+function _renderDraftGroupList() {
+  const container = document.getElementById('group-list-container');
+  const emptyEl   = document.getElementById('group-list-empty');
+  const btnClear  = document.getElementById('btn-clear-all-groups');
+
+  if (!container) return;
+
+  const hasDraft = _classGroupsDraft.length > 0;
+  if (btnClear) btnClear.classList.toggle('hidden', !hasDraft);
+
+  if (!hasDraft) {
+    container.innerHTML = '';
+    if (emptyEl) {
+      emptyEl.classList.remove('hidden');
+      container.appendChild(emptyEl);
+    }
+    return;
+  }
+
+  // Sembunyikan empty msg
+  if (emptyEl) emptyEl.classList.add('hidden');
+
+  container.innerHTML = _classGroupsDraft.map((g, idx) => `
+    <div class="group-item" data-group-id="${Utils.escapeHtml(g.id)}" data-group-idx="${idx}">
+      <div class="group-item-color" style="background:${g.color}"></div>
+      <div class="group-item-body">
+        <!-- Mode tampil normal -->
+        <div class="group-name-display">
+          <div class="group-item-name">${Utils.escapeHtml(g.name)}</div>
+          <div class="group-item-classes">${g.classes.map(c => Utils.escapeHtml(c)).join(' + ')}</div>
+        </div>
+        <!-- Mode edit nama (tersembunyi default) -->
+        <div class="group-name-edit hidden flex items-center gap-1.5 mt-0.5">
+          <input type="text"
+                 class="group-name-input"
+                 value="${Utils.escapeHtml(g.name)}"
+                 maxlength="40"
+                 aria-label="Ubah nama grup"
+                 data-group-idx="${idx}" />
+          <button class="group-name-confirm" data-group-idx="${idx}"
+                  title="Simpan nama" aria-label="Simpan nama grup">
+            <i class="fa-solid fa-check" aria-hidden="true"></i>
+          </button>
+          <button class="group-name-cancel" data-group-idx="${idx}"
+                  title="Batal" aria-label="Batal ubah nama">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      <div class="flex items-center gap-0.5 flex-shrink-0">
+        <button class="group-item-edit" data-group-idx="${idx}"
+                title="Ubah nama grup" aria-label="Ubah nama grup ${Utils.escapeHtml(g.name)}">
+          <i class="fa-solid fa-pencil text-xs" aria-hidden="true"></i>
+        </button>
+        <button class="group-item-del" data-group-idx="${idx}"
+                title="Hapus grup ${Utils.escapeHtml(g.name)}"
+                aria-label="Hapus grup ${Utils.escapeHtml(g.name)}">
+          <i class="fa-solid fa-trash-can text-xs" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  // Attach: tombol edit (masuk mode rename)
+  container.querySelectorAll('.group-item-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx  = parseInt(btn.dataset.groupIdx, 10);
+      const item = container.querySelector(`.group-item[data-group-idx="${idx}"]`);
+      if (!item) return;
+      _enterRenameMode(item, idx);
+    });
+  });
+
+  // Attach: tombol konfirmasi rename
+  container.querySelectorAll('.group-name-confirm').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx  = parseInt(btn.dataset.groupIdx, 10);
+      const item = container.querySelector(`.group-item[data-group-idx="${idx}"]`);
+      if (!item) return;
+      _commitRename(item, idx);
+    });
+  });
+
+  // Attach: tombol batal rename
+  container.querySelectorAll('.group-name-cancel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx  = parseInt(btn.dataset.groupIdx, 10);
+      const item = container.querySelector(`.group-item[data-group-idx="${idx}"]`);
+      if (!item) return;
+      _exitRenameMode(item);
+    });
+  });
+
+  // Attach: Enter = konfirmasi, Escape = batal di input rename
+  container.querySelectorAll('.group-name-input').forEach(input => {
+    input.addEventListener('keydown', e => {
+      const idx  = parseInt(input.dataset.groupIdx, 10);
+      const item = container.querySelector(`.group-item[data-group-idx="${idx}"]`);
+      if (!item) return;
+      if (e.key === 'Enter') { e.preventDefault(); _commitRename(item, idx); }
+      if (e.key === 'Escape') { e.preventDefault(); _exitRenameMode(item); }
+    });
+  });
+
+  // Attach hapus
+  container.querySelectorAll('.group-item-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.groupIdx, 10);
+      if (!isNaN(idx)) {
+        _classGroupsDraft.splice(idx, 1);
+        _renderDraftGroupList();
+        _renderClassCheckboxGrid(); // Unlock kelas yang baru dibebaskan
+        _validateGroupForm();
+      }
+    });
+  });
+}
+
+// ── Rename helpers ────────────────────────────────────────────
+
+/** Masuk mode edit nama — tampilkan input, sembunyikan display. */
+function _enterRenameMode(itemEl, idx) {
+  const display = itemEl.querySelector('.group-name-display');
+  const edit    = itemEl.querySelector('.group-name-edit');
+  const editBtn = itemEl.querySelector('.group-item-edit');
+  if (!display || !edit) return;
+
+  display.classList.add('hidden');
+  edit.classList.remove('hidden');
+  if (editBtn) editBtn.classList.add('hidden');
+
+  const input = edit.querySelector('.group-name-input');
+  if (input) {
+    input.value = _classGroupsDraft[idx]?.name || '';
+    input.focus();
+    input.select();
+  }
+}
+
+/** Keluar mode edit tanpa menyimpan. */
+function _exitRenameMode(itemEl) {
+  const display = itemEl.querySelector('.group-name-display');
+  const edit    = itemEl.querySelector('.group-name-edit');
+  const editBtn = itemEl.querySelector('.group-item-edit');
+  if (!display || !edit) return;
+
+  edit.classList.add('hidden');
+  display.classList.remove('hidden');
+  if (editBtn) editBtn.classList.remove('hidden');
+}
+
+/**
+ * Simpan nama baru dari input.
+ * Validasi: tidak boleh kosong, tidak duplikat dengan grup lain.
+ */
+function _commitRename(itemEl, idx) {
+  const edit  = itemEl.querySelector('.group-name-edit');
+  const input = edit ? edit.querySelector('.group-name-input') : null;
+  if (!input) return;
+
+  const newName = input.value.trim();
+  const errEl   = document.getElementById('group-form-error');
+
+  if (!newName) {
+    input.focus();
+    input.style.borderColor = '#ef4444';
+    setTimeout(() => { input.style.borderColor = ''; }, 1200);
+    return;
+  }
+
+  // Cek duplikat (abaikan grup sendiri)
+  const isDuplicate = _classGroupsDraft.some(
+    (g, i) => i !== idx && g.name.toLowerCase() === newName.toLowerCase()
+  );
+  if (isDuplicate) {
+    input.focus();
+    input.select();
+    input.style.borderColor = '#ef4444';
+    if (errEl) {
+      errEl.textContent = `Nama "${newName}" sudah digunakan oleh grup lain.`;
+      errEl.classList.remove('hidden');
+      setTimeout(() => errEl.classList.add('hidden'), 3000);
+    }
+    setTimeout(() => { input.style.borderColor = ''; }, 1400);
+    return;
+  }
+
+  // Simpan ke draft
+  _classGroupsDraft[idx].name = newName;
+
+  // Update tampilan display langsung (tanpa full re-render untuk menghindari flash)
+  const display  = itemEl.querySelector('.group-name-display');
+  const nameSpan = display ? display.querySelector('.group-item-name') : null;
+  if (nameSpan) nameSpan.textContent = newName;
+
+  // Update aria-label tombol hapus & edit
+  const delBtn  = itemEl.querySelector('.group-item-del');
+  const editBtn = itemEl.querySelector('.group-item-edit');
+  if (delBtn)  delBtn.setAttribute('aria-label',  `Hapus grup ${newName}`);
+  if (editBtn) editBtn.setAttribute('aria-label', `Ubah nama grup ${newName}`);
+
+  _exitRenameMode(itemEl);
+
+  // Feedback status
+  const statusEl = document.getElementById('group-modal-status');
+  if (statusEl) {
+    statusEl.textContent = `Nama diubah menjadi "${newName}".`;
+    setTimeout(() => { if (statusEl.textContent.startsWith('Nama diubah')) statusEl.textContent = ''; }, 3000);
+  }
+}
+
+/** Update badge angka di tombol Kelola Grup. */
+function _updateGroupBadge() {
+  const btn    = document.getElementById('btn-kelola-grup');
+  const badge  = document.getElementById('grup-badge');
+  const count  = _classGroups.length;
+
+  if (badge) {
+    badge.textContent = String(count);
+    badge.classList.toggle('hidden', count === 0);
+  }
+  if (btn) {
+    btn.classList.toggle('has-groups', count > 0);
+  }
+}
+
+/** Render chips grup aktif di bawah legend grafik. */
+function _renderGroupChips() {
+  const container = document.getElementById('chart-groups-indicator');
+  if (!container) return;
+
+  if (!_classGroups.length) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+
+  container.classList.remove('hidden');
+  container.innerHTML =
+    '<span class="text-xs text-gray-400 self-center mr-1">Grup:</span>' +
+    _classGroups.map(g => `
+      <span class="group-chip" style="background:${g.color}" title="${Utils.escapeHtml(g.classes.join(' + '))}">
+        <span class="group-chip-dot"></span>
+        ${Utils.escapeHtml(g.name)}
+        <span class="opacity-70">(${g.classes.length})</span>
+      </span>
+    `).join('');
+}
+
+/**
+ * Rebuild grafik menggunakan _classGroups yang aktif.
+ * Kelas yang masuk grup akan digabung menjadi satu titik data.
+ * Kelas lain tetap tampil individual.
+ */
+function _rebuildChartWithGroups() {
+  if (_classVoteData && _classVoteCandidates) {
+    _buildChart(_classVoteChartType);
+  }
+}
+
 /**
  * Build atau rebuild Chart.js.
  * BUG FIX: minWidth dihitung dari wrapper aktual bukan clientWidth yang bisa 0
  * saat element baru muncul; gunakan scrollWidth sebagai fallback.
  * BUG FIX: maintainAspectRatio dinonaktifkan agar canvas tidak overflow container
  * pada mode scroll horizontal.
+ *
+ * Mendukung penggabungan kelas: kelas yang masuk _classGroups digabung
+ * (suaranya dijumlah) menjadi satu titik data berlabel nama grupnya.
+ * Kelas lain yang tidak masuk grup mana pun tetap individual.
  */
 function _buildChart(type) {
   const breakdown  = _classVoteData;
   const candidates = _classVoteCandidates;
 
-  const labels   = breakdown.map(d => d.className);
+  // ── Terapkan penggabungan kelas ──────────────────────────
+  // Kelas yang sudah dimasukkan ke grup aktif tidak tampil individual.
+  const groupedClassNames = new Set(
+    _classGroups.flatMap(g => g.classes)
+  );
+
+  // Bangun daftar "entry" untuk grafik:
+  // - Satu entry per grup: { label, votes: { candidateId: total } }
+  // - Satu entry per kelas individual (tidak masuk grup mana pun)
+  const groupEntries = _classGroups.map(g => {
+    const votes = {};
+    candidates.forEach(c => { votes[c.id] = 0; });
+    g.classes.forEach(cls => {
+      const found = breakdown.find(d => d.className === cls);
+      if (found) {
+        candidates.forEach(c => {
+          votes[c.id] = (votes[c.id] || 0) + (found.votes[c.id] || 0);
+        });
+      }
+    });
+    return { label: g.name, votes, isGroup: true, groupColor: g.color };
+  });
+
+  const individualEntries = breakdown
+    .filter(d => !groupedClassNames.has(d.className))
+    .map(d => ({ label: d.className, votes: d.votes, isGroup: false }));
+
+  // Urutan: individual dulu (urutan asli), lalu grup di akhir
+  const allEntries = [...individualEntries, ...groupEntries];
+
+  const labels = allEntries.map(e => e.label);
+
   const datasets = candidates.map((c, i) => {
     const color = CANDIDATE_COLORS[i % CANDIDATE_COLORS.length];
     const label = c.name + (c.pairName ? ' & ' + c.pairName : '');
-    const data  = breakdown.map(d => d.votes[c.id] || 0);
+    const data  = allEntries.map(e => e.votes[c.id] || 0);
 
     return {
       label,
@@ -1394,7 +2367,7 @@ function _buildChart(type) {
     };
   });
 
-  // Legend kustom
+  // Legend kustom paslon
   const legendEl = document.getElementById('chart-legend');
   if (legendEl) {
     legendEl.innerHTML = candidates.map((c, i) => {
@@ -1408,6 +2381,9 @@ function _buildChart(type) {
     }).join('');
   }
 
+  // Chips grup aktif
+  _renderGroupChips();
+
   _destroyChart();
 
   const ctx = document.getElementById('class-vote-chart');
@@ -1416,11 +2392,10 @@ function _buildChart(type) {
   // Hitung lebar minimum canvas
   const classCount = labels.length;
   const candCount  = candidates.length;
-  // Lebar per group (px): makin banyak kandidat butuh ruang lebih
   const groupW     = type === 'bar' ? Math.max(48, candCount * 28) : 60;
-  const minCanvasW = classCount * groupW + 60; // +60 untuk sumbu Y
+  const minCanvasW = classCount * groupW + 60;
 
-  const wrapper = ctx.parentElement;
+  const wrapper  = ctx.parentElement;
   const wrapperW = wrapper ? (wrapper.clientWidth || wrapper.scrollWidth || 300) : 300;
 
   if (minCanvasW > wrapperW) {
@@ -1431,22 +2406,50 @@ function _buildChart(type) {
     ctx.style.minWidth = '';
   }
 
-  // Tinggi tetap — tidak ikut stretch
   ctx.style.height = '280px';
+
+  // Plugin kustom: blok warna latar berbeda untuk kolom yang merupakan grup
+  const groupShadingPlugin = {
+    id: 'groupShading',
+    beforeDraw(chart) {
+      const { ctx: c2, chartArea, scales } = chart;
+      if (!chartArea || !scales.x) return;
+      const xScale = scales.x;
+      c2.save();
+      allEntries.forEach((entry, idx) => {
+        if (!entry.isGroup) return;
+        const xStart = xScale.getPixelForValue(idx - 0.5);
+        const xEnd   = xScale.getPixelForValue(idx + 0.5);
+        c2.fillStyle = (entry.groupColor || '#8b5cf6') + '14';
+        c2.fillRect(xStart, chartArea.top, xEnd - xStart, chartArea.bottom - chartArea.top);
+      });
+      c2.restore();
+    },
+  };
 
   _classVoteChart = new Chart(ctx, {
     type: type,
     data: { labels, datasets },
+    plugins: [groupShadingPlugin],
     options: {
-      responsive:          false,  // BUG FIX: false agar canvas tidak overflow wrapper
+      responsive:          false,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            title: (items) => 'Kelas: ' + items[0].label,
-            label: (item)  => ` ${item.dataset.label}: ${item.parsed.y} suara`,
+            title: (items) => {
+              const idx   = items[0].dataIndex;
+              const entry = allEntries[idx];
+              if (entry && entry.isGroup) {
+                return `Grup: ${items[0].label} (${entry.votes ? '' : ''}${
+                  _classGroups.find(g => g.name === items[0].label)?.classes.join(', ') || ''
+                })`;
+              }
+              return 'Kelas: ' + items[0].label;
+            },
+            label: (item) => ` ${item.dataset.label}: ${item.parsed.y} suara`,
           },
         },
       },
@@ -1455,7 +2458,12 @@ function _buildChart(type) {
           grid:  { display: false },
           ticks: {
             font:         { size: 11 },
-            color:        '#6b7280',
+            color: (ctx2) => {
+              // Label grup diberi warna berbeda
+              const idx   = ctx2.index;
+              const entry = allEntries[idx];
+              return (entry && entry.isGroup) ? (entry.groupColor || '#8b5cf6') : '#6b7280';
+            },
             maxRotation:  45,
             minRotation:  0,
             autoSkip:     false,
@@ -1468,8 +2476,6 @@ function _buildChart(type) {
             font:      { size: 11 },
             color:     '#6b7280',
             precision: 0,
-            // BUG FIX: stepSize dihitung dari data agar tidak muncul desimal
-            // pada data dengan rentang kecil.
             callback: (v) => Number.isInteger(v) ? v : null,
           },
           title: {
