@@ -509,6 +509,9 @@ function renderCandidateCards() {
   grid.querySelectorAll('[data-detail-id]').forEach(btn => {
     btn.addEventListener('click', () => showDetailModal(btn.dataset.detailId));
   });
+
+  // Aktifkan lightbox pada foto kandidat di grid
+  LightboxPhoto.init(grid);
 }
 
 // ── candidateCardHtml ─────────────────────────────────────
@@ -520,7 +523,9 @@ function candidateCardHtml(c) {
     ? `<img src="${Utils.escapeHtml(photoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.name)}"
              loading="lazy"
-             referrerpolicy="no-referrer">`
+             referrerpolicy="no-referrer"
+             data-lightbox="${Utils.escapeHtml(photoSrc)}"
+             data-lightbox-caption="${Utils.escapeHtml(c.name)}">`
     : `<div class="w-full h-full flex items-center justify-center" aria-hidden="true">
          <i class="fa-solid fa-user text-5xl text-gray-300"></i>
        </div>`;
@@ -529,7 +534,9 @@ function candidateCardHtml(c) {
     ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.pairName || 'Calon Wakil')}"
              loading="lazy"
-             referrerpolicy="no-referrer">`
+             referrerpolicy="no-referrer"
+             data-lightbox="${Utils.escapeHtml(pairPhotoSrc)}"
+             data-lightbox-caption="${Utils.escapeHtml(c.pairName || 'Calon Wakil')}">`
     : `<div class="w-full h-full flex items-center justify-center" aria-hidden="true">
          <i class="fa-solid fa-user text-5xl text-gray-300"></i>
        </div>`;
@@ -614,7 +621,9 @@ function showDetailModal(id) {
                      alt="Foto ${Utils.escapeHtml(name)}"
                      loading="lazy"
                      referrerpolicy="no-referrer"
-                     class="${imgCls}">
+                     class="${imgCls}"
+                     data-lightbox="${Utils.escapeHtml(src)}"
+                     data-lightbox-caption="${Utils.escapeHtml(name)}">
               </div>`;
     }
     return `<div style="${wrapStyle}" class="rounded-xl flex items-center justify-center" aria-hidden="true">
@@ -746,6 +755,9 @@ function showDetailModal(id) {
     size:   'lg',
     closable: true,
   });
+
+  // Aktifkan lightbox pada foto di modal detail kandidat
+  if (modal) LightboxPhoto.init(modal);
 
   // ── Tab switching ─────────────────────────────────────
   if (modal) {
