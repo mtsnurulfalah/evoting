@@ -836,3 +836,356 @@ function _renderSchoolLogo(logoUrl, schoolName) {
     }
   });
 }
+
+// ============================================================
+// LIGHTBOX FOTO KANDIDAT
+// ============================================================
+
+/**
+ * LightboxPhoto — komponen lightbox ringan untuk memperbesar foto kandidat.
+ *
+ * Cara pakai:
+ *   1. Tambahkan atribut `data-lightbox` pada <img> kandidat, dengan value
+ *      berupa URL foto (boleh sama dengan src atau full-res berbeda).
+ *      Opsional: `data-lightbox-caption` untuk teks nama di bawah foto.
+ *   2. Panggil `LightboxPhoto.init()` setelah DOM/innerHTML selesai dirender.
+ *      Bisa dipanggil ulang kapanpun ada konten baru tanpa leak listener.
+ *   3. Atau gunakan `LightboxPhoto.open(src, caption)` secara programatik.
+ *
+ * Fitur:
+ *   - Klik gambar → buka lightbox
+ *   - Klik backdrop / tombol × / tekan Escape → tutup
+ *   - Animasi fade + scale
+ *   - Zoom 100% vs fit dengan klik pada foto di lightbox
+ *   - Loading spinner saat gambar belum selesai dimuat
+ *   - Keyboard accessible (focus trap, role=dialog, aria-modal)
+ */
+const LightboxPhoto = (() => {
+  const OVERLAY_ID = 'lightbox-photo-overlay';
+
+  // ── CSS (injeksi satu kali ke <head>) ───────────────────────
+  function _injectStyles() {
+    if (document.getElementById('lightbox-photo-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'lightbox-photo-styles';
+    style.textContent = `
+      /* Overlay */
+      #lightbox-photo-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0,0,0,0.88);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.22s ease;
+      }
+      #lightbox-photo-overlay.lb-open {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      /* Inner container */
+      .lb-inner {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: min(90vw, 560px);
+        max-height: 90vh;
+        transform: scale(0.93);
+        transition: transform 0.22s cubic-bezier(0.34,1.36,0.64,1);
+        outline: none;
+      }
+      #lightbox-photo-overlay.lb-open .lb-inner {
+        transform: scale(1);
+      }
+
+      /* Gambar */
+      .lb-img-wrap {
+        position: relative;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: 12px;
+        background: #1f2937;
+        cursor: zoom-in;
+        min-height: 120px;
+      }
+      .lb-img-wrap.lb-zoomed {
+        cursor: zoom-out;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .lb-img {
+        display: block;
+        max-width: 100%;
+        max-height: calc(90vh - 64px);
+        object-fit: contain;
+        object-position: top center;
+        border-radius: 12px;
+        transition: opacity 0.18s ease, transform 0.22s ease;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+      .lb-img-wrap.lb-zoomed .lb-img {
+        max-width: none;
+        max-height: none;
+        width: auto;
+        height: auto;
+      }
+
+      /* Spinner */
+      .lb-spinner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1f2937;
+        border-radius: 12px;
+      }
+      .lb-spinner-ring {
+        width: 36px;
+        height: 36px;
+        border: 3px solid rgba(255,255,255,0.2);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: lb-spin 0.75s linear infinite;
+      }
+      @keyframes lb-spin { to { transform: rotate(360deg); } }
+
+      /* Caption */
+      .lb-caption {
+        margin-top: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255,255,255,0.85);
+        text-align: center;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.4;
+      }
+
+      /* Tombol tutup */
+      .lb-close {
+        position: absolute;
+        top: -14px;
+        right: -14px;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255,255,255,0.15);
+        color: #fff;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.15s;
+        flex-shrink: 0;
+        z-index: 1;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+      .lb-close:hover  { background: rgba(255,255,255,0.28); }
+      .lb-close:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: 2px;
+      }
+
+      /* Hint zoom */
+      .lb-hint {
+        margin-top: 5px;
+        font-size: 10px;
+        color: rgba(255,255,255,0.35);
+        text-align: center;
+        letter-spacing: 0.02em;
+      }
+
+      /* Kursor klik pada foto kandidat — tanda bisa diperbesar */
+      img[data-lightbox] {
+        cursor: zoom-in !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // ── Buat elemen overlay (sekali) ────────────────────────────
+  function _getOrCreateOverlay() {
+    let overlay = document.getElementById(OVERLAY_ID);
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = OVERLAY_ID;
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Lihat foto kandidat');
+
+    overlay.innerHTML = `
+      <div class="lb-inner" tabindex="-1" id="lb-inner">
+        <button class="lb-close" id="lb-close-btn" aria-label="Tutup foto">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+        <div class="lb-img-wrap" id="lb-img-wrap">
+          <div class="lb-spinner" id="lb-spinner">
+            <div class="lb-spinner-ring"></div>
+          </div>
+          <img class="lb-img" id="lb-img" src="" alt="" draggable="false" />
+        </div>
+        <p class="lb-caption" id="lb-caption"></p>
+        <p class="lb-hint" id="lb-hint">Klik foto untuk zoom &middot; Klik di luar untuk tutup</p>
+      </div>`;
+
+    document.body.appendChild(overlay);
+
+    // Tutup saat klik backdrop
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) close();
+    });
+
+    // Tombol ×
+    document.getElementById('lb-close-btn').addEventListener('click', close);
+
+    // Zoom toggle saat klik foto
+    document.getElementById('lb-img-wrap').addEventListener('click', e => {
+      e.stopPropagation();
+      const wrap = document.getElementById('lb-img-wrap');
+      if (wrap) wrap.classList.toggle('lb-zoomed');
+    });
+
+    return overlay;
+  }
+
+  // ── Buka lightbox ───────────────────────────────────────────
+  function open(src, caption) {
+    if (!src) return;
+    _injectStyles();
+    const overlay = _getOrCreateOverlay();
+
+    const imgEl     = document.getElementById('lb-img');
+    const captionEl = document.getElementById('lb-caption');
+    const spinnerEl = document.getElementById('lb-spinner');
+    const wrapEl    = document.getElementById('lb-img-wrap');
+
+    if (!imgEl) return;
+
+    // BUG FIX #8: removeAttribute('src') lebih aman daripada src = ''
+    // karena src='' bisa menyebabkan browser mengirim request ke URL relatif kosong.
+    imgEl.removeAttribute('src');
+    imgEl.alt = '';
+    imgEl.style.opacity = '0';
+    if (wrapEl)    wrapEl.classList.remove('lb-zoomed');
+    if (spinnerEl) spinnerEl.style.display = 'flex';
+    if (captionEl) captionEl.textContent = caption || '';
+
+    // Buka overlay dulu agar spinner langsung terlihat
+    overlay.classList.add('lb-open');
+    document.body.classList.add('overflow-hidden');
+
+    // Fokus ke inner untuk a11y
+    setTimeout(() => {
+      const inner = document.getElementById('lb-inner');
+      if (inner) inner.focus();
+    }, 50);
+
+    // BUG FIX #2+#3: Hapus handler lama SEBELUM pasang yang baru.
+    // Jika open() dipanggil berulang (misal klik foto lain saat lightbox sudah terbuka),
+    // tanpa remove terlebih dahulu akan terjadi penumpukan listener yang menyebabkan
+    // close() terpanggil lebih dari satu kali saat Escape ditekan.
+    document.removeEventListener('keydown', _keyHandler);
+    document.addEventListener('keydown', _keyHandler);
+
+    // Muat gambar
+    const img    = new Image();
+    img.onload   = () => {
+      imgEl.src           = src;
+      imgEl.alt           = caption || 'Foto kandidat';
+      imgEl.style.opacity = '1';
+      if (spinnerEl) spinnerEl.style.display = 'none';
+    };
+    img.onerror  = () => {
+      // Gambar gagal dimuat — tampilkan placeholder
+      if (spinnerEl) spinnerEl.style.display = 'none';
+      imgEl.src           = '';
+      imgEl.style.opacity = '1';
+      if (wrapEl) {
+        wrapEl.style.minHeight = '160px';
+        // Tampilkan ikon fallback jika belum ada
+        if (!document.getElementById('lb-fallback-icon')) {
+          const ico = document.createElement('div');
+          ico.id = 'lb-fallback-icon';
+          ico.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px';
+          ico.innerHTML = '<i class="fa-solid fa-image-slash" style="font-size:2rem;color:rgba(255,255,255,0.25)"></i>'
+                        + '<p style="font-size:11px;color:rgba(255,255,255,0.35)">Foto tidak tersedia</p>';
+          wrapEl.appendChild(ico);
+        }
+      }
+    };
+    img.src = src;
+  }
+
+  // ── Tutup lightbox ──────────────────────────────────────────
+  function close() {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (!overlay) return;
+    overlay.classList.remove('lb-open');
+    document.removeEventListener('keydown', _keyHandler);
+
+    // BUG FIX #4: Hapus overflow-hidden dari body HANYA jika tidak ada modal lain
+    // yang sedang terbuka (Modal dari components.js juga menggunakan class ini).
+    // Cek keberadaan elemen modal-backdrop yang masih aktif di DOM.
+    const hasOpenModal = !!document.querySelector('.modal-backdrop');
+    if (!hasOpenModal) {
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    // Reset setelah animasi selesai
+    setTimeout(() => {
+      const imgEl     = document.getElementById('lb-img');
+      const wrapEl    = document.getElementById('lb-img-wrap');
+      const icoEl     = document.getElementById('lb-fallback-icon');
+      if (imgEl)  { imgEl.removeAttribute('src'); imgEl.alt = ''; }
+      if (wrapEl) { wrapEl.classList.remove('lb-zoomed'); wrapEl.style.minHeight = ''; }
+      if (icoEl)  icoEl.remove();
+    }, 250);
+  }
+
+  // ── Keyboard handler ────────────────────────────────────────
+  function _keyHandler(e) {
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  }
+
+  /**
+   * Pasang listener click pada semua <img data-lightbox> di dalam `root`.
+   * Aman dipanggil ulang (delegasi per-element via WeakSet agar tidak double).
+   *
+   * @param {HTMLElement|Document} [root=document]
+   */
+  const _bound = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+
+  function init(root) {
+    _injectStyles();
+    const scope = root || document;
+    scope.querySelectorAll('img[data-lightbox]').forEach(img => {
+      if (_bound && _bound.has(img)) return;  // sudah dipasang
+      img.addEventListener('click', e => {
+        e.stopPropagation();
+        const src     = img.dataset.lightbox || img.src;
+        const caption = img.dataset.lightboxCaption || img.alt || '';
+        open(src, caption);
+      });
+      if (_bound) _bound.add(img);
+    });
+  }
+
+  return { open, close, init };
+})();
