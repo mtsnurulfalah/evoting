@@ -2959,18 +2959,26 @@ const LightboxChart = (() => {
     const srcData = _classVoteChart.data;
     const srcType = _classVoteChartType;
 
-    // Hitung lebar canvas lightbox
+    // ── Hitung lebar CSS canvas lightbox ────────────────────
     const labels    = srcData.labels || [];
     const candCount = (srcData.datasets || []).length;
     const groupW    = srcType === 'bar' ? Math.max(56, candCount * 34) : 70;
     const minW      = labels.length * groupW + 80;
-    // BUG #6 FIX: clientWidth kini valid karena overlay sudah visible
     const wrapperW  = scroll ? (scroll.clientWidth || scroll.scrollWidth || 600) : 600;
     const canvasW   = Math.max(minW, wrapperW);
+    const canvasH   = 420;
+
+    // ── Resolusi HD: kalikan dimensi fisik canvas dengan DPR ─
+    // Chart.js 4.x menghormati option `devicePixelRatio`:
+    //   - canvas.style.width/height = ukuran CSS (tampilan di layar)
+    //   - canvas internal pixel = style × dpr  → diurus Chart.js otomatis
+    // Gunakan Math.max(dpr, 2) agar minimum 2× bahkan di layar non-Retina,
+    // sehingga hasil selalu tajam saat di-zoom maupun saat di-unduh.
+    const dpr = Math.max(window.devicePixelRatio || 1, 2);
 
     canvas.style.width    = canvasW + 'px';
     canvas.style.minWidth = canvasW + 'px';
-    canvas.style.height   = '420px';
+    canvas.style.height   = canvasH + 'px';
 
     // Deep-clone datasets agar tidak mutasi chart asli
     const datasets = (srcData.datasets || []).map(ds => ({ ...ds }));
@@ -3021,6 +3029,9 @@ const LightboxChart = (() => {
     const lbOptions = {
       responsive:          false,
       maintainAspectRatio: false,
+      // HD rendering: Chart.js mengalikan canvas.width/height dengan nilai ini
+      // secara internal, menghasilkan piksel 2× lebih rapat dari CSS size.
+      devicePixelRatio:    dpr,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
