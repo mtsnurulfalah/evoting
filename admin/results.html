@@ -570,6 +570,156 @@
       display: block;
     }
 
+    /* ── LightboxChart — zoom grafik ── */
+    #lbc-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      background: rgba(0,0,0,0.90);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+    #lbc-overlay.lbc-open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .lbc-inner {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: min(95vw, 1100px);
+      max-height: 90vh;
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+      transform: scale(0.95);
+      transition: transform 0.22s cubic-bezier(0.34,1.2,0.64,1);
+    }
+    #lbc-overlay.lbc-open .lbc-inner {
+      transform: scale(1);
+    }
+    .lbc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      flex-shrink: 0;
+      gap: 10px;
+    }
+    .lbc-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #111827;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lbc-subtitle {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lbc-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .lbc-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      color: #6b7280;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      line-height: 1;
+    }
+    .lbc-btn:hover {
+      background: #f9fafb;
+      border-color: #d1d5db;
+      color: #374151;
+    }
+    .lbc-btn.lbc-btn-close {
+      padding: 5px 9px;
+      color: #9ca3af;
+    }
+    .lbc-btn.lbc-btn-close:hover {
+      background: #fee2e2;
+      border-color: #fca5a5;
+      color: #ef4444;
+    }
+    .lbc-body {
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+    /* Legend di dalam lightbox */
+    .lbc-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      flex-shrink: 0;
+    }
+    /* Wrapper scroll canvas di lightbox */
+    .lbc-canvas-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+      min-height: 0;
+    }
+    .lbc-canvas-scroll canvas {
+      display: block;
+    }
+    /* Kursor zoom-in pada canvas chart asli */
+    #class-vote-chart {
+      cursor: zoom-in;
+    }
+    /* Tombol zoom di header card */
+    .btn-zoom-chart {
+      padding: 5px 9px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      color: #6b7280;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-zoom-chart:hover {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #2563eb;
+    }
+
     /* ── Chart type toggle ── */
     .chart-type-btn {
       padding: 5px 12px;
@@ -978,6 +1128,12 @@
                       aria-pressed="false" title="Grafik garis">
                 <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
               </button>
+              <div class="w-px h-4 bg-gray-200 flex-shrink-0"></div>
+              <!-- Tombol Zoom grafik -->
+              <button class="btn-zoom-chart" id="btn-zoom-chart"
+                      title="Perbesar grafik" aria-label="Perbesar grafik ke layar penuh">
+                <i class="fa-solid fa-expand" aria-hidden="true"></i>
+              </button>
             </div>
           </div>
           <!-- Legend paslon -->
@@ -1093,6 +1249,46 @@
         Terapkan
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     LIGHTBOX CHART — zoom grafik suara per kelas
+════════════════════════════════════════════ -->
+<div id="lbc-overlay" role="dialog" aria-modal="true" aria-labelledby="lbc-title">
+  <div class="lbc-inner" tabindex="-1">
+
+    <!-- Header -->
+    <div class="lbc-header">
+      <div class="min-w-0">
+        <p class="lbc-title" id="lbc-title">Suara per Kelas per Paslon</p>
+        <p class="lbc-subtitle" id="lbc-subtitle"></p>
+      </div>
+      <div class="lbc-actions">
+        <!-- Tombol download gambar grafik -->
+        <button class="lbc-btn" id="lbc-btn-download" title="Unduh grafik sebagai gambar PNG"
+                aria-label="Unduh grafik">
+          <i class="fa-solid fa-download text-xs" aria-hidden="true"></i>
+          <span class="hidden sm:inline">Unduh</span>
+        </button>
+        <!-- Tombol tutup -->
+        <button class="lbc-btn lbc-btn-close" id="lbc-btn-close"
+                title="Tutup" aria-label="Tutup grafik">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Body: legend + canvas -->
+    <div class="lbc-body" id="lbc-body">
+      <!-- Legend paslon (disalin dari grafik asli) -->
+      <div class="lbc-legend" id="lbc-legend" aria-label="Legenda grafik"></div>
+      <!-- Scroll wrapper untuk canvas chart fullsize -->
+      <div class="lbc-canvas-scroll" id="lbc-canvas-scroll">
+        <canvas id="lbc-canvas" aria-label="Grafik suara per kelas per paslon diperbesar" role="img"></canvas>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1219,6 +1415,10 @@ function setText(id, v) {
   // Kelola Grup — buka modal
   const btnKelola = document.getElementById('btn-kelola-grup');
   if (btnKelola) btnKelola.addEventListener('click', openGroupModal);
+
+  // Zoom chart — buka lightbox grafik
+  const btnZoom = document.getElementById('btn-zoom-chart');
+  if (btnZoom) btnZoom.addEventListener('click', () => LightboxChart.open());
 
   // Modal — tutup via overlay klik / tombol X
   const overlay = document.getElementById('group-modal-overlay');
@@ -2665,7 +2865,320 @@ function _buildChart(type) {
       },
     },
   });
+
+  // Pasang klik-canvas → zoom setelah chart selesai dibuat
+  LightboxChart._attachCanvas(ctx);
 }
+
+// ── LightboxChart ─────────────────────────────────────────────
+/**
+ * LightboxChart — zoom grafik Chart.js ke overlay fullscreen.
+ *
+ * Cara kerja:
+ *   1. Saat dibuka, chart baru dibangun ulang di dalam canvas #lbc-canvas
+ *      dengan konfigurasi yang sama persis dengan chart asli (_classVoteChart),
+ *      namun dengan ukuran lebih besar dan responsive: true agar memenuhi
+ *      lebar overlay.
+ *   2. Legend paslon disalin dari #chart-legend ke #lbc-legend.
+ *   3. Tombol Unduh meng-export canvas lightbox sebagai PNG.
+ *   4. Tutup: tombol ×, klik backdrop, atau Escape.
+ *
+ * Tidak bergantung pada LightboxPhoto — implementasi terpisah agar tidak
+ * perlu modifikasi komponen yang sudah stabil.
+ */
+const LightboxChart = (() => {
+  const OVERLAY_ID = 'lbc-overlay';
+  let   _lbChart   = null;   // instance Chart.js di lightbox
+  // BUG #3 FIX: hapus _canvasSource — dead variable, tidak pernah dipakai.
+  const _bound     = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+
+  // ── Buka lightbox ─────────────────────────────────────────
+  function open() {
+    // Guard: hanya buka jika ada chart aktif
+    if (!_classVoteChart || !_classVoteData || !_classVoteCandidates) {
+      Toast.info('Grafik belum tersedia. Pilih pemilihan terlebih dahulu.');
+      return;
+    }
+
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (!overlay) return;
+
+    // Salin legend paslon
+    _syncLegend();
+
+    // Isi subtitle dengan nama pemilihan yang sedang dipilih
+    const selEl      = document.getElementById('election-select');
+    const subtitle   = selEl ? (selEl.options[selEl.selectedIndex]?.text || '') : '';
+    const subtitleEl = document.getElementById('lbc-subtitle');
+    if (subtitleEl) subtitleEl.textContent = subtitle;
+
+    // BUG #6 FIX: buka overlay SEBELUM _buildLbChart agar elemen sudah
+    // memiliki dimensi saat clientWidth dibaca untuk kalkulasi lebar canvas.
+    // Tanpa ini, scroll wrapper masih belum di-layout sehingga clientWidth = 0.
+    overlay.classList.add('lbc-open');
+    document.body.classList.add('overflow-hidden');
+
+    // Pasang keyboard handler
+    document.removeEventListener('keydown', _keyHandler);
+    document.addEventListener('keydown', _keyHandler);
+
+    // Fokus ke inner untuk aksesibilitas (tabindex="-1" ada di HTML — Bug #4 fix)
+    setTimeout(() => {
+      const inner = overlay.querySelector('.lbc-inner');
+      if (inner) inner.focus({ preventScroll: true });
+    }, 50);
+
+    // Build chart setelah overlay visible agar clientWidth valid (Bug #6 fix)
+    requestAnimationFrame(() => _buildLbChart());
+  }
+
+  // ── Tutup lightbox ────────────────────────────────────────
+  function close() {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (!overlay) return;
+
+    overlay.classList.remove('lbc-open');
+    document.removeEventListener('keydown', _keyHandler);
+
+    // Hapus overflow-hidden hanya jika tidak ada modal lain yang terbuka
+    const hasOpenModal = !!document.querySelector('.modal-backdrop, .group-modal-overlay.open');
+    if (!hasOpenModal) document.body.classList.remove('overflow-hidden');
+
+    // Hancurkan chart lightbox setelah animasi selesai
+    setTimeout(() => _destroyLbChart(), 250);
+  }
+
+  // ── Build chart di canvas lightbox ───────────────────────
+  function _buildLbChart() {
+    _destroyLbChart();
+
+    const canvas = document.getElementById('lbc-canvas');
+    const scroll = document.getElementById('lbc-canvas-scroll');
+    if (!canvas || !_classVoteChart) return;
+
+    const srcData = _classVoteChart.data;
+    const srcType = _classVoteChartType;
+
+    // Hitung lebar canvas lightbox
+    const labels    = srcData.labels || [];
+    const candCount = (srcData.datasets || []).length;
+    const groupW    = srcType === 'bar' ? Math.max(56, candCount * 34) : 70;
+    const minW      = labels.length * groupW + 80;
+    // BUG #6 FIX: clientWidth kini valid karena overlay sudah visible
+    const wrapperW  = scroll ? (scroll.clientWidth || scroll.scrollWidth || 600) : 600;
+    const canvasW   = Math.max(minW, wrapperW);
+
+    canvas.style.width    = canvasW + 'px';
+    canvas.style.minWidth = canvasW + 'px';
+    canvas.style.height   = '420px';
+
+    // Deep-clone datasets agar tidak mutasi chart asli
+    const datasets = (srcData.datasets || []).map(ds => ({ ...ds }));
+
+    // Re-derive allEntries dari state modul (_classGroups, _classVoteData)
+    const groupedClassNames = new Set(_classGroups.flatMap(g => g.classes));
+    const groupEntries = _classGroups.map(g => {
+      const votes = {};
+      _classVoteCandidates.forEach(c => { votes[c.id] = 0; });
+      g.classes.forEach(cls => {
+        const found = _classVoteData.find(d => d.className === cls);
+        if (found) {
+          _classVoteCandidates.forEach(c => {
+            votes[c.id] = (votes[c.id] || 0) + (found.votes[c.id] || 0);
+          });
+        }
+      });
+      return { label: g.name, votes, isGroup: true, groupColor: g.color };
+    });
+    const individualEntries = _classVoteData
+      .filter(d => !groupedClassNames.has(d.className))
+      .map(d => ({ label: d.className, votes: d.votes, isGroup: false }));
+    const allEntries = [...individualEntries, ...groupEntries];
+
+    // Plugin group shading identik dengan chart asli
+    const groupShadingPlugin = {
+      id: 'groupShadingLb',
+      beforeDraw(chart) {
+        const { ctx: c2, chartArea, scales } = chart;
+        if (!chartArea || !scales.x) return;
+        const xScale = scales.x;
+        c2.save();
+        allEntries.forEach((entry, idx) => {
+          if (!entry.isGroup) return;
+          const xStart = xScale.getPixelForValue(idx - 0.5);
+          const xEnd   = xScale.getPixelForValue(idx + 0.5);
+          c2.fillStyle = (entry.groupColor || '#8b5cf6') + '14';
+          c2.fillRect(xStart, chartArea.top, xEnd - xStart, chartArea.bottom - chartArea.top);
+        });
+        c2.restore();
+      },
+    };
+
+    // BUG #2 FIX: Bangun lbOptions dari scratch — TIDAK memakai
+    // JSON.parse(JSON.stringify(srcOptions)) karena itu membuang semua fungsi
+    // (color callback, ticks.callback, tooltip callbacks) sehingga sumbu Y
+    // menampilkan desimal dan warna label grup hilang.
+    const lbOptions = {
+      responsive:          false,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const idx   = items[0].dataIndex;
+              const entry = allEntries[idx];
+              if (entry && entry.isGroup) {
+                return `Grup: ${items[0].label} (${
+                  _classGroups.find(g => g.name === items[0].label)?.classes.join(', ') || ''
+                })`;
+              }
+              return 'Kelas: ' + items[0].label;
+            },
+            label: (item) => ` ${item.dataset.label}: ${item.parsed.y} suara`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid:  { display: false },
+          ticks: {
+            font:        { size: 12 },   // lebih besar dari chart asli (11)
+            color: (ctx2) => {
+              const entry = allEntries[ctx2.index];
+              return (entry && entry.isGroup) ? (entry.groupColor || '#8b5cf6') : '#6b7280';
+            },
+            maxRotation: 45,
+            minRotation: 0,
+            autoSkip:    false,
+          },
+        },
+        y: {
+          beginAtZero: true,
+          grid:        { color: '#f3f4f6' },
+          ticks: {
+            font:      { size: 12 },     // lebih besar dari chart asli (11)
+            color:     '#6b7280',
+            precision: 0,
+            // BUG #2 FIX: callback ini hilang jika pakai JSON clone — sekarang
+            // di-set eksplisit agar sumbu Y hanya menampilkan bilangan bulat.
+            callback: (v) => Number.isInteger(v) ? v : null,
+          },
+          title: {
+            display: true,
+            text:    'Jumlah Suara',
+            font:    { size: 12 },
+            color:   '#9ca3af',
+          },
+        },
+      },
+    };
+
+    _lbChart = new Chart(canvas, {
+      type:    srcType,
+      data:    { labels, datasets },
+      plugins: [groupShadingPlugin],
+      options: lbOptions,
+    });
+  }
+
+  // ── Hancurkan chart lightbox ──────────────────────────────
+  function _destroyLbChart() {
+    if (_lbChart) {
+      _lbChart.destroy();
+      _lbChart = null;
+    }
+  }
+
+  // ── Salin legend dari grafik asli ke lightbox ─────────────
+  function _syncLegend() {
+    const src  = document.getElementById('chart-legend');
+    const dest = document.getElementById('lbc-legend');
+    if (!src || !dest) return;
+    dest.innerHTML = src.innerHTML;
+  }
+
+  // ── Download canvas lightbox sebagai PNG ──────────────────
+  function _download() {
+    if (!_lbChart) {
+      Toast.warning('Grafik belum siap. Coba lagi sebentar.');
+      return;
+    }
+
+    // BUG #7 FIX: requestAnimationFrame saja tidak cukup — Chart.js menjalankan
+    // animasi multi-frame. Gunakan animation.onComplete agar toDataURL dipanggil
+    // tepat setelah frame terakhir animasi selesai di-paint ke canvas.
+    // Jika animasi sudah selesai (chart sudah rendered penuh), update() dengan
+    // duration:0 memaksa render sinkron lalu onComplete langsung terpicu.
+    const canvas = document.getElementById('lbc-canvas');
+    if (!canvas) return;
+
+    const doExport = () => {
+      try {
+        const selEl = document.getElementById('election-select');
+        const title = selEl
+          ? (selEl.options[selEl.selectedIndex]?.text || 'grafik')
+          : 'grafik';
+        const fname = `suara-per-kelas-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`;
+        const link  = document.createElement('a');
+        link.download = fname;
+        link.href     = canvas.toDataURL('image/png');
+        link.click();
+      } catch (err) {
+        Toast.error('Gagal mengunduh grafik. Coba refresh halaman terlebih dahulu.');
+      }
+    };
+
+    // Simpan onComplete lama lalu pulihkan setelah export
+    const prevOnComplete = _lbChart.options?.animation?.onComplete;
+    if (!_lbChart.options.animation) _lbChart.options.animation = {};
+    _lbChart.options.animation.onComplete = () => {
+      doExport();
+      // Pulihkan handler lama (biasanya undefined)
+      _lbChart.options.animation.onComplete = prevOnComplete;
+    };
+    // update({duration:0}) → render sinkron satu frame → onComplete terpicu segera
+    _lbChart.update({ duration: 0 });
+  }
+
+  // ── Keyboard handler ─────────────────────────────────────
+  function _keyHandler(e) {
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  }
+
+  // ── Pasang listener klik pada canvas asli (zoom-in) ───────
+  function _attachCanvas(canvasEl) {
+    if (!canvasEl) return;
+    if (_bound && _bound.has(canvasEl)) return;
+    canvasEl.addEventListener('click', () => open());
+    if (_bound) _bound.add(canvasEl);
+  }
+
+  // BUG #1 FIX: Hapus DOMContentLoaded — listener itu tidak pernah firing
+  // karena script inline dieksekusi SETELAH DOM selesai di-parse, sehingga
+  // event sudah lewat sebelum addEventListener dipanggil.
+  // Solusi: panggil _initOverlayListeners() langsung saat IIFE dieksekusi —
+  // pada titik ini DOM sudah ada (script di bawah elemen overlay) sehingga
+  // getElementById pasti menemukan elemen yang dibutuhkan.
+  function _initOverlayListeners() {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (overlay) {
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) close();
+      });
+    }
+    const btnClose    = document.getElementById('lbc-btn-close');
+    const btnDownload = document.getElementById('lbc-btn-download');
+    if (btnClose)    btnClose.addEventListener('click', close);
+    if (btnDownload) btnDownload.addEventListener('click', _download);
+  }
+
+  // Panggil langsung — DOM sudah siap karena script ada di bawah body
+  _initOverlayListeners();
+
+  return { open, close, _attachCanvas };
+})();
 
 // ── Export ────────────────────────────────────────────────────
 
