@@ -538,6 +538,9 @@ function renderCandidates() {
   grid.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', () => confirmDeleteCandidate(btn.dataset.id));
   });
+
+  // Aktifkan lightbox pada foto kandidat di grid
+  LightboxPhoto.init(grid);
 }
 
 function candidateCardHtml(c) {
@@ -571,6 +574,8 @@ function candidateCardHtml(c) {
           ${photoSrc
             ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="${Utils.escapeHtml(c.name)}" loading="lazy"
                  referrerpolicy="no-referrer"
+                 data-lightbox="${Utils.escapeHtml(photoSrc)}"
+                 data-lightbox-caption="${Utils.escapeHtml(c.name)}"
                  onerror="this.parentElement.innerHTML='<div class=\\'candidate-photo-placeholder\\'><i class=\\'fa-solid fa-user text-3xl text-gray-300\\'></i></div><div class=\\'role-label\\'>Ketua</div>'">`
             : ''}
           <div class="candidate-photo-placeholder" ${photoSrc ? 'style="display:none"' : ''}>
@@ -584,6 +589,8 @@ function candidateCardHtml(c) {
           ${pairPhotoSrc
             ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}" alt="${Utils.escapeHtml(c.pairName || 'Wakil')}" loading="lazy"
                  referrerpolicy="no-referrer"
+                 data-lightbox="${Utils.escapeHtml(pairPhotoSrc)}"
+                 data-lightbox-caption="${Utils.escapeHtml(c.pairName || 'Calon Wakil')}"
                  onerror="this.parentElement.innerHTML='<div class=\\'candidate-photo-placeholder\\'><i class=\\'fa-solid fa-user text-3xl text-gray-300\\'></i></div><div class=\\'role-label\\'>Wakil</div>'">`
             : ''}
           <div class="candidate-photo-placeholder" ${pairPhotoSrc ? 'style="display:none"' : ''}>
