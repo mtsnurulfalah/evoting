@@ -180,6 +180,34 @@
       min-width: 40px;
     }
 
+    /* ── Accordion: Partisipasi per Kelas ── */
+    .accordion-header {
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .accordion-header:hover {
+      background: #f9fafb;
+    }
+    .accordion-chevron {
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+    }
+    .accordion-chevron.open {
+      transform: rotate(180deg);
+    }
+    .accordion-body {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .accordion-body.open {
+      grid-template-rows: 1fr;
+    }
+    .accordion-body-inner {
+      overflow: hidden;
+    }
+
     /* ── Skeleton ── */
     .sk { background: #e5e7eb; border-radius: 6px; animation: skpulse 1.5s ease-in-out infinite; }
     @keyframes skpulse { 0%,100%{opacity:1} 50%{opacity:.45} }
@@ -881,27 +909,47 @@
           </div>
         </div>
 
-        <!-- Class breakdown card -->
+        <!-- Class breakdown card (accordion) -->
         <div class="result-card hidden" id="class-breakdown-box">
-          <div class="result-card-header">
-            <h3 class="text-sm font-bold text-gray-800">Partisipasi per Kelas</h3>
-            <span class="text-xs text-gray-400 flex-shrink-0" id="class-count-label"></span>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="class-table w-full border-collapse">
-              <thead>
-                <tr class="border-b border-gray-100">
-                  <th class="text-left">Kelas</th>
-                  <th class="text-right">Total</th>
-                  <th class="text-right">Memilih</th>
-                  <th class="text-right">Belum</th>
-                  <th class="text-right hidden" id="th-points-per-vote">Poin/Suara</th>
-                  <th class="text-right hidden" id="th-total-points-col">Total Poin</th>
-                  <th class="text-left" style="min-width:120px">Partisipasi</th>
-                </tr>
-              </thead>
-              <tbody id="class-tbody" class="divide-y divide-gray-50"></tbody>
-            </table>
+          <!-- Accordion header — WAI-ARIA pattern: heading > button (Bug #4 fix) -->
+          <!-- rounded-tl-xl rounded-tr-xl menggantikan arbitrary rounded-t-[14px] (Bug #6 fix) -->
+          <h3 class="text-sm font-bold text-gray-800" id="class-breakdown-heading">
+            <button class="result-card-header accordion-header w-full rounded-tl-xl rounded-tr-xl"
+                    id="class-breakdown-header"
+                    aria-expanded="false"
+                    aria-controls="class-breakdown-body">
+              <div class="flex items-center gap-2 min-w-0">
+                <i class="fa-solid fa-users text-primary-500 text-xs w-4 text-center flex-shrink-0" aria-hidden="true"></i>
+                <span>Partisipasi per Kelas</span>
+                <span class="text-xs text-gray-400 font-normal flex-shrink-0" id="class-count-label"></span>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <!-- Ringkasan partisipasi rata-rata -->
+                <span class="text-xs font-semibold text-primary-600 tabular-nums hidden" id="class-avg-label"></span>
+                <i class="fa-solid fa-chevron-down text-gray-400 text-xs accordion-chevron" id="class-accordion-chevron" aria-hidden="true"></i>
+              </div>
+            </button>
+          </h3>
+          <!-- Accordion body — aria-labelledby menunjuk ke heading (Bug #3 fix) -->
+          <div class="accordion-body" id="class-breakdown-body" role="region" aria-labelledby="class-breakdown-heading">
+            <div class="accordion-body-inner">
+              <div class="overflow-x-auto">
+                <table class="class-table w-full border-collapse">
+                  <thead>
+                    <tr class="border-b border-gray-100">
+                      <th class="text-left">Kelas</th>
+                      <th class="text-right">Total</th>
+                      <th class="text-right">Memilih</th>
+                      <th class="text-right">Belum</th>
+                      <th class="text-right hidden" id="th-points-per-vote">Poin/Suara</th>
+                      <th class="text-right hidden" id="th-total-points-col">Total Poin</th>
+                      <th class="text-left" style="min-width:120px">Partisipasi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="class-tbody" class="divide-y divide-gray-50"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1749,8 +1797,18 @@ function renderClassBreakdown(classSummary, usePoints) {
 
   if (!classSummary || !classSummary.length) {
     box.classList.add('hidden');
+    // BUG #5 FIX: sembunyikan avg-label pada early return agar tidak
+    // menampilkan nilai sisa dari pemilihan sebelumnya.
+    const avgLabelEl = document.getElementById('class-avg-label');
+    if (avgLabelEl) avgLabelEl.classList.add('hidden');
     return;
   }
+
+  // BUG #2 FIX: Reset state accordion ke tertutup setiap kali data baru
+  // dirender (termasuk refresh auto / stale-while-revalidate).
+  // Ini memastikan konten tabel yang baru diisi selalu dimulai dalam
+  // kondisi tertutup — konsisten dan tidak mewarisi state sesi sebelumnya.
+  _resetClassAccordion();
 
   box.classList.remove('hidden');
 
@@ -1759,8 +1817,19 @@ function renderClassBreakdown(classSummary, usePoints) {
   if (thPpv) thPpv.classList.toggle('hidden', !usePoints);
   if (thTp)  thTp.classList.toggle('hidden',  !usePoints);
 
+  // Hitung rata-rata partisipasi untuk label ringkasan di header accordion
+  const avgPct = classSummary.length
+    ? Math.round(classSummary.reduce((s, cs) => s + (cs.participation || 0), 0) / classSummary.length)
+    : 0;
+
   const countLabel = document.getElementById('class-count-label');
   if (countLabel) countLabel.textContent = `${classSummary.length} kelas`;
+
+  const avgLabel = document.getElementById('class-avg-label');
+  if (avgLabel) {
+    avgLabel.textContent = `Rata-rata ${avgPct}%`;
+    avgLabel.classList.remove('hidden');
+  }
 
   tbody.innerHTML = classSummary.map(cs => {
     const pct      = cs.participation || 0;
@@ -1790,6 +1859,59 @@ function renderClassBreakdown(classSummary, usePoints) {
         </td>
       </tr>`;
   }).join('');
+
+  // Pasang event listener accordion — hanya sekali selama hidup halaman
+  _initClassAccordion();
+}
+
+/**
+ * Reset accordion ke kondisi tertutup tanpa melepas event listener.
+ * Dipanggil setiap kali data baru dirender (Bug #2 fix).
+ */
+function _resetClassAccordion() {
+  const header  = document.getElementById('class-breakdown-header');
+  const body    = document.getElementById('class-breakdown-body');
+  const chevron = document.getElementById('class-accordion-chevron');
+
+  if (body)    body.classList.remove('open');
+  if (chevron) chevron.classList.remove('open');
+  if (header)  header.setAttribute('aria-expanded', 'false');
+}
+
+/**
+ * Pasang event listener toggle accordion — hanya sekali (guard flag).
+ * BUG #7 FIX: Setelah listener terpasang, fungsi ini tetap dipanggil
+ * pada render berikutnya untuk menyinkronkan state DOM (chevron + aria-expanded)
+ * dengan kondisi body saat itu — menghindari desync jika state berubah
+ * di luar alur normal toggle.
+ */
+function _initClassAccordion() {
+  const header  = document.getElementById('class-breakdown-header');
+  const body    = document.getElementById('class-breakdown-body');
+  const chevron = document.getElementById('class-accordion-chevron');
+  if (!header || !body) return;
+
+  if (header.dataset.accordionReady === 'true') {
+    // BUG #7 FIX: Listener sudah ada — sinkronisasi paksa state visual
+    // agar chevron dan aria-expanded selalu mencerminkan kondisi body aktual.
+    const isOpen = body.classList.contains('open');
+    if (chevron) chevron.classList.toggle('open', isOpen);
+    header.setAttribute('aria-expanded', String(isOpen));
+    return;
+  }
+
+  header.dataset.accordionReady = 'true';
+
+  const toggle = () => {
+    const isOpen = body.classList.toggle('open');
+    if (chevron) chevron.classList.toggle('open', isOpen);
+    header.setAttribute('aria-expanded', String(isOpen));
+  };
+
+  header.addEventListener('click', toggle);
+  header.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
 }
 
 // ── Chart: Suara per Kelas per Paslon ─────────────────────────
