@@ -883,6 +883,9 @@ function renderCandidatesForSection(elId) {
       showCandidateDetail(elId, btn.dataset.detailId);
     });
   });
+
+  // Aktifkan lightbox pada foto kandidat di grid voting
+  LightboxPhoto.init(grid);
 }
 
 // ── candidateCardHtml ─────────────────────────────────────────
@@ -895,7 +898,9 @@ function candidateCardHtml(c, elId) {
     ? `<img src="${Utils.escapeHtml(photoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.name)}"
              class="w-full h-36 sm:h-40 object-cover object-top rounded-lg mb-2"
-             loading="lazy" referrerpolicy="no-referrer">`
+             loading="lazy" referrerpolicy="no-referrer"
+             data-lightbox="${Utils.escapeHtml(photoSrc)}"
+             data-lightbox-caption="${Utils.escapeHtml(c.name)}">`
     : `<div class="w-full h-36 sm:h-40 bg-gray-100 rounded-lg mb-2
                    flex items-center justify-center" aria-hidden="true">
          <i class="fa-solid fa-user text-4xl text-gray-300"></i>
@@ -906,7 +911,9 @@ function candidateCardHtml(c, elId) {
     ? `<img src="${Utils.escapeHtml(pairPhotoSrc)}"
              alt="Foto ${Utils.escapeHtml(c.pairName || 'Calon Wakil')}"
              class="w-full h-36 sm:h-40 object-cover object-top rounded-lg mb-2"
-             loading="lazy" referrerpolicy="no-referrer">`
+             loading="lazy" referrerpolicy="no-referrer"
+             data-lightbox="${Utils.escapeHtml(pairPhotoSrc)}"
+             data-lightbox-caption="${Utils.escapeHtml(c.pairName || 'Calon Wakil')}">`
     : `<div class="w-full h-36 sm:h-40 bg-gray-100 rounded-lg mb-2
                    flex items-center justify-center" aria-hidden="true">
          <i class="fa-solid fa-user text-4xl text-gray-300"></i>
@@ -1170,6 +1177,8 @@ function showCandidateDetail(elId, candidateId) {
                    alt="Foto ${Utils.escapeHtml(name)}"
                    class="detail-photo mb-2"
                    loading="lazy" referrerpolicy="no-referrer"
+                   data-lightbox="${Utils.escapeHtml(src)}"
+                   data-lightbox-caption="${Utils.escapeHtml(name)}"
                    data-img-fallback="1">`;
     }
     return `<div class="detail-photo-placeholder mb-2" aria-hidden="true">
@@ -1270,6 +1279,11 @@ function showCandidateDetail(elId, candidateId) {
   modal.querySelectorAll('img[data-img-fallback]').forEach(img => {
     img.addEventListener('error', () => { img.src = IMG_PLACEHOLDER; }, { once: true });
   });
+
+  // BUG FIX #9: Tambahkan null-guard sebelum memanggil LightboxPhoto.init(modal)
+  // agar tidak terjadi TypeError jika Modal.open() mengembalikan null.
+  // Aktifkan lightbox pada foto di modal detail
+  if (modal) LightboxPhoto.init(modal);
 
   modal.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', () => {
