@@ -1026,10 +1026,7 @@
           </button>
         </div>
         <div id="group-list-container">
-          <div class="py-6 text-center text-gray-400 text-xs" id="group-list-empty">
-            <i class="fa-solid fa-layer-group text-xl mb-2 block opacity-30" aria-hidden="true"></i>
-            Belum ada grup. Buat grup di atas untuk menggabungkan kelas.
-          </div>
+          <!-- diisi JS: empty state atau daftar grup -->
         </div>
       </div>
 
@@ -1216,17 +1213,21 @@ function setText(id, v) {
   if (btnSelAll) btnSelAll.addEventListener('click', () => {
     const grid = document.getElementById('class-checkbox-grid');
     if (!grid) return;
-    const allItems = grid.querySelectorAll('.class-checkbox-item');
+    // BUG FIX #3: Hanya operasikan item yang TIDAK berstatus data-used
+    // agar kelas yang sudah dipakai grup lain tidak masuk _selectedClasses.
+    const allItems = grid.querySelectorAll('.class-checkbox-item:not([data-used])');
     const allChecked = [...allItems].every(el => el.classList.contains('selected'));
     allItems.forEach(el => {
       const cb  = el.querySelector('input[type="checkbox"]');
       const cls = el.dataset.className;
       if (allChecked) {
         el.classList.remove('selected');
+        el.setAttribute('aria-checked', 'false');
         if (cb) cb.checked = false;
         _selectedClasses.delete(cls);
       } else {
         el.classList.add('selected');
+        el.setAttribute('aria-checked', 'true');
         if (cb) cb.checked = true;
         _selectedClasses.add(cls);
       }
@@ -1843,6 +1844,15 @@ function openGroupModal() {
   _classGroupsDraft = _classGroups.map(g => ({ ...g, classes: [...g.classes] }));
   _selectedClasses  = new Set();
 
+  // BUG FIX #4: Kosongkan input nama agar teks dari sesi buka-tutup sebelumnya
+  // tidak tertinggal ketika modal dibuka ulang.
+  const inp = document.getElementById('input-group-name');
+  if (inp) inp.value = '';
+
+  // BUG FIX #4b: Sembunyikan pesan error yang mungkin tertinggal dari sesi sebelumnya.
+  const errEl = document.getElementById('group-form-error');
+  if (errEl) errEl.classList.add('hidden');
+
   _renderClassCheckboxGrid();
   _renderDraftGroupList();
   _validateGroupForm();
@@ -1852,8 +1862,8 @@ function openGroupModal() {
     overlay.classList.add('open');
     // Fokus ke input nama setelah animasi
     setTimeout(() => {
-      const inp = document.getElementById('input-group-name');
-      if (inp) inp.focus();
+      const inputEl = document.getElementById('input-group-name');
+      if (inputEl) inputEl.focus();
     }, 180);
   }
 }
@@ -1872,14 +1882,22 @@ function closeGroupModal(save) {
 
 /** Terapkan (tombol "Terapkan"). */
 function applyGroups() {
+  // BUG FIX #6: Hapus kode mati — statusEl tidak bisa di-set setelah closeGroupModal
+  // karena modal sudah tertutup. closeGroupModal(true) sudah menangani semua commit.
   closeGroupModal(true);
-  const statusEl = document.getElementById('group-modal-status');
-  // status sudah tersembunyi, tapi set dulu sebelum close
 }
 
 /** Reset semua grup aktif + draft. */
 function resetGroups() {
   _classGroupsDraft = [];
+  _selectedClasses  = new Set();   // BUG FIX #5a: reset pilihan kelas juga
+
+  // BUG FIX #5b: kosongkan input nama dan sembunyikan error
+  const nameEl = document.getElementById('input-group-name');
+  if (nameEl) nameEl.value = '';
+  const errEl = document.getElementById('group-form-error');
+  if (errEl) errEl.classList.add('hidden');
+
   _renderDraftGroupList();
   _renderClassCheckboxGrid();
   _validateGroupForm();
@@ -1892,6 +1910,9 @@ function resetGroups() {
 function clearAllDraftGroups() {
   _classGroupsDraft = [];
   _renderDraftGroupList();
+  // BUG FIX #2: Wajib render ulang grid agar kelas yang sebelumnya
+  // terkunci (data-used) ter-unlock setelah semua grup dihapus.
+  _renderClassCheckboxGrid();
   _validateGroupForm();
 }
 
@@ -1979,9 +2000,11 @@ function _validateGroupForm() {
     btnAdd.classList.toggle('cursor-not-allowed', !valid);
   }
 
-  // Sembunyikan error saat user mengetik
+  // BUG FIX #9: Sembunyikan error hanya saat KEDUA kondisi terpenuhi (AND, bukan OR).
+  // Sebelumnya menggunakan OR sehingga error "pilih minimal 2 kelas" langsung hilang
+  // saat user mulai mengetik nama, meskipun kelas belum dipilih.
   if (errEl && !errEl.classList.contains('hidden')) {
-    if (name.length > 0 || count >= 2) errEl.classList.add('hidden');
+    if (name.length > 0 && count >= 2) errEl.classList.add('hidden');
   }
 }
 
@@ -2008,18 +2031,23 @@ function _renderClassCheckboxGrid() {
     const usedLabel    = isUsed
       ? `<span class="text-[9px] text-orange-400 font-semibold ml-auto">sudah</span>` : '';
 
-    return `<label class="class-checkbox-item${isChecked ? ' selected' : ''}${isUsed ? ' opacity-50 cursor-not-allowed' : ''}"
-                   data-class-name="${Utils.escapeHtml(cls)}" ${disabledAttr}>
+    // BUG FIX #1: Gunakan <div> bukan <label> agar tidak ada double-toggle.
+    // Click pada <label> memicu event 2x (label + input bubbling), menyebabkan
+    // toggle tidak konsisten. Dengan <div>, satu event listener di <div> cukup.
+    return `<div class="class-checkbox-item${isChecked ? ' selected' : ''}${isUsed ? ' opacity-50 cursor-not-allowed' : ''}"
+                 data-class-name="${Utils.escapeHtml(cls)}" ${disabledAttr}
+                 role="checkbox" aria-checked="${isChecked}" tabindex="${isUsed ? '-1' : '0'}"
+                 aria-label="${Utils.escapeHtml(cls)}" aria-disabled="${isUsed}">
       <input type="checkbox" ${isChecked ? 'checked' : ''} ${isUsed ? 'disabled' : ''}
-             aria-label="${Utils.escapeHtml(cls)}" />
+             tabindex="-1" aria-hidden="true" />
       <span class="truncate flex-1">${Utils.escapeHtml(cls)}</span>
       ${usedLabel}
-    </label>`;
+    </div>`;
   }).join('');
 
-  // Attach click handler ke setiap item
+  // Attach click handler ke setiap item (hanya yang tidak ter-used)
   grid.querySelectorAll('.class-checkbox-item:not([data-used])').forEach(el => {
-    el.addEventListener('click', () => {
+    const toggleItem = () => {
       const cls = el.dataset.className;
       const cb  = el.querySelector('input[type="checkbox"]');
       if (!cls) return;
@@ -2027,13 +2055,21 @@ function _renderClassCheckboxGrid() {
       if (_selectedClasses.has(cls)) {
         _selectedClasses.delete(cls);
         el.classList.remove('selected');
+        el.setAttribute('aria-checked', 'false');
         if (cb) cb.checked = false;
       } else {
         _selectedClasses.add(cls);
         el.classList.add('selected');
+        el.setAttribute('aria-checked', 'true');
         if (cb) cb.checked = true;
       }
       _validateGroupForm();
+    };
+
+    el.addEventListener('click', toggleItem);
+    // BUG FIX #1b: Support keyboard (Space/Enter) untuk aksesibilitas role=checkbox
+    el.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleItem(); }
     });
   });
 }
@@ -2041,7 +2077,6 @@ function _renderClassCheckboxGrid() {
 /** Render daftar grup draft di modal. */
 function _renderDraftGroupList() {
   const container = document.getElementById('group-list-container');
-  const emptyEl   = document.getElementById('group-list-empty');
   const btnClear  = document.getElementById('btn-clear-all-groups');
 
   if (!container) return;
@@ -2050,16 +2085,17 @@ function _renderDraftGroupList() {
   if (btnClear) btnClear.classList.toggle('hidden', !hasDraft);
 
   if (!hasDraft) {
-    container.innerHTML = '';
-    if (emptyEl) {
-      emptyEl.classList.remove('hidden');
-      container.appendChild(emptyEl);
-    }
+    // BUG FIX #8: Ganti pola append/detach yang fragile dengan innerHTML statis.
+    // Pola lama: emptyEl di-append ke container lalu container.innerHTML = ...
+    // membuangnya dari DOM, sehingga classList.add('hidden') dipanggil pada
+    // elemen orphan — tidak error tapi fragile. Kini gunakan innerHTML langsung.
+    container.innerHTML = `
+      <div class="py-6 text-center text-gray-400 text-xs" id="group-list-empty">
+        <i class="fa-solid fa-layer-group text-xl mb-2 block opacity-30" aria-hidden="true"></i>
+        Belum ada grup. Buat grup di atas untuk menggabungkan kelas.
+      </div>`;
     return;
   }
-
-  // Sembunyikan empty msg
-  if (emptyEl) emptyEl.classList.add('hidden');
 
   container.innerHTML = _classGroupsDraft.map((g, idx) => `
     <div class="group-item" data-group-id="${Utils.escapeHtml(g.id)}" data-group-idx="${idx}">
@@ -2200,7 +2236,6 @@ function _commitRename(itemEl, idx) {
   if (!input) return;
 
   const newName = input.value.trim();
-  const errEl   = document.getElementById('group-form-error');
 
   if (!newName) {
     input.focus();
@@ -2217,14 +2252,25 @@ function _commitRename(itemEl, idx) {
     input.focus();
     input.select();
     input.style.borderColor = '#ef4444';
-    if (errEl) {
-      errEl.textContent = `Nama "${newName}" sudah digunakan oleh grup lain.`;
-      errEl.classList.remove('hidden');
-      setTimeout(() => errEl.classList.add('hidden'), 3000);
-    }
     setTimeout(() => { input.style.borderColor = ''; }, 1400);
+
+    // BUG FIX #7: Tampilkan error duplikat di elemen inline dekat input rename,
+    // bukan di group-form-error yang ada di section form atas (jauh dari konteks).
+    // Gunakan inline error per-item untuk UX yang lebih jelas.
+    let inlineErr = edit.querySelector('.rename-inline-error');
+    if (!inlineErr) {
+      inlineErr = document.createElement('p');
+      inlineErr.className = 'rename-inline-error text-xs text-red-500 mt-1';
+      edit.insertAdjacentElement('afterend', inlineErr);
+    }
+    inlineErr.textContent = `Nama "${newName}" sudah digunakan.`;
+    setTimeout(() => { if (inlineErr.parentNode) inlineErr.remove(); }, 3000);
     return;
   }
+
+  // Bersihkan inline error jika ada
+  const existingErr = itemEl.querySelector('.rename-inline-error');
+  if (existingErr) existingErr.remove();
 
   // Simpan ke draft
   _classGroupsDraft[idx].name = newName;
@@ -2242,7 +2288,7 @@ function _commitRename(itemEl, idx) {
 
   _exitRenameMode(itemEl);
 
-  // Feedback status
+  // Feedback status di footer modal
   const statusEl = document.getElementById('group-modal-status');
   if (statusEl) {
     statusEl.textContent = `Nama diubah menjadi "${newName}".`;
