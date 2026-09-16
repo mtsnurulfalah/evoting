@@ -1695,7 +1695,12 @@ function renderCandidateRows(candidates, winner, totalVotes, totalPoints, usePoi
       </div>`;
   }).join('');
 
-  // Animasi bar setelah render
+  // Animasi bar setelah render, lightbox langsung diinisialisasi
+  // BUG FIX #7: LightboxPhoto.init dipanggil SEGERA setelah innerHTML selesai,
+  // bukan di dalam requestAnimationFrame — agar foto langsung bisa diklik
+  // tanpa menunggu frame berikutnya.
+  LightboxPhoto.init(container);
+
   requestAnimationFrame(() => {
     container.querySelectorAll('.bar-fill[data-target-width]').forEach(el => {
       el.style.width = el.dataset.targetWidth;
@@ -1710,12 +1715,16 @@ function buildPhotoStack(photoSrc, pairSrc, c, isWinner) {
   const mainPhoto = photoSrc
     ? `<img src="${Utils.escapeHtml(photoSrc)}" alt="${Utils.escapeHtml(c.name || '')}"
            loading="lazy" referrerpolicy="no-referrer"
+           data-lightbox="${Utils.escapeHtml(photoSrc)}"
+           data-lightbox-caption="${Utils.escapeHtml(c.name || '')}"
            onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xs\\'></i>'">`
     : `<i class="fa-solid fa-user text-gray-300 text-xs" aria-hidden="true"></i>`;
 
   const pairPhoto = pairSrc
     ? `<img src="${Utils.escapeHtml(pairSrc)}" alt="${Utils.escapeHtml(c.pairName || '')}"
            loading="lazy" referrerpolicy="no-referrer"
+           data-lightbox="${Utils.escapeHtml(pairSrc)}"
+           data-lightbox-caption="${Utils.escapeHtml(c.pairName || '')}"
            onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-user text-gray-300 text-xs\\'></i>'">`
     : `<i class="fa-solid fa-user text-gray-300 text-xs" aria-hidden="true"></i>`;
 
